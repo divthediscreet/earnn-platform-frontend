@@ -1,0 +1,21 @@
+<svg width="340" height="214" viewBox="0 0 340 214" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1A4FAD"/>
+      <stop offset="55%" stop-color="#0E3785"/>
+      <stop offset="100%" stop-color="#0A2860"/>
+    </linearGradient>
+    <linearGradient id="chip" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#E9D08A"/>
+      <stop offset="100%" stop-color="#C9A84C"/>
+    </linearGradient>
+  </defs>
+  <rect width="340" height="214" rx="18" fill="url(#g)"/>
+  <circle cx="300" cy="40" r="90" fill="#ffffff" opacity="0.04"/>
+  <circle cx="40" cy="190" r="70" fill="#ffffff" opacity="0.04"/>
+  <rect x="28" y="60" width="46" height="34" rx="6" fill="url(#chip)"/>
+  <text x="28" y="130" font-family="Inter, Arial, sans-serif" font-size="18" letter-spacing="2" fill="#ffffff" opacity="0.92">•••• •••• •••• 4821</text>
+  <text x="28" y="172" font-family="Inter, Arial, sans-serif" font-size="12" letter-spacing="1.5" fill="#ffffff" opacity="0.55">CARDHOLDER NAME</text>
+  <text x="28" y="190" font-family="Inter, Arial, sans-serif" font-weight="700" font-size="14" letter-spacing="1" fill="#ffffff" opacity="0.92">A. RESIDENT</text>
+  <text x="290" y="190" text-anchor="end" font-family="Inter, Arial, sans-serif" font-weight="800" font-style="italic" font-size="20" fill="#ffffff" opacity="0.85">earnn</text>
+</svg>
