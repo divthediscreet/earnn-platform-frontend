@@ -451,8 +451,8 @@ function CardTile({ card }: { card: any }) {
   const rates   = card.category_effective_rates || {}
   const monthly = card.category_monthly_rewards  || {}
 
-  function getRateForPill(key: string) { return key === 'all_spend' ? (rates['miscellaneous'] || 0) : (rates[key] || 0) }
-  function getMonthlyForPill(key: string) { return key === 'all_spend' ? (monthly['miscellaneous'] || 0) : (monthly[key] || 0) }
+  function getRateForPill(key: string) { return rates[key] || 0 }
+  function getMonthlyForPill(key: string) { return monthly[key] || 0 }
   const maxRate = Math.max(...RATE_PILLS.map(p => getRateForPill(p.key))) || 1
 
   async function prefetchDetail() {
