@@ -2,8 +2,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import Image from 'next/image'
-import { getOptimalWallet, fetchCardDetail } from '@/lib/api'
+import { getOptimalWallet, fetchCardDetail, getCardImageUrl } from '@/lib/api'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const RATE_PILLS = [
@@ -80,8 +79,9 @@ function CardDetailPopup({
 
         {/* Card header */}
         <div style={{ display:'flex', alignItems:'center', gap:16, marginBottom:24 }}>
-          <Image src="/card-dummy.svg" alt={cardName} width={108} height={66}
-            style={{ borderRadius:8, boxShadow:'0 4px 16px rgba(14,55,133,0.2)' }} />
+          <img src={getCardImageUrl(cardId)} alt={cardName} width={108} height={66}
+            onError={(e) => { (e.target as HTMLImageElement).src = '/card-dummy.svg' }}
+            style={{ borderRadius:8, objectFit:'cover', boxShadow:'0 4px 16px rgba(14,55,133,0.2)' }} />
           <div>
             <div style={{ fontWeight:800, fontSize:18, color:'#0D1828' }}>{cardName}</div>
             <div style={{ display:'flex', gap:16, marginTop:8 }}>
@@ -219,8 +219,9 @@ function OtherCombosPopup({
                           borderRadius:10, padding:'8px 8px', cursor:'pointer', margin:'4px',
                         }}
                       >
-                        <Image src="/card-dummy.svg" alt={cardNames[id] || id} width={64} height={39}
-                          style={{ borderRadius:4, boxShadow:'0 2px 8px rgba(14,55,133,0.15)' }} />
+                        <img src={getCardImageUrl(id)} alt={cardNames[id] || id} width={64} height={39} loading="lazy"
+                          onError={(e) => { (e.target as HTMLImageElement).src = '/card-dummy.svg' }}
+                          style={{ borderRadius:4, objectFit:'cover', boxShadow:'0 2px 8px rgba(14,55,133,0.15)' }} />
                         <span style={{
                           fontSize:10, fontWeight:600, color:'#0D1828', textAlign:'center',
                           lineHeight:1.35, width:'100%',
@@ -357,8 +358,9 @@ function WalletCombo({
                     padding:'8px 12px', cursor:'pointer', margin:'4px',
                   }}
                 >
-                  <Image src="/card-dummy.svg" alt={cardNames[id] || id} width={88} height={54}
-                    style={{ borderRadius:6, boxShadow:'0 3px 12px rgba(14,55,133,0.15)' }} />
+                  <img src={getCardImageUrl(id)} alt={cardNames[id] || id} width={88} height={54} loading="lazy"
+                    onError={(e) => { (e.target as HTMLImageElement).src = '/card-dummy.svg' }}
+                    style={{ borderRadius:6, objectFit:'cover', boxShadow:'0 3px 12px rgba(14,55,133,0.15)' }} />
                   <span style={{ fontSize:11, fontWeight:600, color:'#0D1828', maxWidth:100, textAlign:'center', lineHeight:1.3 }}>
                     {cardNames[id] || id}
                   </span>
@@ -508,7 +510,8 @@ function CardTile({ card }: { card: any }) {
       <div style={{ display:'flex', alignItems:'center', gap:0, padding:'14px 20px 0' }}>
         {/* Card image */}
         <div style={{ flexShrink:0, padding:'0 12px 0 0', display:'flex', alignItems:'center' }}>
-          <Image src="/card-dummy.svg" alt={card.card_name} width={108} height={66}
+          <img src={getCardImageUrl(card.earnn_card_id)} alt={card.card_name} width={108} height={66} loading="lazy"
+            onError={(e) => { (e.target as HTMLImageElement).src = '/card-dummy.svg' }}
             style={{ borderRadius:8, objectFit:'cover', boxShadow:'0 4px 16px rgba(14,55,133,0.2)', display:'block' }} />
         </div>
 

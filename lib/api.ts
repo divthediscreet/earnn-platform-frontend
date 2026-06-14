@@ -69,6 +69,11 @@ export async function fetchCardDetail(cardId: string) {
   return res.json()
 }
 
+// Gated card image — served via backend endpoint, not a public static path
+export function getCardImageUrl(earnnCardId: string) {
+  return `${API_BASE}/api/cards/image/${earnnCardId}`
+}
+
 // ── Chatbot (Module 1) ────────────────────────────────────────────────────────
 export async function sendChatMessage(message: string) {
   const res = await fetch(`${API_BASE}/api/chat/message`, {

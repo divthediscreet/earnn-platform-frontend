@@ -1,8 +1,7 @@
 'use client'
 import { useMemo, useRef, useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
-import Image from 'next/image'
-import { fetchCards, fetchCardDetail } from '@/lib/api'
+import { fetchCards, fetchCardDetail, getCardImageUrl } from '@/lib/api'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TYPES
@@ -537,7 +536,8 @@ function CardTile({ card, detail, detailLoading, inCompare, compareFull, onToggl
 
         {/* Card image */}
         <div style={{ flexShrink: 0, padding: '16px 12px 16px 16px', display: 'flex', alignItems: 'center' }}>
-          <Image src="/card-dummy.svg" alt={card.card_name} width={108} height={66}
+          <img src={getCardImageUrl(card.earnn_card_id)} alt={card.card_name} width={108} height={66} loading="lazy"
+            onError={(e) => { (e.target as HTMLImageElement).src = '/card-dummy.svg' }}
             style={{ borderRadius: 8, objectFit: 'cover', boxShadow: '0 4px 16px rgba(14,55,133,0.2)', display: 'block' }} />
         </div>
 
@@ -714,7 +714,9 @@ function ComparisonTable({ cards, details, onRemove, hoverNav, setHoverNav }: {
                         width: 24, height: 24, fontSize: 13, cursor: 'pointer', flexShrink: 0
                       }}>✕</button>
                     </div>
-                    <Image src="/card-dummy.svg" alt={c.card_name} width={110} height={70} style={{ borderRadius: 8, objectFit: 'cover' }} />
+                    <img src={getCardImageUrl(c.earnn_card_id)} alt={c.card_name} width={110} height={70} loading="lazy"
+                      onError={(e) => { (e.target as HTMLImageElement).src = '/card-dummy.svg' }}
+                      style={{ borderRadius: 8, objectFit: 'cover' }} />
                   </div>
                 </th>
               ))}
