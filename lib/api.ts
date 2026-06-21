@@ -14,12 +14,21 @@ export async function uploadStatement(file: File, password?: string) {
   return res.json()
 }
 
+// ── Backend warm-up ping (Option C) ──────────────────────────────────────────
+export function pingBackend() {
+  fetch(`${API_BASE}/api/cards?limit=1`).catch(() => {})
+}
+
 // ── Rewards Scoring (Module 2) ────────────────────────────────────────────────
-export async function scoreCards(spend: Record<string, number>) {
+export async function scoreCards(
+  spend: Record<string, number>,
+  merchantPrefs?: Record<string, string[]>,
+) {
+  const body = merchantPrefs ? { ...spend, merchant_prefs: merchantPrefs } : spend
   const res = await fetch(`${API_BASE}/api/rewards/score`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(spend),
+    body: JSON.stringify(body),
   })
   if (!res.ok) throw new Error(`Scoring failed: ${res.statusText}`)
   return res.json()
@@ -75,11 +84,27 @@ export function getCardImageUrl(earnnCardId: string) {
 }
 
 // ── Chatbot (Module 1) ────────────────────────────────────────────────────────
-export async function sendChatMessage(message: string) {
+export interface ChatMessage { role: 'user' | 'assistant'; content: string }
+
+export interface SessionProfile {
+  salary_aed:            number | null
+  is_islamic:            boolean | null
+  spend:                 Record<string, number>
+  merchants:             string[]
+  preferred_reward_type: 'cashback' | 'miles' | 'points' | null
+  preferred_banks:       string[]
+  preferred_network:     string | null
+}
+
+export async function sendChatMessage(
+  message: string,
+  history: ChatMessage[] = [],
+  session_profile: Partial<SessionProfile> = {},
+) {
   const res = await fetch(`${API_BASE}/api/chat/message`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ message }),
+    body: JSON.stringify({ message, history, session_profile }),
   })
   if (!res.ok) throw new Error(`Chat failed: ${res.statusText}`)
   return res.json()

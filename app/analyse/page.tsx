@@ -1,8 +1,14 @@
 'use client'
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { uploadStatement, scoreCards, fetchCardDetail, searchCards } from '@/lib/api'
+import { uploadStatement, scoreCards, fetchCardDetail, fetchCards, searchCards, pingBackend, getCardImageUrl } from '@/lib/api'
 import { Suspense } from 'react'
+
+const MERCHANT_OPTIONS: Record<string, { key: string; label: string }[]> = {
+  dining:  [{ key: 'noon', label: 'noon Food' }, { key: 'talabat', label: 'talabat' }, { key: 'deliveroo', label: 'Deliveroo' }, { key: 'careem', label: 'Careem' }, { key: 'smiles', label: 'Smiles' }],
+  grocery: [{ key: 'noon', label: 'noon' }, { key: 'talabat', label: 'talabat' }, { key: 'amazon', label: 'Amazon' }, { key: 'carrefour', label: 'Carrefour' }, { key: 'lulu', label: 'LuLu' }],
+  travel:  [{ key: 'etihad', label: 'Etihad' }, { key: 'emirates', label: 'Emirates' }],
+}
 
 const CATEGORIES = [
   { key: 'dining',        label: 'Dining & Restaurants',     icon: '🍽️',  hint: 'Talabat, Zomato, restaurants, cafes' },
@@ -26,13 +32,29 @@ function AnalyseContent() {
   const defaultMode = searchParams.get('mode') === 'manual' ? 'manual' : 'upload'
 
   const [mode, setMode] = useState<'upload' | 'manual'>(defaultMode)
+  const manualSectionRef = useRef<HTMLDivElement>(null)
   const [file, setFile] = useState<File | null>(null)
   const [passwordMode, setPasswordMode] = useState<'none' | 'has_password' | null>(null)
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [dragging, setDragging] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [loadingType, setLoadingType] = useState<'upload' | 'score'>('score')
+  const [animCardIds, setAnimCardIds] = useState<string[]>([])
   const [error, setError] = useState('')
-  const [spend, setSpend] = useState<Record<string, string>>({})
+  const [spend, setSpend] = useState<Record<string, string>>(() => {
+    // Pre-fill from chatbot session if available
+    try {
+      const prefill = sessionStorage.getItem('prefill_spend')
+      if (prefill) {
+        sessionStorage.removeItem('prefill_spend')
+        const parsed = JSON.parse(prefill) as Record<string, number>
+        return Object.fromEntries(Object.entries(parsed).map(([k, v]) => [k, String(v)]))
+      }
+    } catch { /* ignore */ }
+    return {}
+  })
+  const [merchantPrefs, setMerchantPrefs] = useState<Record<string, string[]>>({})
   const [salary, setSalary] = useState('')
   const [preference, setPreference] = useState<'cashback' | 'miles'>('cashback')
   const fileRef = useRef<HTMLInputElement>(null)
@@ -46,9 +68,10 @@ function AnalyseContent() {
   const [currentCardId, setCurrentCardId] = useState<string | null>(null)
   const [currentCardInfo, setCurrentCardInfo] = useState<{ card_name: string; bank_name?: string } | null>(null)
   const [cardPickerOpen, setCardPickerOpen] = useState(false)
-  const [cardSearch, setCardSearch] = useState('')
-  const [cardSearchResults, setCardSearchResults] = useState<any[]>([])
-  const [cardSearchLoading, setCardSearchLoading] = useState(false)
+  const [pickerBanks, setPickerBanks] = useState<string[]>([])
+  const [pickerSelectedBank, setPickerSelectedBank] = useState('')
+  const [pickerBankCards, setPickerBankCards] = useState<any[]>([])
+  const [pickerBankCardsLoading, setPickerBankCardsLoading] = useState(false)
 
   // Upload button is enabled only when: file selected AND password choice made
   const uploadReady = !!file && (passwordMode === 'none' || (passwordMode === 'has_password' && password.trim().length > 0))
@@ -68,22 +91,42 @@ function AnalyseContent() {
     if (!file) return setError('Please select a PDF file first')
     if (passwordMode === null) return setError('Please confirm if your PDF has a password')
     if (passwordMode === 'has_password' && !password.trim()) return setError('Please enter your PDF password')
-    setLoading(true); setError('')
+    setLoadingType('upload'); setLoading(true); setError('')
     try {
       const result = await uploadStatement(file, passwordMode === 'has_password' ? password.trim() : undefined)
       if (result.success) {
         setReviewData(result)
-        setCurrentCardId(result.earnn_card_id || null)
-        setCurrentCardInfo(null)
         setReviewTab('category')
+        const cardId = result.earnn_card_id || null
+        setCurrentCardId(cardId)
+        if (cardId) {
+          try {
+            const detail = await fetchCardDetail(cardId)
+            setCurrentCardInfo({ card_name: detail.card?.card_name, bank_name: detail.card?.bank_name })
+          } catch { setCurrentCardInfo(null) }
+        } else {
+          setCurrentCardInfo(null)
+        }
         setShowReview(true)
       } else {
+        if (result.error_code === 'PDF_ENCRYPTED_NO_PASSWORD') {
+          setPasswordMode('has_password')
+        }
         setError(result.error_message || 'Could not parse this statement. Try manual entry.')
       }
     } catch (e: any) {
       setError('Upload failed. Please try again or use manual entry.')
     } finally { setLoading(false) }
   }
+
+  // Warm up Railway + pre-fetch card IDs for loading animation
+  useEffect(() => {
+    pingBackend()
+    fetch('/api/cards?limit=16&sort_by=card_ranking')
+      .then(r => r.json())
+      .then(d => setAnimCardIds((d.cards || []).map((c: any) => c.earnn_card_id)))
+      .catch(() => {})
+  }, [])
 
   // Fetch detected card's name once we know its earnn_card_id
   useEffect(() => {
@@ -95,75 +138,246 @@ function AnalyseContent() {
     return () => { cancelled = true }
   }, [currentCardId])
 
-  // Debounced card search for "Add card manually" picker
+  // Load bank list when picker opens
   useEffect(() => {
-    if (!cardPickerOpen || !cardSearch.trim()) { setCardSearchResults([]); return }
-    setCardSearchLoading(true)
-    const t = setTimeout(() => {
-      searchCards(cardSearch)
-        .then(d => setCardSearchResults(d.cards || []))
-        .finally(() => setCardSearchLoading(false))
-    }, 300)
-    return () => clearTimeout(t)
-  }, [cardSearch, cardPickerOpen])
+    if (!cardPickerOpen || pickerBanks.length > 0) return
+    fetchCards({ limit: 200 })
+      .then(d => {
+        const banks = Array.from(new Set<string>((d.cards || []).map((c: any) => c.bank_name).filter(Boolean))).sort()
+        setPickerBanks(banks as string[])
+      })
+      .catch(() => {})
+  }, [cardPickerOpen])
+
+  // Load cards for selected bank
+  useEffect(() => {
+    if (!pickerSelectedBank) { setPickerBankCards([]); return }
+    setPickerBankCardsLoading(true)
+    fetchCards({ bank: pickerSelectedBank, limit: 100 })
+      .then(d => setPickerBankCards(d.cards || []))
+      .catch(() => {})
+      .finally(() => setPickerBankCardsLoading(false))
+  }, [pickerSelectedBank])
+
+  const [proceedLoading, setProceedLoading] = useState(false)
 
   // From Statement Review → pre-fill manual form with parsed category spend
   const proceedToManual = () => {
-    if (reviewData?.spend_dict) {
-      const filled: Record<string, string> = {}
-      for (const [k, v] of Object.entries(reviewData.spend_dict)) {
-        const num = Number(v) || 0
-        filled[k] = num > 0 ? String(num) : ''
+    setProceedLoading(true)
+    setTimeout(() => {
+      if (reviewData?.spend_dict) {
+        const filled: Record<string, string> = {}
+        for (const [k, v] of Object.entries(reviewData.spend_dict)) {
+          const num = Number(v) || 0
+          filled[k] = num > 0 ? String(num) : ''
+        }
+        setSpend(filled)
       }
-      setSpend(filled)
-    }
-    setShowReview(false)
-    setMode('manual')
-    setError('')
+      setProceedLoading(false)
+      setShowReview(false)
+      setMode('manual')
+      setError('')
+    }, 3000)
   }
 
   // Manual path
   const handleManual = async () => {
     if (totalMonthly <= 0) return setError('Enter at least one spend category')
-    setLoading(true); setError('')
+    setLoadingType('score'); setLoading(true); setError('')
     try {
       const spendNumbers = Object.fromEntries(Object.entries(spend).map(([k, v]) => [k, parseFloat(v) || 0]))
-      const result = await scoreCards(spendNumbers)
+      const activeMerchantPrefs = Object.fromEntries(
+        Object.entries(merchantPrefs).filter(([, v]) => v.length > 0)
+      )
+      const result = await scoreCards(spendNumbers, Object.keys(activeMerchantPrefs).length > 0 ? activeMerchantPrefs : undefined)
       sessionStorage.setItem('earnn_result', JSON.stringify({
         type: 'manual',
-        data: { ...result, current_card_id: currentCardId, current_card_info: currentCardInfo },
+        data: { ...result, current_card_id: currentCardId, current_card_info: currentCardInfo, merchant_prefs: activeMerchantPrefs },
+        salary: parseFloat(salary) || 0,
       }))
+
+      // Fire-and-forget image preloads — primes browser cache, doesn't block navigation
+      const topIds: string[] = (result.scored_cards || [])
+        .slice(0, 20).map((c: any) => c.earnn_card_id).filter(Boolean)
+      topIds.forEach(id => { const img = new Image(); img.src = getCardImageUrl(id) })
+
       router.push('/results')
+      // Don't setLoading(false) — keep animation visible until navigation unmounts the page
     } catch (e: any) {
       setError('Scoring failed. Please try again.')
-    } finally { setLoading(false) }
+      setLoading(false)
+    }
   }
+
+  // Split 16 cards into 4 columns of 4, pad with dummy if fewer available
+  const colCards = [0, 1, 2, 3].map(col => {
+    const slice = animCardIds.slice(col * 4, col * 4 + 4)
+    while (slice.length < 4) slice.push('__dummy__')
+    // Triple each column for seamless infinite scroll
+    return [...slice, ...slice, ...slice]
+  })
+  // Cols 0 & 2 scroll down, cols 1 & 3 scroll up
+  const colDir = ['dn', 'up', 'dn', 'up']
+  const colSpeed = [11, 13, 9, 15] // slightly varied speeds
 
   return (
     <div>
+
+      {/* ── PDF SCAN OVERLAY (upload parsing) ───────────────────────────── */}
+      {loading && loadingType === 'upload' && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 2000,
+          background: '#07112B',
+          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+        }}>
+          {/* PDF page */}
+          <div style={{ position: 'relative', width: 160, height: 210, marginBottom: 40 }}>
+            {/* Page body */}
+            <div style={{
+              width: '100%', height: '100%',
+              background: '#F0F4FF',
+              borderRadius: 6,
+              boxShadow: '0 8px 40px rgba(0,0,0,0.5)',
+              overflow: 'hidden',
+              position: 'relative',
+            }}>
+              {/* Folded corner */}
+              <div style={{
+                position: 'absolute', top: 0, right: 0,
+                width: 0, height: 0,
+                borderStyle: 'solid',
+                borderWidth: '0 28px 28px 0',
+                borderColor: 'transparent #B8C8F0 transparent transparent',
+              }} />
+              <div style={{
+                position: 'absolute', top: 0, right: 0,
+                width: 28, height: 28,
+                background: '#8BA8D8',
+                clipPath: 'polygon(100% 0, 100% 100%, 0 0)',
+              }} />
+              {/* Fake text lines */}
+              {[20, 44, 56, 68, 80, 100, 112, 124, 144, 156, 168].map((top, i) => (
+                <div key={i} style={{
+                  position: 'absolute', left: 18, right: i % 3 === 2 ? 40 : 18, top,
+                  height: 6, borderRadius: 3,
+                  background: 'rgba(14,55,133,0.15)',
+                }} />
+              ))}
+              {/* Scan beam */}
+              <div style={{
+                position: 'absolute', left: 0, right: 0, height: 3,
+                background: 'linear-gradient(90deg, transparent 0%, #4A8EFF 20%, #A8D0FF 50%, #4A8EFF 80%, transparent 100%)',
+                boxShadow: '0 0 12px 4px rgba(74,142,255,0.6)',
+                animation: 'pdfScan 1.8s ease-in-out infinite',
+              }} />
+            </div>
+          </div>
+          <div style={{ fontSize: 20, fontWeight: 800, color: 'white', textAlign: 'center', letterSpacing: '-0.3px' }}>
+            Analysing your statement
+          </div>
+          <div style={{ marginTop: 10, fontSize: 13, color: 'rgba(255,255,255,0.45)' }}>
+            Reading transactions and categorising spend…
+          </div>
+          <style>{`
+            @keyframes pdfScan {
+              0%   { top: 0%; }
+              50%  { top: calc(100% - 3px); }
+              100% { top: 0%; }
+            }
+          `}</style>
+        </div>
+      )}
+
+      {/* ── CARD COLUMNS LOADING OVERLAY (scoring) ───────────────────────── */}
+      {loading && loadingType === 'score' && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 2000,
+          background: '#07112B',
+          display: 'flex', overflow: 'hidden',
+        }}>
+
+          {/* 4 scrolling card columns */}
+          {colCards.map((cards, col) => (
+            <div key={col} style={{ flex: 1, overflow: 'hidden', position: 'relative', opacity: 0.72 }}>
+              {/* Fade top & bottom */}
+              <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 120, zIndex: 2, background: 'linear-gradient(to bottom, #07112B, transparent)', pointerEvents: 'none' }} />
+              <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 120, zIndex: 2, background: 'linear-gradient(to top, #07112B, transparent)', pointerEvents: 'none' }} />
+              {/* Scrolling strip */}
+              <div style={{
+                display: 'flex', flexDirection: 'column', gap: 10, padding: '0 6px',
+                animation: `cardCol${colDir[col]} ${colSpeed[col]}s linear infinite`,
+              }}>
+                {cards.map((id, i) => (
+                  <img
+                    key={i}
+                    src={id === '__dummy__' ? '/card-dummy.svg' : getCardImageUrl(id)}
+                    onError={e => { (e.target as HTMLImageElement).src = '/card-dummy.svg' }}
+                    style={{
+                      width: '100%', height: 'auto', aspectRatio: '1.586',
+                      borderRadius: 8, objectFit: 'cover',
+                      boxShadow: '0 4px 16px rgba(0,0,0,0.5)',
+                      display: 'block', flexShrink: 0,
+                    }}
+                  />
+                ))}
+              </div>
+            </div>
+          ))}
+
+          {/* Centre message overlay */}
+          <div style={{
+            position: 'absolute', inset: 0, zIndex: 10,
+            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+            background: 'radial-gradient(ellipse 55% 38% at 50% 50%, rgba(7,17,43,0.92) 60%, transparent 100%)',
+            pointerEvents: 'none',
+          }}>
+            {/* Spinner */}
+            <div style={{
+              width: 40, height: 40, borderRadius: '50%',
+              border: '3px solid rgba(255,255,255,0.15)',
+              borderTopColor: '#4A8EFF',
+              animation: 'colSpin 0.9s linear infinite',
+              marginBottom: 22,
+            }} />
+            <div style={{ fontSize: 22, fontWeight: 800, color: 'white', textAlign: 'center', letterSpacing: '-0.3px', lineHeight: 1.35, maxWidth: 320 }}>
+              Matching best card for your spending pattern
+            </div>
+            <div style={{ marginTop: 10, fontSize: 13, color: 'rgba(255,255,255,0.45)', letterSpacing: '0.02em' }}>
+              Scoring across all UAE credit cards…
+            </div>
+          </div>
+
+          <style>{`
+            @keyframes cardColdn { from { transform: translateY(-33.33%); } to { transform: translateY(0%); } }
+            @keyframes cardColup { from { transform: translateY(0%); } to { transform: translateY(-33.33%); } }
+            @keyframes colSpin   { to { transform: rotate(360deg); } }
+          `}</style>
+        </div>
+      )}
+
       {/* HERO — same message as home page */}
       <section style={{
         background: 'linear-gradient(135deg, rgba(14,55,133,0.92) 0%, rgba(10,40,96,0.93) 60%, rgba(7,24,64,0.95) 100%), url(/cover-page.png)',
         backgroundSize: 'cover', backgroundPosition: 'center',
-        color: 'white', padding: '72px 24px 64px', textAlign: 'center', position: 'relative', overflow: 'hidden'
+        color: 'white', padding: '28px 24px 24px', textAlign: 'center', position: 'relative', overflow: 'hidden'
       }}>
         <div style={{ position: 'absolute', inset: 0, opacity: 0.04, backgroundImage: 'linear-gradient(white 1px, transparent 1px), linear-gradient(90deg, white 1px, transparent 1px)', backgroundSize: '48px 48px' }} />
         <div style={{ maxWidth: 800, margin: '0 auto', position: 'relative' }}>
-          <div style={{ display: 'inline-block', background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: 100, padding: '6px 18px', fontSize: 13, fontWeight: 600, letterSpacing: '0.05em', marginBottom: 28 }}>
+          <div style={{ display: 'inline-block', background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: 100, padding: '5px 16px', fontSize: 12, fontWeight: 600, letterSpacing: '0.05em', marginBottom: 14 }}>
             🇦🇪 BUILT EXCLUSIVELY FOR UAE RESIDENTS
           </div>
-          <h1 style={{ fontSize: 'clamp(36px, 6vw, 64px)', fontWeight: 800, lineHeight: 1.1, marginBottom: 24, color: 'white' }}>
+          <h1 style={{ fontSize: 'clamp(36px, 6vw, 64px)', fontWeight: 800, lineHeight: 1.1, marginBottom: 14, color: 'white' }}>
             Are you leaving<br /><span style={{ color: '#FFD700' }}>AED on the table</span><br />every month?
           </h1>
-          <p style={{ fontSize: 'clamp(17px, 2.5vw, 21px)', color: 'rgba(255,255,255,0.8)', lineHeight: 1.7, marginBottom: 0, maxWidth: 620, margin: '0 auto' }}>
-            Upload your UAE credit card statement. In 60 seconds, we show you exactly which card earns you the most rewards — based on <em>your actual spending</em>.
+          <p style={{ fontSize: 'clamp(15px, 2vw, 17px)', color: 'rgba(255,255,255,0.8)', lineHeight: 1.6, marginBottom: 0, maxWidth: 780, margin: '0 auto' }}>
+            Upload your UAE credit card statement, we show you exactly which card earns you the most rewards based on your actual spending.
           </p>
         </div>
       </section>
 
-    <div style={{ maxWidth: 860, margin: '0 auto', padding: '48px 24px' }}>
+    <div style={{ maxWidth: 860, margin: '0 auto', padding: '24px 24px' }}>
       {/* Header */}
-      <div style={{ textAlign: 'center', marginBottom: 48 }}>
+      <div style={{ textAlign: 'center', marginBottom: 20 }}>
         <h1 style={{ fontSize: 'clamp(28px, 4vw, 40px)', fontWeight: 800, color: '#0E3785', marginBottom: 12 }}>
           Analyse Your Spending
         </h1>
@@ -172,8 +386,18 @@ function AnalyseContent() {
         </p>
       </div>
 
+      {/* PROCEED LOADING SCREEN */}
+      {proceedLoading && (
+        <div style={{ minHeight: '40vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, padding: '40px 24px', textAlign: 'center' }}>
+          <div style={{ width: 40, height: 40, borderRadius: '50%', border: '3px solid #D6E0F5', borderTopColor: '#0E3785', animation: 'colSpin 0.9s linear infinite', marginBottom: 8 }} />
+          <div style={{ fontSize: 20, fontWeight: 700, color: '#0E3785' }}>Categorising your spend…</div>
+          <div style={{ fontSize: 14, color: '#5A6A85', maxWidth: 360 }}>Feel free to add more expenses which were not part of this statement</div>
+          <style>{`@keyframes colSpin { to { transform: rotate(360deg); } }`}</style>
+        </div>
+      )}
+
       {/* STATEMENT REVIEW SCREEN — shown after a successful upload */}
-      {showReview && reviewData && (
+      {showReview && reviewData && !proceedLoading && (
         <div style={{ background: 'white', borderRadius: 20, border: '1px solid #D6E0F5', padding: 40, boxShadow: '0 4px 24px rgba(14,55,133,0.08)' }}>
 
           {/* Card detection banner */}
@@ -181,7 +405,7 @@ function AnalyseContent() {
             display: 'flex', alignItems: 'center', gap: 16, marginBottom: 28,
             padding: '16px 20px', borderRadius: 12, background: '#EEF3FF', border: '1px solid #D6E0F5'
           }}>
-            <img src="/card-dummy.svg" alt="" style={{ width: 64, height: 40, borderRadius: 6, flexShrink: 0, objectFit: 'cover' }} />
+            <img src={currentCardId ? getCardImageUrl(currentCardId) : '/card-dummy.svg'} onError={e => { (e.target as HTMLImageElement).src = '/card-dummy.svg' }} alt="" style={{ width: 64, height: 40, borderRadius: 6, flexShrink: 0, objectFit: 'cover' }} />
             <div style={{ flex: 1, minWidth: 0 }}>
               {currentCardId && currentCardInfo ? (
                 <>
@@ -199,7 +423,7 @@ function AnalyseContent() {
               )}
             </div>
             <button
-              onClick={() => { setCardPickerOpen(v => !v); setCardSearch(''); setCardSearchResults([]) }}
+              onClick={() => { setCardPickerOpen(v => !v); setPickerSelectedBank('') }}
               style={{
                 flexShrink: 0, padding: '9px 16px', borderRadius: 8, border: '1.5px solid #0E3785',
                 background: 'white', color: '#0E3785', fontWeight: 700, fontSize: 13, cursor: 'pointer'
@@ -209,45 +433,41 @@ function AnalyseContent() {
             </button>
           </div>
 
-          {/* Card picker */}
+          {/* Card picker — two dependent dropdowns */}
           {cardPickerOpen && (
-            <div style={{ marginBottom: 28, padding: '16px 20px', background: '#F8FAFF', borderRadius: 12, border: '1.5px solid #D6E0F5' }}>
-              <input
-                type="text"
-                placeholder="Search by card name or bank..."
-                value={cardSearch}
-                onChange={e => setCardSearch(e.target.value)}
-                autoFocus
-                style={{ width: '100%', padding: '11px 16px', border: '1.5px solid #0E3785', borderRadius: 8, fontSize: 15, outline: 'none', color: '#0D1828', marginBottom: 12 }}
-              />
-              {cardSearchLoading && <div style={{ fontSize: 13, color: '#5A6A85' }}>Searching...</div>}
-              {!cardSearchLoading && cardSearch.trim() && cardSearchResults.length === 0 && (
-                <div style={{ fontSize: 13, color: '#5A6A85' }}>No cards found.</div>
-              )}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 240, overflowY: 'auto' }}>
-                {cardSearchResults.map(c => (
-                  <button
-                    key={c.earnn_card_id}
-                    onClick={() => {
-                      setCurrentCardId(c.earnn_card_id)
-                      setCurrentCardInfo({ card_name: c.card_name, bank_name: c.bank_name })
-                      setCardPickerOpen(false)
-                    }}
-                    style={{
-                      textAlign: 'left', padding: '10px 14px', borderRadius: 8, border: '1px solid #D6E0F5',
-                      background: 'white', cursor: 'pointer', fontSize: 14
-                    }}
-                  >
-                    <span style={{ fontWeight: 700, color: '#0D1828' }}>{c.card_name}</span>
-                    {c.bank_name && <span style={{ color: '#5A6A85' }}> — {c.bank_name}</span>}
-                  </button>
-                ))}
-              </div>
+            <div style={{ marginBottom: 28, padding: '16px 20px', background: '#F8FAFF', borderRadius: 12, border: '1.5px solid #D6E0F5', display: 'flex', gap: 12 }}>
+              {/* Bank dropdown */}
+              <select
+                value={pickerSelectedBank}
+                onChange={e => { setPickerSelectedBank(e.target.value) }}
+                style={{ flex: 1, padding: '10px 14px', border: '1.5px solid #0E3785', borderRadius: 8, fontSize: 14, color: pickerSelectedBank ? '#0D1828' : '#9DAEC8', outline: 'none', background: 'white', cursor: 'pointer' }}
+              >
+                <option value="">Select bank…</option>
+                {pickerBanks.map(b => <option key={b} value={b}>{b}</option>)}
+              </select>
+              {/* Card dropdown */}
+              <select
+                value=""
+                disabled={!pickerSelectedBank || pickerBankCardsLoading}
+                onChange={e => {
+                  const card = pickerBankCards.find(c => c.earnn_card_id === e.target.value)
+                  if (card) {
+                    setCurrentCardId(card.earnn_card_id)
+                    setCurrentCardInfo({ card_name: card.card_name, bank_name: card.bank_name })
+                    setCardPickerOpen(false)
+                    setPickerSelectedBank('')
+                  }
+                }}
+                style={{ flex: 1, padding: '10px 14px', border: '1.5px solid #D6E0F5', borderRadius: 8, fontSize: 14, color: '#9DAEC8', outline: 'none', background: 'white', cursor: pickerSelectedBank ? 'pointer' : 'not-allowed', opacity: pickerSelectedBank ? 1 : 0.6 }}
+              >
+                <option value="">{pickerBankCardsLoading ? 'Loading…' : pickerSelectedBank ? 'Select card…' : 'Select bank first'}</option>
+                {pickerBankCards.map(c => <option key={c.earnn_card_id} value={c.earnn_card_id}>{c.card_name}</option>)}
+              </select>
             </div>
           )}
 
           {/* Tabs */}
-          <div style={{ display: 'flex', background: '#EEF3FF', borderRadius: 12, padding: 4, marginBottom: 24, maxWidth: 420 }}>
+          <div style={{ display: 'flex', background: '#EEF3FF', borderRadius: 12, padding: 4, marginBottom: 24, width: '100%' }}>
             {([
               { key: 'category',  label: '📊 Category Split' },
               { key: 'merchants', label: '🏪 Top Merchants' },
@@ -324,11 +544,13 @@ function AnalyseContent() {
 
           {error && <div style={{ background: '#FFF3F0', border: '1px solid #FFD0C8', borderRadius: 8, padding: '12px 16px', color: '#C0392B', fontSize: 14, marginBottom: 20 }}>⚠️ {error}</div>}
 
-          <button onClick={proceedToManual} style={{
+          <button onClick={proceedToManual} disabled={proceedLoading} style={{
             width: '100%', padding: '18px', fontSize: 17, fontWeight: 700, border: 'none', borderRadius: 10,
-            background: '#0E3785', color: 'white', cursor: 'pointer', boxShadow: '0 6px 20px rgba(14,55,133,0.25)'
+            background: proceedLoading ? '#6B8EC7' : '#0E3785', color: 'white',
+            cursor: proceedLoading ? 'default' : 'pointer', boxShadow: '0 6px 20px rgba(14,55,133,0.25)',
+            transition: 'background 0.2s',
           }}>
-            Here&apos;s your spend — find my best card →
+            Here is your spend..... Find the best card for you
           </button>
         </div>
       )}
@@ -336,9 +558,9 @@ function AnalyseContent() {
       {/* Mode Toggle */}
       {!showReview && (
       <>
-      <div style={{ display: 'flex', background: '#EEF3FF', borderRadius: 12, padding: 4, marginBottom: 40, maxWidth: 480, margin: '0 auto 40px' }}>
+      <div style={{ display: 'flex', background: '#EEF3FF', borderRadius: 12, padding: 4, maxWidth: 480, margin: '0 auto 20px' }}>
         {(['upload', 'manual'] as const).map(m => (
-          <button key={m} onClick={() => { setMode(m); setError('') }} style={{
+          <button key={m} onClick={() => { setMode(m); setError(''); if (m === 'manual') setTimeout(() => manualSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50) }} style={{
             flex: 1, padding: '12px 0', borderRadius: 9, border: 'none', cursor: 'pointer', fontSize: 15, fontWeight: 600,
             background: mode === m ? '#0E3785' : 'transparent',
             color: mode === m ? 'white' : '#5A6A85',
@@ -351,196 +573,318 @@ function AnalyseContent() {
 
       {/* UPLOAD PATH */}
       {mode === 'upload' && (
-        <div style={{ background: 'white', borderRadius: 20, border: '1px solid #D6E0F5', padding: 40, boxShadow: '0 4px 24px rgba(14,55,133,0.08)' }}>
+        <div style={{ background: 'white', borderRadius: 16, border: '0.5px solid #D6E0F5', padding: '20px 24px', boxShadow: '0 2px 12px rgba(14,55,133,0.06)' }}>
 
-          {/* Compliance line — thin, ABOVE drop zone */}
-          <div style={{
-            display: 'flex', alignItems: 'center', gap: 8, marginBottom: 24,
-            padding: '10px 16px', borderRadius: 10, background: '#F8FAFF', border: '1px solid #EEF3FF'
-          }}>
-            <span style={{ fontSize: 14, flexShrink: 0 }}>🔒</span>
-            <span style={{ fontSize: 12.5, color: '#5A6A85', lineHeight: 1.5 }}>
-              Bank-grade encryption, built to CBUAE guidelines. We never store your statement, card number or personal information.
-            </span>
-          </div>
-
-          {/* Drop Zone */}
-          <div
-            onDragOver={e => { e.preventDefault(); setDragging(true) }}
-            onDragLeave={() => setDragging(false)}
-            onDrop={onDrop}
-            onClick={() => fileRef.current?.click()}
-            style={{
-              border: `2px dashed ${dragging ? '#0E3785' : file ? '#00A67E' : '#D6E0F5'}`,
-              borderRadius: 16, padding: '48px 24px', textAlign: 'center', cursor: 'pointer',
-              background: dragging ? '#EEF3FF' : file ? '#F0FDF8' : '#F8FAFF',
-              transition: 'all 0.2s', marginBottom: 28
-            }}
-          >
-            <div style={{ fontSize: 48, marginBottom: 16 }}>{file ? '✅' : '📄'}</div>
-            {file ? (
-              <>
-                <div style={{ fontSize: 17, fontWeight: 700, color: '#00A67E' }}>{file.name}</div>
-                <div style={{ fontSize: 14, color: '#5A6A85', marginTop: 8 }}>{(file.size / 1024).toFixed(0)} KB · Click to change</div>
-              </>
-            ) : (
-              <>
-                <div style={{ fontSize: 17, fontWeight: 700, color: '#0E3785' }}>Drop your PDF here</div>
-                <div style={{ fontSize: 14, color: '#5A6A85', marginTop: 8 }}>or click to browse · ENBD, FAB, ADCB, RAK, HSBC, Citi supported</div>
-              </>
-            )}
+          {/* File row */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+            <div
+              onDragOver={e => { e.preventDefault(); setDragging(true) }}
+              onDragLeave={() => setDragging(false)}
+              onDrop={onDrop}
+              onClick={() => fileRef.current?.click()}
+              style={{
+                flex: 1, display: 'flex', alignItems: 'center', gap: 12,
+                padding: '10px 16px', borderRadius: 10, cursor: 'pointer',
+                border: `1.5px dashed ${dragging ? '#0E3785' : file ? '#00A67E' : '#C8D4E8'}`,
+                background: dragging ? '#EEF3FF' : file ? '#F0FDF8' : '#F8FAFF',
+                transition: 'all 0.2s',
+              }}
+            >
+              <span style={{ fontSize: 20, flexShrink: 0 }}>{file ? '✅' : '📄'}</span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                {file ? (
+                  <>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: '#00A67E', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{file.name}</div>
+                    <div style={{ fontSize: 11, color: '#9DAEC8' }}>{(file.size / 1024).toFixed(0)} KB · click to change</div>
+                  </>
+                ) : (
+                  <>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: '#0E3785' }}>Upload credit card statement</div>
+                    <div style={{ fontSize: 11, color: '#9DAEC8' }}>PDF · ENBD, FAB, ADCB, RAK, HSBC, Citi</div>
+                  </>
+                )}
+              </div>
+              <button
+                onClick={e => { e.stopPropagation(); fileRef.current?.click() }}
+                style={{ flexShrink: 0, padding: '6px 14px', borderRadius: 20, border: '1.5px solid #0E3785', background: 'white', color: '#0E3785', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+              >
+                Browse
+              </button>
+            </div>
             <input ref={fileRef} type="file" accept=".pdf" style={{ display: 'none' }} onChange={e => { const f = e.target.files?.[0]; if (f) { setFile(f); setPasswordMode(null); setPassword('') } }} />
           </div>
 
-          {/* Password section */}
-          <div style={{ marginBottom: 28, padding: '20px 24px', background: '#F8FAFF', borderRadius: 12, border: '1.5px solid #D6E0F5' }}>
-            <div style={{ fontSize: 14, fontWeight: 700, color: '#0D1828', marginBottom: 16 }}>
-              Is your statement PDF password-protected?
-            </div>
-            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-              {/* No password option */}
-              <button
-                onClick={() => { setPasswordMode('none'); setPassword('') }}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 8, padding: '10px 20px',
-                  borderRadius: 8, border: `2px solid ${passwordMode === 'none' ? '#0E3785' : '#D6E0F5'}`,
-                  background: passwordMode === 'none' ? '#EEF3FF' : 'white',
-                  cursor: 'pointer', fontSize: 14, fontWeight: 600,
-                  color: passwordMode === 'none' ? '#0E3785' : '#5A6A85'
-                }}
-              >
-                <span style={{ width: 18, height: 18, borderRadius: '50%', border: `2px solid ${passwordMode === 'none' ? '#0E3785' : '#D6E0F5'}`, background: passwordMode === 'none' ? '#0E3785' : 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  {passwordMode === 'none' && <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'white', display: 'block' }} />}
-                </span>
-                No password
+          {/* Password row — inline, compact */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 16 }}>
+            <span style={{ fontSize: 12, color: '#5A6A85', fontWeight: 500, flexShrink: 0 }}>Password protected?</span>
+            {(['none', 'has_password'] as const).map(opt => (
+              <button key={opt} onClick={() => { setPasswordMode(opt); if (opt === 'none') setPassword('') }} style={{
+                padding: '5px 12px', borderRadius: 20, fontSize: 12, fontWeight: 500, cursor: 'pointer',
+                border: `1.5px solid ${passwordMode === opt ? '#0E3785' : '#D6E0F5'}`,
+                background: passwordMode === opt ? '#EEF3FF' : 'white',
+                color: passwordMode === opt ? '#0E3785' : '#5A6A85',
+              }}>
+                {opt === 'none' ? 'No' : 'Yes'}
               </button>
-
-              {/* Has password option */}
-              <button
-                onClick={() => setPasswordMode('has_password')}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 8, padding: '10px 20px',
-                  borderRadius: 8, border: `2px solid ${passwordMode === 'has_password' ? '#0E3785' : '#D6E0F5'}`,
-                  background: passwordMode === 'has_password' ? '#EEF3FF' : 'white',
-                  cursor: 'pointer', fontSize: 14, fontWeight: 600,
-                  color: passwordMode === 'has_password' ? '#0E3785' : '#5A6A85'
-                }}
-              >
-                <span style={{ width: 18, height: 18, borderRadius: '50%', border: `2px solid ${passwordMode === 'has_password' ? '#0E3785' : '#D6E0F5'}`, background: passwordMode === 'has_password' ? '#0E3785' : 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  {passwordMode === 'has_password' && <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'white', display: 'block' }} />}
-                </span>
-                Yes, it has a password
-              </button>
-            </div>
-
-            {/* Password input — only shown when has_password selected */}
+            ))}
             {passwordMode === 'has_password' && (
-              <div style={{ marginTop: 16 }}>
-                <input
-                  type="password"
-                  placeholder="Enter your PDF password"
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                  autoFocus
-                  style={{ padding: '11px 16px', border: '1.5px solid #0E3785', borderRadius: 8, fontSize: 15, outline: 'none', width: '100%', maxWidth: 320, color: '#0D1828' }}
-                />
+              <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                <input type={showPassword ? 'text' : 'password'} placeholder="Enter PDF password" value={password} onChange={e => setPassword(e.target.value)} autoFocus
+                  style={{ padding: '5px 36px 5px 12px', border: '1.5px solid #0E3785', borderRadius: 20, fontSize: 12, outline: 'none', color: '#0D1828', minWidth: 180 }} />
+                <button onClick={() => setShowPassword(v => !v)} type="button"
+                  style={{ position: 'absolute', right: 10, background: 'none', border: 'none', cursor: 'pointer', padding: 0, lineHeight: 1, display: 'flex', alignItems: 'center' }}>
+                  {showPassword ? (
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#5A6A85" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
+                      <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
+                      <line x1="1" y1="1" x2="23" y2="23"/>
+                    </svg>
+                  ) : (
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#5A6A85" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                      <circle cx="12" cy="12" r="3"/>
+                    </svg>
+                  )}
+                </button>
               </div>
             )}
           </div>
 
-          {error && <div style={{ background: '#FFF3F0', border: '1px solid #FFD0C8', borderRadius: 8, padding: '12px 16px', color: '#C0392B', fontSize: 14, marginBottom: 20 }}>⚠️ {error}</div>}
+          {/* Privacy note */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 16 }}>
+            <span style={{ fontSize: 12, flexShrink: 0 }}>🔒</span>
+            <span style={{ fontSize: 11, color: '#9DAEC8' }}>Bank-grade encryption · we never store your statement or personal information</span>
+          </div>
+
+          {error && <div style={{ background: '#FFF3F0', border: '1px solid #FFD0C8', borderRadius: 8, padding: '10px 14px', color: '#C0392B', fontSize: 13, marginBottom: 14 }}>⚠️ {error}</div>}
 
           <button onClick={handleUpload} disabled={!uploadReady || loading} style={{
-            width: '100%', padding: '18px', fontSize: 17, fontWeight: 700, border: 'none', borderRadius: 10, transition: 'all 0.2s',
+            width: '100%', padding: '13px', fontSize: 14, fontWeight: 700, border: 'none', borderRadius: 10, transition: 'all 0.2s',
             background: uploadReady ? '#0E3785' : '#D6E0F5',
-            color: uploadReady ? 'white' : '#5A6A85',
+            color: uploadReady ? 'white' : '#9DAEC8',
             cursor: uploadReady ? 'pointer' : 'not-allowed',
-            boxShadow: uploadReady ? '0 6px 20px rgba(14,55,133,0.25)' : 'none'
           }}>
-            {loading ? '⏳ Analysing your statement...' : uploadReady ? '🔍 Am I Using The Right Card?' : '← Select file & confirm password to continue'}
+            {loading ? 'Analysing your statement…' : uploadReady ? 'Analyze my statement →' : 'Select a file to continue'}
           </button>
         </div>
       )}
 
       {/* MANUAL PATH */}
       {mode === 'manual' && (
-        <div style={{ background: 'white', borderRadius: 20, border: '1px solid #D6E0F5', padding: 40, boxShadow: '0 4px 24px rgba(14,55,133,0.08)' }}>
-          <div style={{ marginBottom: 24, display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: 16 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', border: '1.5px solid #D6E0F5', borderRadius: 10, background: parseFloat(salary || '0') > 0 ? '#EEF3FF' : 'white' }}>
-              <span style={{ fontSize: 24, flexShrink: 0 }}>💰</span>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 14, fontWeight: 600, color: '#0D1828' }}>Your salary</div>
-                <div style={{ fontSize: 12, color: '#5A6A85' }}>Monthly take-home income</div>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
-                <span style={{ fontSize: 13, color: '#5A6A85', fontWeight: 600 }}>AED</span>
-                <input
-                  type="number" min="0" placeholder="0"
-                  value={salary}
-                  onChange={e => setSalary(e.target.value)}
-                  style={{ width: 80, padding: '6px 8px', border: '1.5px solid #D6E0F5', borderRadius: 6, fontSize: 14, fontWeight: 600, textAlign: 'right', outline: 'none', color: '#0E3785' }}
-                />
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', border: '1.5px solid #D6E0F5', borderRadius: 10, background: 'white' }}>
-              <span style={{ fontSize: 24, flexShrink: 0 }}>⭐</span>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 14, fontWeight: 600, color: '#0D1828', marginBottom: 6 }}>Your preference</div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13, color: '#0D1828', fontWeight: 600 }}>
-                    <input type="radio" name="preference" checked={preference === 'cashback'} onChange={() => setPreference('cashback')} style={{ accentColor: '#0E3785', width: 16, height: 16 }} />
-                    Cashback card
-                  </label>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'not-allowed', fontSize: 13, color: '#A8B3C7', fontWeight: 600 }}>
-                    <input type="radio" name="preference" checked={false} disabled style={{ accentColor: '#A8B3C7', width: 16, height: 16, cursor: 'not-allowed' }} />
-                    Miles card <span style={{ fontSize: 11, fontWeight: 600, color: '#A8B3C7', border: '1px solid #E7ECF5', borderRadius: 100, padding: '1px 8px' }}>coming soon</span>
-                  </label>
-                </div>
+        <div>
+          {/* Heading */}
+          <div ref={manualSectionRef} style={{ marginBottom: 28 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 6 }}>
+              <div style={{ width: 4, height: 36, borderRadius: 2, background: '#0E3785', flexShrink: 0 }} />
+              <div>
+                <div style={{ fontSize: 22, fontWeight: 500, color: '#0D1828', letterSpacing: '-0.3px' }}>Monthly spending</div>
+                <div style={{ fontSize: 13, color: '#5A6A85', marginTop: 2 }}>Set each category · drag or type · skip what doesn&apos;t apply</div>
               </div>
             </div>
           </div>
 
-          <div style={{ marginBottom: 32 }}>
-            <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>Your average monthly spend in AED</h3>
-            <p style={{ fontSize: 14, color: '#5A6A85' }}>Enter 0 for categories that don&apos;t apply. We&apos;ll find the best card for your exact spending pattern.</p>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: 16, marginBottom: 32 }}>
-            {CATEGORIES.map(cat => (
-              <div key={cat.key} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', border: '1.5px solid #D6E0F5', borderRadius: 10, background: parseFloat(spend[cat.key] || '0') > 0 ? '#EEF3FF' : 'white', transition: 'all 0.2s' }}>
-                <span style={{ fontSize: 24, flexShrink: 0 }}>{cat.icon}</span>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: '#0D1828' }}>{cat.label}</div>
-                  <div style={{ fontSize: 12, color: '#5A6A85', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{cat.hint}</div>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
-                  <span style={{ fontSize: 13, color: '#5A6A85', fontWeight: 600 }}>AED</span>
-                  <input
-                    type="number" min="0" placeholder="0"
-                    value={spend[cat.key] || ''}
-                    onChange={e => setSpend(prev => ({ ...prev, [cat.key]: e.target.value }))}
-                    style={{ width: 80, padding: '6px 8px', border: '1.5px solid #D6E0F5', borderRadius: 6, fontSize: 14, fontWeight: 600, textAlign: 'right', outline: 'none', color: '#0E3785' }}
+          {/* Salary + Preference quick row */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
+            <div style={{ background: 'white', border: '0.5px solid #D6E0F5', borderRadius: 12, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 12, color: '#9DAEC8', marginBottom: 4 }}>Monthly salary (optional)</div>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
+                  <span style={{ fontSize: 12, color: '#9DAEC8' }}>AED</span>
+                  <input type="number" min="0" placeholder="e.g. 15000" value={salary}
+                    onChange={e => setSalary(e.target.value)}
+                    style={{ border: 'none', outline: 'none', fontSize: 16, fontWeight: 500, color: '#0D1828', width: '100%', background: 'transparent' }}
                   />
                 </div>
               </div>
-            ))}
+            </div>
+            <div style={{ background: 'white', border: '0.5px solid #D6E0F5', borderRadius: 12, padding: '12px 16px' }}>
+              <div style={{ fontSize: 12, color: '#9DAEC8', marginBottom: 8 }}>Card type preference</div>
+              <div style={{ display: 'flex', gap: 16 }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 13, fontWeight: 500, color: '#0D1828' }}>
+                  <input type="radio" name="preference" checked={preference === 'cashback'} onChange={() => setPreference('cashback')} style={{ accentColor: '#0E3785' }} />
+                  Cashback
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'not-allowed', fontSize: 13, fontWeight: 500, color: '#C8D4E8' }}>
+                  <input type="radio" name="preference" checked={false} disabled style={{ accentColor: '#C8D4E8' }} />
+                  Miles <span style={{ fontSize: 10, color: '#C8D4E8' }}>(soon)</span>
+                </label>
+              </div>
+            </div>
           </div>
 
-          {/* Total */}
-          <div style={{ background: '#0E3785', borderRadius: 12, padding: '20px 24px', marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ color: 'rgba(255,255,255,0.8)', fontWeight: 600 }}>Total Monthly Spend</span>
-            <span style={{ color: 'white', fontSize: 26, fontWeight: 800 }}>AED {totalMonthly.toLocaleString('en-AE', { maximumFractionDigits: 0 })}</span>
+          {/* Unified form card */}
+          <div style={{ background: 'white', border: '0.5px solid #D6E0F5', borderRadius: 16, overflow: 'hidden', marginBottom: 24, boxShadow: '0 2px 12px rgba(14,55,133,0.06)' }}>
+
+            {/* Header row: total + reset */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px', borderBottom: '0.5px solid #D6E0F5', background: '#F8FAFF' }}>
+              <div style={{ fontSize: 13, color: '#5A6A85' }}>
+                Total: <strong style={{ color: '#0D1828', fontWeight: 600 }}>AED {totalMonthly.toLocaleString('en-AE', { maximumFractionDigits: 0 })}</strong>
+              </div>
+              <button
+                onClick={() => { setSpend({}); setMerchantPrefs({}) }}
+                style={{ background: 'none', border: 'none', fontSize: 13, color: '#0E3785', fontWeight: 500, cursor: 'pointer', padding: 0 }}
+              >
+                Reset all
+              </button>
+            </div>
+
+            {/* Category rows */}
+            {(() => {
+              // Non-linear slider: raw 0-1000 maps to AED via 3-segment piecewise curve
+              // Seg 1: raw 0-500   → AED 0-5000    (10 AED per raw unit)
+              // Seg 2: raw 500-900 → AED 5000-15000 (25 AED per raw unit)
+              // Seg 3: raw 900-1000→ AED 15000-30000 (150 AED per raw unit)
+              const RAW_MAX = 1000
+              const posToAed = (raw: number): number => {
+                if (raw <= 500) return raw * 10
+                if (raw <= 900) return 5000 + (raw - 500) * 25
+                return 15000 + (raw - 900) * 150
+              }
+              const aedToPos = (aed: number): number => {
+                if (aed <= 5000) return aed / 10
+                if (aed <= 15000) return 500 + (aed - 5000) / 25
+                return 900 + (aed - 15000) / 150
+              }
+              const TABLER_ICONS: Record<string, string> = {
+                dining: 'ti-tools-kitchen-2', grocery: 'ti-shopping-cart', travel: 'ti-plane',
+                fuel: 'ti-gas-station', online: 'ti-device-laptop', international: 'ti-world',
+                entertainment: 'ti-movie', retail: 'ti-building-store', telecom: 'ti-device-mobile',
+                transport: 'ti-car', utility: 'ti-bolt', education: 'ti-school', miscellaneous: 'ti-dots',
+              }
+              // Breakpoint positions as % of track for tick marks
+              const bp1Pct = (500 / RAW_MAX * 100).toFixed(2) // 50%
+              const bp2Pct = (900 / RAW_MAX * 100).toFixed(2) // 90%
+
+              return CATEGORIES.map((cat, i) => {
+                const val = Math.min(30000, Math.max(0, parseFloat(spend[cat.key] || '0') || 0))
+                const rawPos = aedToPos(val)
+                const fillPct = (rawPos / RAW_MAX * 100).toFixed(2)
+                const sliderBg = val > 0
+                  ? `linear-gradient(to right, #0E3785 0%, #0E3785 ${fillPct}%, #D6E0F5 ${fillPct}%, #D6E0F5 100%)`
+                  : '#D6E0F5'
+                const merchantOpts = MERCHANT_OPTIONS[cat.key]
+                const selected = merchantPrefs[cat.key] || []
+                const isLast = i === CATEGORIES.length - 1
+                const active = val > 0
+
+                return (
+                  <div key={cat.key} style={{ borderBottom: isLast ? 'none' : '0.5px solid #D6E0F5', padding: '13px 20px 12px' }}>
+
+                    {/* Row 1: icon + label | AED value */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 9 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+                        <div style={{ width: 7, height: 7, borderRadius: '50%', background: active ? '#0E3785' : '#C8D4E8', flexShrink: 0, transition: 'background 0.2s' }} />
+                        <i className={`ti ${TABLER_ICONS[cat.key] || 'ti-dots'}`}
+                          style={{ fontSize: 20, color: active ? '#0E3785' : '#7A8CA8', transition: 'color 0.2s', lineHeight: 1 }}
+                          aria-hidden="true" />
+                        <span style={{ fontSize: 14, fontWeight: 600, color: active ? '#0D1828' : '#3D4F68', transition: 'color 0.2s', letterSpacing: '-0.1px' }}>{cat.label}</span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, background: active ? '#E8EEF8' : '#EEF0F5', borderRadius: 8, padding: '4px 10px', transition: 'background 0.2s' }}>
+                        <span style={{ fontSize: 12, fontWeight: 500, color: active ? '#5A6A85' : '#7A8CA8' }}>AED</span>
+                        <input
+                          type="number" min="0" max={30000} step="100"
+                          value={val === 0 ? '' : val}
+                          placeholder="0"
+                          onChange={e => {
+                            const n = Math.min(30000, Math.max(0, parseFloat(e.target.value) || 0))
+                            setSpend(prev => ({ ...prev, [cat.key]: String(n) }))
+                          }}
+                          style={{
+                            width: 72, border: 'none', background: 'transparent', outline: 'none',
+                            fontSize: 16, fontWeight: 600, textAlign: 'right',
+                            color: active ? '#0E3785' : '#7A8CA8',
+                            MozAppearance: 'textfield' as any,
+                          }}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Row 2: non-linear slider + tick marks */}
+                    <div style={{ position: 'relative', marginBottom: merchantOpts ? 10 : 0 }}>
+                      <input
+                        type="range" min="0" max={RAW_MAX} step="1"
+                        value={rawPos}
+                        onChange={e => {
+                          const aed = posToAed(parseFloat(e.target.value))
+                          const rounded = Math.round(aed / 100) * 100
+                          setSpend(prev => ({ ...prev, [cat.key]: String(rounded) }))
+                        }}
+                        className="spend-slider"
+                        style={{ width: '100%', background: sliderBg }}
+                      />
+                      {/* Tick marks at breakpoints */}
+                      <div style={{ position: 'relative', height: 14, marginTop: 2 }}>
+                        {/* 0 */}
+                        <span style={{ position: 'absolute', left: 0, fontSize: 9, color: '#B0BDD4', transform: 'translateX(0)' }}>0</span>
+                        {/* 5K */}
+                        <span style={{ position: 'absolute', left: `${bp1Pct}%`, fontSize: 9, color: '#B0BDD4', transform: 'translateX(-50%)' }}>5K</span>
+                        {/* 15K */}
+                        <span style={{ position: 'absolute', left: `${bp2Pct}%`, fontSize: 9, color: '#B0BDD4', transform: 'translateX(-50%)' }}>15K</span>
+                        {/* 30K */}
+                        <span style={{ position: 'absolute', right: 0, fontSize: 9, color: '#B0BDD4', transform: 'translateX(0)' }}>30K</span>
+                      </div>
+                    </div>
+
+                    {/* Row 3: merchant preference */}
+                    {merchantOpts && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 2 }}>
+                        <span style={{ fontSize: 11, fontWeight: 500, color: '#5A6A85', whiteSpace: 'nowrap', flexShrink: 0 }}>Merchant preference, if any</span>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', flex: 1, gap: 4 }}>
+                          {merchantOpts.map(m => {
+                            const isSel = selected.includes(m.key)
+                            return (
+                              <div
+                                key={m.key}
+                                onClick={() => setMerchantPrefs(prev => {
+                                  const cur = prev[cat.key] || []
+                                  return { ...prev, [cat.key]: cur.includes(m.key) ? cur.filter(x => x !== m.key) : [...cur, m.key] }
+                                })}
+                                style={{ display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer' }}
+                              >
+                                <div style={{
+                                  width: 14, height: 14, borderRadius: '50%', flexShrink: 0, transition: 'all 0.15s',
+                                  border: `1.5px solid ${isSel ? '#0E3785' : '#C8D4E8'}`,
+                                  background: isSel ? '#0E3785' : 'transparent',
+                                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                }}>
+                                  {isSel && <div style={{ width: 5, height: 5, borderRadius: '50%', background: 'white' }} />}
+                                </div>
+                                <span style={{ fontSize: 11, fontWeight: isSel ? 600 : 400, color: isSel ? '#0D1828' : '#5A6A85', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                  {m.label}
+                                </span>
+                              </div>
+                            )
+                          })}
+                          {Array.from({ length: 5 - merchantOpts.length }).map((_, pi) => <div key={`pad-${pi}`} />)}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )
+              })
+            })()}
+
+            {/* Footer: submit */}
+            <div style={{ padding: '16px 20px', borderTop: '0.5px solid #D6E0F5', background: '#F8FAFF', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
+              {error && <div style={{ fontSize: 13, color: '#C0392B', flex: 1 }}>⚠️ {error}</div>}
+              {!error && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  <div style={{ fontSize: 11, color: '#5A6A85', fontWeight: 500, letterSpacing: '0.3px', textTransform: 'uppercase' }}>Total Monthly Spend</div>
+                  <div style={{ fontSize: 22, fontWeight: 700, color: '#0E3785', letterSpacing: '-0.5px', lineHeight: 1 }}>
+                    AED {totalMonthly.toLocaleString('en-AE', { maximumFractionDigits: 0 })}
+                  </div>
+                </div>
+              )}
+              <button onClick={handleManual} disabled={totalMonthly <= 0 || loading} style={{
+                padding: '12px 32px', background: totalMonthly <= 0 ? '#D6E0F5' : '#0E3785',
+                color: totalMonthly <= 0 ? '#9DAEC8' : 'white',
+                border: 'none', borderRadius: 30, fontSize: 14, fontWeight: 600,
+                cursor: totalMonthly <= 0 ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap', transition: 'all 0.2s',
+              }}>
+                {loading ? 'Finding best cards…' : 'Find My Best Cards →'}
+              </button>
+            </div>
           </div>
-
-          {error && <div style={{ background: '#FFF3F0', border: '1px solid #FFD0C8', borderRadius: 8, padding: '12px 16px', color: '#C0392B', fontSize: 14, marginBottom: 20 }}>⚠️ {error}</div>}
-
-          <button onClick={handleManual} disabled={totalMonthly <= 0 || loading} style={{
-            width: '100%', padding: '16px', background: totalMonthly <= 0 ? '#D6E0F5' : '#0E3785', color: totalMonthly <= 0 ? '#5A6A85' : 'white',
-            border: 'none', borderRadius: 10, fontSize: 17, fontWeight: 700, cursor: totalMonthly <= 0 ? 'not-allowed' : 'pointer', transition: 'all 0.2s'
-          }}>
-            {loading ? '⏳ Finding best cards...' : '🏆 Find My Best Cards →'}
-          </button>
         </div>
       )}
       </>
