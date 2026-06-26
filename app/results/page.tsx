@@ -1060,14 +1060,14 @@ function Screen4Wallet({ scoredCards, walletData, wallet, setWallet, onBack, onN
   useEffect(() => { walletRef.current = wallet }, [wallet])
   useEffect(() => { spendRef.current = walletData.user_spend }, [walletData.user_spend])
 
+  // card_summary_tag is now included in scored_cards — no per-card fetch needed
   useEffect(() => {
+    const tags: Record<string, string> = {}
     scoredCards.forEach(c => {
-      const id = c.earnn_card_id
-      fetchCardDetail(id).then(d => {
-        const tag = d?.card_summary_tag as string | undefined
-        if (tag) setCardTags(prev => ({ ...prev, [id]: tag }))
-      }).catch(() => {})
+      const tag = (c as Record<string, unknown>).card_summary_tag as string | undefined
+      if (tag) tags[c.earnn_card_id] = tag
     })
+    setCardTags(tags)
   }, [scoredCards])
 
   useEffect(() => {
