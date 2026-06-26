@@ -1042,10 +1042,9 @@ function Screen3Style({ scoredCards, walletData, chosen, onChoose, onBack, onNex
 
 // ─── Screen 4 — Wallet playground ────────────────────────────────────────────
 
-function Screen4Wallet({ scoredCards, walletData, wallet, setWallet, onBack, onNext, cacheWarmupRef }: {
+function Screen4Wallet({ scoredCards, walletData, wallet, setWallet, onBack, onNext }: {
   scoredCards: ScoredCard[]; walletData: WalletResponse
   wallet: string[]; setWallet: (w: string[]) => void; onBack: () => void; onNext: () => void
-  cacheWarmupRef: ReturnType<typeof useRef<Promise<void>>>
 }) {
   const [q, setQ] = useState('')
   const [activeFilter, setActiveFilter] = useState<string | null>(null)
@@ -1080,21 +1079,17 @@ function Screen4Wallet({ scoredCards, walletData, wallet, setWallet, onBack, onN
       const spend = spendRef.current
       if (!ids.length) return
       setPgLoading(true)
-      // Await the cache warm-up before calling /wallet/custom so they never compete
-      // on the same Railway worker (which caused ~100s response times).
-      cacheWarmupRef.current.then(() => {
-        fetch('/api/rewards/wallet/custom', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ spend, card_ids: ids }),
-        })
-          .then(res => res.ok ? res.json() : Promise.reject(res.status))
-          .then(d => { setPgScore(d); setPgError(false) })
-          .catch(() => setPgError(true))
-          .finally(() => setPgLoading(false))
+      fetch('/api/rewards/wallet/custom', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ spend, card_ids: ids }),
       })
+        .then(res => res.ok ? res.json() : Promise.reject(res.status))
+        .then(d => { setPgScore(d); setPgError(false) })
+        .catch(() => setPgError(true))
+        .finally(() => setPgLoading(false))
     }, 400)
     return () => clearTimeout(debounceRef.current)
-  }, [wallet, refreshTick, cacheWarmupRef])
+  }, [wallet, refreshTick])
 
   // Non-null spend categories for this user
   const activeCatsForFilter = SPEND_CATS.filter(k => (walletData.user_spend[k] ?? 0) > 0)
@@ -1698,8 +1693,6 @@ export default function ResultsPage() {
   const [error, setError] = useState<string | null>(null)
   const [chosenStrategy, setChosenStrategy] = useState('')
   const [wallet, setWallet] = useState<string[]>([])
-  // Holds the in-flight /api/rewards/wallet warm-up Promise so Screen4Wallet can await it
-  const cacheWarmupRef = useRef<Promise<void>>(Promise.resolve())
 
   useEffect(() => {
     try {
@@ -1725,11 +1718,8 @@ export default function ResultsPage() {
       if (cachedWallet) {
         applyWallet(JSON.parse(cachedWallet))
         setLoading(false)
-        // Re-warm Railway's in-memory score cache so /wallet/custom hits the fast path.
-        // Store the Promise in a ref — Screen4Wallet awaits it before firing /wallet/custom,
-        // ensuring the two calls are serialized (not competing on the same Railway worker).
-        const userSpend: Record<string, number> = data.user_spend ?? {}
-        cacheWarmupRef.current = getOptimalWallet(userSpend).then(() => {}).catch(() => {})
+        // The analyse page already called /api/rewards/wallet which populated Railway's
+        // in-memory _score_cache. No second warmup needed — /wallet/custom will hit the cache.
       } else {
         // Fallback: fetch wallet on-demand (e.g. direct navigation to /results)
         const userSpend: Record<string, number> = data.user_spend ?? {}
@@ -1777,7 +1767,7 @@ export default function ResultsPage() {
 
       <main className="mx-auto max-w-6xl px-4 pb-24 pt-6 sm:px-6 lg:px-8">
         {step === 0 && <Screen1Hero scoredCards={scoredCards} walletData={walletData} onNext={() => setStep(1)} onExplore={() => setStep(1)} />}
-        {step === 1 && <Screen4Wallet scoredCards={scoredCards} walletData={walletData} wallet={wallet} setWallet={setWallet} onBack={() => setStep(0)} onNext={() => setStep(2)} cacheWarmupRef={cacheWarmupRef} />}
+        {step === 1 && <Screen4Wallet scoredCards={scoredCards} walletData={walletData} wallet={wallet} setWallet={setWallet} onBack={() => setStep(0)} onNext={() => setStep(2)} />}
         {step === 2 && <Screen5Final scoredCards={scoredCards} walletData={walletData} wallet={wallet.length > 0 ? wallet : (walletData.wallets.find(w => w.n_cards === 2)?.card_ids ?? [])} onBack={() => setStep(1)} />}
       </main>
 
