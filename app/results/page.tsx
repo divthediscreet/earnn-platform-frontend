@@ -389,8 +389,17 @@ function buildHeroCards(walletData: WalletResponse, scoredCards: ScoredCard[]): 
     category_routing: w.category_routing,
   })
 
-  // single card fallback using scored cards
-  const singleCards = [...scoredCards].sort((a, b) => a.card_ranking - b.card_ranking)
+  // single card fallback using scored cards — dedupe by card_family (keep best rank per family)
+  const seenFamilies = new Set<string>()
+  const singleCards = [...scoredCards]
+    .sort((a, b) => a.card_ranking - b.card_ranking)
+    .filter(c => {
+      const fam = (c as Record<string, unknown>).card_family as string | null | undefined
+      if (!fam) return true  // no family → always include
+      if (seenFamilies.has(fam)) return false
+      seenFamilies.add(fam)
+      return true
+    })
   const singleWallet = (idx: number): WalletEntry => {
     const c = singleCards[idx] ?? singleCards[0]
     const userSpend = walletData.user_spend
@@ -499,7 +508,10 @@ function Screen1Hero({ scoredCards, walletData, onNext, onExplore }: {
   const coverage = calcCoverage(rec.card_ids, scoredCards, walletData.user_spend, total)
   const names = rec.card_ids.map(id => cardName(id, scoredCards))
 
-  const badgeLabels = ['#1 Recommended · Maximum Rewards', '#2 Best Balance · Low Effort', '#3 Keep It Simple · Zero Complexity']
+  const hero1HasFewerCards = heroCards.length > 1 && heroCards[0].n_cards < heroCards[1].n_cards
+  const hero1Label = hero1HasFewerCards ? '#1 Recommended · Optimized Rewards' : '#1 Recommended · Maximum Rewards'
+  const hero2Label = hero1HasFewerCards ? '#2 More Rewards · Little More Effort' : '#2 Best Balance · Low Effort'
+  const badgeLabels = [hero1Label, hero2Label, '#3 Keep It Simple · Zero Complexity']
 
   return (
     <section ref={sectionRef} className="space-y-6">
@@ -599,7 +611,7 @@ function Screen1Hero({ scoredCards, walletData, onNext, onExplore }: {
                 className="group inline-flex items-center gap-2.5 rounded-2xl px-5 py-3 text-sm font-semibold transition-all hover:brightness-110 active:scale-95"
                 style={{ background: '#2D8C6A', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', boxShadow: '0 2px 12px rgba(45,140,106,0.35)' }}>
                 <img src="/wallet-icon.png" alt="" width={20} height={20} style={{ width: 20, height: 20, objectFit: 'contain', opacity: 0.9 }} />
-                Build My Own Wallet
+                Customize Card Wallet
               </button>
             </div>
           </div>
@@ -1030,32 +1042,59 @@ function Screen3Style({ scoredCards, walletData, chosen, onChoose, onBack, onNex
 
 // ─── Screen 4 — Wallet playground ────────────────────────────────────────────
 
-function Screen4Wallet({ scoredCards, walletData, wallet, setWallet, onBack, onNext }: {
+function Screen4Wallet({ scoredCards, walletData, wallet, setWallet, onBack, onNext, cacheWarmupRef }: {
   scoredCards: ScoredCard[]; walletData: WalletResponse
   wallet: string[]; setWallet: (w: string[]) => void; onBack: () => void; onNext: () => void
+  cacheWarmupRef: ReturnType<typeof useRef<Promise<void>>>
 }) {
   const [q, setQ] = useState('')
   const [activeFilter, setActiveFilter] = useState<string | null>(null)
   const [pgScore, setPgScore] = useState<CustomScore | null>(null)
   const [pgLoading, setPgLoading] = useState(false)
+  const [pgError, setPgError] = useState(false)
+  const [refreshTick, setRefreshTick] = useState(0)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  const walletRef = useRef(wallet)
+  const spendRef = useRef(walletData.user_spend)
+  const [cardTags, setCardTags] = useState<Record<string, string>>({})
+
+  useEffect(() => { walletRef.current = wallet }, [wallet])
+  useEffect(() => { spendRef.current = walletData.user_spend }, [walletData.user_spend])
+
+  useEffect(() => {
+    scoredCards.forEach(c => {
+      const id = c.earnn_card_id
+      fetchCardDetail(id).then(d => {
+        const tag = d?.card_summary_tag as string | undefined
+        if (tag) setCardTags(prev => ({ ...prev, [id]: tag }))
+      }).catch(() => {})
+    })
+  }, [scoredCards])
 
   useEffect(() => {
     if (wallet.length === 0) { setPgScore(null); return }
     clearTimeout(debounceRef.current)
-    debounceRef.current = setTimeout(async () => {
+    setPgError(false)
+    debounceRef.current = setTimeout(() => {
+      const ids = walletRef.current
+      const spend = spendRef.current
+      if (!ids.length) return
       setPgLoading(true)
-      try {
-        const res = await fetch('/api/rewards/wallet/custom', {
+      // Await the cache warm-up before calling /wallet/custom so they never compete
+      // on the same Railway worker (which caused ~100s response times).
+      cacheWarmupRef.current.then(() => {
+        fetch('/api/rewards/wallet/custom', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ spend: walletData.user_spend, card_ids: wallet }),
+          body: JSON.stringify({ spend, card_ids: ids }),
         })
-        if (res.ok) setPgScore(await res.json())
-      } catch { /* ignore */ }
-      finally { setPgLoading(false) }
-    }, 800)
+          .then(res => res.ok ? res.json() : Promise.reject(res.status))
+          .then(d => { setPgScore(d); setPgError(false) })
+          .catch(() => setPgError(true))
+          .finally(() => setPgLoading(false))
+      })
+    }, 400)
     return () => clearTimeout(debounceRef.current)
-  }, [wallet, walletData.user_spend])
+  }, [wallet, refreshTick, cacheWarmupRef])
 
   // Non-null spend categories for this user
   const activeCatsForFilter = SPEND_CATS.filter(k => (walletData.user_spend[k] ?? 0) > 0)
@@ -1212,7 +1251,7 @@ function Screen4Wallet({ scoredCards, walletData, wallet, setWallet, onBack, onN
                 : (activeFilter ? [activeFilter] : [])
               return (
                 <li key={c.earnn_card_id} className="relative rounded-xl border border-border/60 px-2.5 py-2">
-                  <div className="flex items-start gap-2.5 pr-24">
+                  <div className="flex items-start gap-2.5 pr-10">
                     <CardImg id={c.earnn_card_id} size="sm" className="flex-shrink-0 mt-0.5" />
                     <div className="min-w-0 flex-1">
                       <div className="truncate font-semibold text-sm text-primary max-w-[240px]">{c.card_name}</div>
@@ -1233,15 +1272,22 @@ function Screen4Wallet({ scoredCards, walletData, wallet, setWallet, onBack, onN
                             </span>
                           ))}
                       </div>
+                      {cardTags[c.earnn_card_id] && (
+                        <div className="mt-1">
+                          <span className="flex items-center rounded-full bg-[#EEF3FF] px-2 py-px text-[10px] font-medium text-[#0E3785] w-full">
+                            {cardTags[c.earnn_card_id]}
+                          </span>
+                        </div>
+                      )}
                     </div>
                   </div>
                   {/* + button — right, vertically centered */}
-                  <div className="absolute right-2 top-[65%] -translate-y-1/2 group z-10 hover:z-[200]">
+                  <div className="absolute right-2 top-[60%] -translate-y-1/2 group z-10 hover:z-[200]">
                     <button onClick={() => toggle(c.earnn_card_id)} disabled={limit}
                       className={`grid h-6 w-6 place-items-center rounded-full transition text-xs font-bold ${
                         inW ? 'bg-emerald text-white hover:opacity-90'
                           : limit ? 'cursor-default bg-muted text-muted-foreground'
-                          : 'bg-primary text-primary-foreground hover:opacity-90'
+                          : 'bg-[#0A2560] text-white hover:opacity-90'
                       }`}>
                       {inW ? '✓' : '+'}
                     </button>
@@ -1284,7 +1330,15 @@ function Screen4Wallet({ scoredCards, walletData, wallet, setWallet, onBack, onN
             <div className="overflow-hidden rounded-3xl bg-primary p-6 text-primary-foreground shadow-card">
               <div className="flex items-center justify-between text-xs uppercase tracking-wider text-primary-foreground/70">
                 <span>💳 Your wallet</span>
-                <span>{wallet.length} / 4{pgLoading ? ' · recalculating…' : ''}</span>
+                <div className="flex items-center gap-2">
+                  <span>{wallet.length} / 4{pgLoading ? ' · calculating…' : ''}</span>
+                  {(pgError || (!pgLoading && !pgScore && wallet.length > 0)) && (
+                    <button onClick={() => setRefreshTick(t => t + 1)}
+                      className="rounded-full bg-primary-foreground/15 px-2 py-0.5 text-[10px] font-semibold text-primary-foreground hover:bg-primary-foreground/25 transition-colors">
+                      ↻ Refresh
+                    </button>
+                  )}
+                </div>
               </div>
               <div className="mt-3">
                 <div className="text-xs text-primary-foreground/70">Net annual value</div>
@@ -1644,6 +1698,8 @@ export default function ResultsPage() {
   const [error, setError] = useState<string | null>(null)
   const [chosenStrategy, setChosenStrategy] = useState('')
   const [wallet, setWallet] = useState<string[]>([])
+  // Holds the in-flight /api/rewards/wallet warm-up Promise so Screen4Wallet can await it
+  const cacheWarmupRef = useRef<Promise<void>>(Promise.resolve())
 
   useEffect(() => {
     try {
@@ -1652,36 +1708,52 @@ export default function ResultsPage() {
       const { data } = JSON.parse(raw)
       const cards: ScoredCard[] = data.scored_cards ?? []
       setScoredCards(cards)
-      const userSpend: Record<string, number> = data.user_spend ?? {}
-      getOptimalWallet(userSpend)
-        .then((wd: WalletResponse) => {
-          setWalletData(wd)
-          const sorted = [...wd.wallets].sort((a: WalletEntry, b: WalletEntry) => a.n_cards - b.n_cards)
-          let rec = sorted[0]
-          for (const w of sorted.slice(1)) {
-            if (w.incremental_vs_prev_aed > 1000) rec = w
-            else break
-          }
-          if (rec) setWallet(rec.card_ids)
-        })
-        .catch((e: Error) => setError(e.message))
-        .finally(() => setLoading(false))
+
+      const applyWallet = (wd: WalletResponse) => {
+        setWalletData(wd)
+        const sorted = [...wd.wallets].sort((a: WalletEntry, b: WalletEntry) => a.n_cards - b.n_cards)
+        let rec = sorted[0]
+        for (const w of sorted.slice(1)) {
+          if (w.incremental_vs_prev_aed > 1000) rec = w
+          else break
+        }
+        if (rec) setWallet(rec.card_ids)
+      }
+
+      // Use pre-fetched wallet from sessionStorage if available (set by analyse page)
+      const cachedWallet = sessionStorage.getItem('earnn_wallet')
+      if (cachedWallet) {
+        applyWallet(JSON.parse(cachedWallet))
+        setLoading(false)
+        // Re-warm Railway's in-memory score cache so /wallet/custom hits the fast path.
+        // Store the Promise in a ref — Screen4Wallet awaits it before firing /wallet/custom,
+        // ensuring the two calls are serialized (not competing on the same Railway worker).
+        const userSpend: Record<string, number> = data.user_spend ?? {}
+        cacheWarmupRef.current = getOptimalWallet(userSpend).then(() => {}).catch(() => {})
+      } else {
+        // Fallback: fetch wallet on-demand (e.g. direct navigation to /results)
+        const userSpend: Record<string, number> = data.user_spend ?? {}
+        getOptimalWallet(userSpend)
+          .then((wd: WalletResponse) => applyWallet(wd))
+          .catch((e: Error) => setError(e.message))
+          .finally(() => setLoading(false))
+      }
     } catch (e: any) {
       setError(e.message)
       setLoading(false)
     }
   }, [router])
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-surface-2">
-
-        <main className="mx-auto max-w-6xl px-4 pb-24 pt-6 sm:px-6 lg:px-8">
-          <LoadingScreen />
-        </main>
-      </div>
-    )
-  }
+  // Loading screen disabled — Screen 1 animation on analyse page covers this wait
+  // if (loading) {
+  //   return (
+  //     <div className="min-h-screen bg-surface-2">
+  //       <main className="mx-auto max-w-6xl px-4 pb-24 pt-6 sm:px-6 lg:px-8">
+  //         <LoadingScreen />
+  //       </main>
+  //     </div>
+  //   )
+  // }
 
   if (error || !walletData || scoredCards.length === 0) {
     return (
@@ -1705,7 +1777,7 @@ export default function ResultsPage() {
 
       <main className="mx-auto max-w-6xl px-4 pb-24 pt-6 sm:px-6 lg:px-8">
         {step === 0 && <Screen1Hero scoredCards={scoredCards} walletData={walletData} onNext={() => setStep(1)} onExplore={() => setStep(1)} />}
-        {step === 1 && <Screen4Wallet scoredCards={scoredCards} walletData={walletData} wallet={wallet} setWallet={setWallet} onBack={() => setStep(0)} onNext={() => setStep(2)} />}
+        {step === 1 && <Screen4Wallet scoredCards={scoredCards} walletData={walletData} wallet={wallet} setWallet={setWallet} onBack={() => setStep(0)} onNext={() => setStep(2)} cacheWarmupRef={cacheWarmupRef} />}
         {step === 2 && <Screen5Final scoredCards={scoredCards} walletData={walletData} wallet={wallet.length > 0 ? wallet : (walletData.wallets.find(w => w.n_cards === 2)?.card_ids ?? [])} onBack={() => setStep(1)} />}
       </main>
 
