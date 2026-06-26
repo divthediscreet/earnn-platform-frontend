@@ -1,999 +1,1720 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import Link from 'next/link'
-import { getOptimalWallet, fetchCardDetail, getCardImageUrl } from '@/lib/api'
+import { getCardImageUrl, getOptimalWallet, fetchCardDetail } from '@/lib/api'
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+interface ScoredCard {
+  earnn_card_id: string
+  card_name: string
+  bank_name?: string
+  earnn_score: number
+  card_ranking: number
+  expected_annual_return_aed: number
+  true_annual_fee_aed: number
+  net_annual_value_aed: number
+  free_for_life: boolean
+  is_islamic: boolean
+  network: string
+  card_family?: string | null
+  category_monthly_rewards: Record<string, number>
+  category_effective_rates: Record<string, number>
+}
+
+interface RouteEntry {
+  card_id: string; card_name: string; rate: number; annual_aed: number; monthly_spend_chunk: number
+}
+
+interface WalletEntry {
+  n_cards: number; card_ids: string[]
+  gross_annual_aed: number; total_fee_aed: number; net_annual_value_aed: number
+  effective_rate: number; incremental_vs_prev_aed: number
+  category_routing: Record<string, RouteEntry[]>
+  top_combinations: Array<{ rank: number; card_ids: string[]; gross_annual_aed: number; total_fee_aed: number; net_annual_value_aed: number }>
+}
+
+interface WalletResponse {
+  user_spend: Record<string, number>; total_monthly: number; wallets: WalletEntry[]
+}
+
+interface CustomScore {
+  gross_annual_aed: number; total_fee_aed: number
+  net_annual_value_aed: number; effective_rate: number
+  category_routing: Record<string, RouteEntry[]>
+}
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-const RATE_PILLS = [
-  { key: 'dining',    name: 'Dining',    icon: '🍽️' },
-  { key: 'grocery',   name: 'Grocery',   icon: '🛒' },
-  { key: 'travel',    name: 'Travel',    icon: '✈️' },
-  { key: 'fuel',      name: 'Fuel',      icon: '⛽' },
-  { key: 'online',    name: 'Online',    icon: '📦' },
-  { key: 'retail',    name: 'Retail',    icon: '🛍️' },
-  { key: 'utility',   name: 'Utility',   icon: '💡' },
-  { key: 'all_spend', name: 'All Other', icon: '➕' },
-]
-const leftBars  = RATE_PILLS.slice(0, 4)
-const rightBars = RATE_PILLS.slice(4)
 
-const CAT_ICONS: Record<string, string> = {
-  dining:'🍽️', grocery:'🛒', travel:'✈️', fuel:'⛽', online:'📦',
-  retail:'🛍️', utility:'💡', entertainment:'🎬', international:'🌍',
-  telecom:'📱', transport:'🚕', education:'📚', miscellaneous:'➕',
+const CAT_LABELS: Record<string, string> = {
+  dining: 'Dining', grocery: 'Grocery', travel: 'Travel', fuel: 'Fuel',
+  online: 'Online Shopping', international: 'International', entertainment: 'Entertainment',
+  retail: 'Retail', telecom: 'Telecom', transport: 'Transport',
+  utility: 'Utilities', education: 'Education', miscellaneous: 'Other', all_spend: 'All Spends',
 }
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-function scoreColor(score: number): string {
-  const t = Math.max(0, Math.min(100, score)) / 100
-  return `hsl(${Math.round(t * 142)}, 72%, ${28 + (1 - t) * 8}%)`
+const CAT_EMOJI: Record<string, string> = {
+  dining: '🍽️', grocery: '🛒', travel: '✈️', fuel: '⛽',
+  online: '📦', international: '🌍', entertainment: '🎬',
+  retail: '🛍️', telecom: '📱', transport: '🚕',
+  utility: '💡', education: '📚', miscellaneous: '🔖',
 }
-function fmtRate(r: number) { return r ? `${(r * 100).toFixed(1)}%` : '0%' }
-function fmtScore(s: number) { return s.toFixed(1) }
-function fmtAed(n: number) { return `AED ${Math.round(n).toLocaleString()}` }
 
-// ─── Inline Tooltip ───────────────────────────────────────────────────────────
-function InlineTooltip({ text }: { text: string }) {
+const CAT_BADGE: Record<string, string> = {
+  dining: 'Best for food & dining', grocery: 'Top grocery cashback',
+  travel: 'Best for travel rewards', fuel: 'Best petrol card',
+  online: 'Best for online spend', international: 'No FX fee leader',
+  entertainment: 'Best entertainment card', retail: 'Best retail card',
+  telecom: 'Best for bills', transport: 'Best commuter card',
+  utility: 'Best for utilities', education: 'Best for school fees',
+  miscellaneous: 'Strong everyday rate',
+}
+
+const SPEND_CATS = ['dining','grocery','travel','fuel','online','international',
+  'entertainment','retail','telecom','transport','utility','education','miscellaneous']
+
+const PLAYGROUND_FILTERS = ['Cashback', 'Travel', 'No annual fee', 'Islamic', 'Premium', 'Dining', 'Fuel', 'Online']
+
+const fmt = (n: number) => new Intl.NumberFormat('en-AE', { maximumFractionDigits: 0 }).format(n)
+
+// ─── Card image ───────────────────────────────────────────────────────────────
+
+function CardImg({ id, size = 'sm', className = '' }: { id: string; size?: 'sm' | 'lg'; className?: string }) {
+  const dims = size === 'lg' ? { w: 220, h: 138 } : { w: 132, h: 82 }
   return (
-    <span style={{
-      position:'absolute', top:'110%', left:'50%', transform:'translateX(-50%)',
-      background:'#0D1828', color:'#fff', fontSize:12, padding:'10px 14px',
-      borderRadius:10, width:240, zIndex:300, pointerEvents:'none', whiteSpace:'normal', lineHeight:1.5,
-    }}>{text}</span>
+    <img
+      src={getCardImageUrl(id)}
+      alt=""
+      width={dims.w}
+      height={dims.h}
+      className={`rounded-xl object-cover shrink-0 ${className}`}
+      style={{ width: dims.w, height: dims.h, boxShadow: '0 4px 12px rgba(0,0,0,0.18)' }}
+      onError={(e) => { (e.target as HTMLImageElement).src = '/card-dummy.svg' }}
+    />
+  )
+}
+
+// ─── Card row ─────────────────────────────────────────────────────────────────
+
+function CardFan({ cardIds, names, size = 'lg' }: { cardIds: string[]; names?: string[]; size?: 'sm' | 'lg' }) {
+  const n = cardIds.length
+  if (n === 0) return null
+
+  const { w, h } = size === 'lg' ? { w: 220, h: 138 } : { w: 132, h: 82 }
+  const colGap = Math.round(w * 0.78)   // horizontal step — ~22% overlap
+  const rowGap = Math.round(h * 0.80)   // vertical step   — ~20% overlap
+
+  // Fixed "random-looking" offsets + rotations per slot (top-left, top-right, bottom-left, bottom-right)
+  const slots = [
+    { col: 0, row: 0, rot: -6,  dx:  4, dy:  6 },
+    { col: 1, row: 0, rot:  4,  dx: -6, dy:  0 },
+    { col: 0, row: 1, rot:  3,  dx:  8, dy: -4 },
+    { col: 1, row: 1, rot: -5,  dx: -4, dy:  6 },
+  ]
+
+  const containerW = colGap + w + 24
+  const containerH = rowGap + h + 24
+
+  return (
+    <div style={{ position: 'relative', width: containerW, height: containerH, flexShrink: 0 }}>
+      {cardIds.slice(0, 4).map((id, i) => {
+        const s = slots[i]
+        return (
+          <div key={id} style={{
+            position: 'absolute',
+            left: s.col * colGap + s.dx,
+            top:  s.row * rowGap + s.dy,
+            transform: `rotate(${s.rot}deg)`,
+            transformOrigin: 'center center',
+            zIndex: i,
+          }}>
+            <CardImg id={id} size={size} />
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function cardName(id: string, cards: ScoredCard[]) {
+  return cards.find(c => c.earnn_card_id === id)?.card_name ?? id
+}
+
+function calcCoverage(cardIds: string[], scoredCards: ScoredCard[], userSpend: Record<string, number>, total: number) {
+  if (total <= 0) return 0
+  const cards = scoredCards.filter(c => cardIds.includes(c.earnn_card_id))
+  let covered = 0
+  for (const cat of SPEND_CATS) {
+    const spend = userSpend[cat] ?? 0
+    if (spend <= 0) continue
+    const anyCardCovers = cards.some(c => (c.category_effective_rates[cat] ?? 0) > 0)
+    if (anyCardCovers) covered += spend
+  }
+  return Math.round((covered / total) * 100)
+}
+
+function topCategories(userSpend: Record<string, number>, n: number) {
+  return SPEND_CATS.filter(k => (userSpend[k] ?? 0) > 0)
+    .sort((a, b) => (userSpend[b] ?? 0) - (userSpend[a] ?? 0))
+    .slice(0, n)
+}
+
+function cardTags(c: ScoredCard): string[] {
+  const tags: string[] = []
+  if (c.true_annual_fee_aed === 0) tags.push('No annual fee')
+  if (c.is_islamic) tags.push('Islamic')
+  if (c.earnn_score >= 70) tags.push('Premium')
+  if ((c.category_effective_rates['dining'] ?? 0) >= 0.05) tags.push('Dining')
+  if ((c.category_effective_rates['travel'] ?? 0) >= 0.03) tags.push('Travel')
+  if ((c.category_effective_rates['online'] ?? 0) >= 0.05) tags.push('Online')
+  if ((c.category_effective_rates['fuel'] ?? 0) >= 0.05) tags.push('Fuel')
+  if (tags.length === 0) tags.push('Cashback')
+  return tags
+}
+
+// ─── Loading ──────────────────────────────────────────────────────────────────
+
+function LoadingScreen() {
+  return (
+    <div className="flex min-h-[60vh] flex-col items-center justify-center gap-6">
+      <style>{`
+        @keyframes cardSpin {
+          0%   { transform: rotateY(0deg); }
+          50%  { transform: rotateY(180deg); }
+          100% { transform: rotateY(360deg); }
+        }
+        .spin0 { animation: cardSpin 1.4s ease-in-out infinite 0s; }
+        .spin1 { animation: cardSpin 1.4s ease-in-out infinite .28s; }
+        .spin2 { animation: cardSpin 1.4s ease-in-out infinite .56s; }
+      `}</style>
+      <div className="flex gap-4" style={{ perspective: 400 }}>
+        {[['bg-primary','spin0'],['bg-emerald','spin1'],['bg-blue-600','spin2']].map(([bg, cls], i) => (
+          <div key={i} className={`h-9 w-14 rounded-lg shadow-md ${bg} ${cls}`} />
+        ))}
+      </div>
+      <div className="text-center">
+        <p className="font-display text-lg font-bold text-primary">Optimising your wallet…</p>
+        <p className="mt-1 text-sm text-muted-foreground">Running simulations across thousands of card combinations</p>
+      </div>
+    </div>
+  )
+}
+
+// ─── Top Nav ──────────────────────────────────────────────────────────────────
+
+function TopNav() {
+  return (
+    <header className="sticky top-0 z-30 border-b border-border/60 bg-background/80 backdrop-blur">
+      <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
+        <div className="flex items-center gap-2">
+          <div className="grid h-8 w-8 place-items-center rounded-xl bg-primary text-primary-foreground">
+            <span className="text-sm font-bold">✦</span>
+          </div>
+          <span className="font-display text-lg font-bold tracking-tight text-primary">Earnn</span>
+        </div>
+        <div className="hidden items-center gap-2 rounded-full bg-emerald-soft px-3 py-1 text-xs font-medium text-emerald sm:flex">
+          <span className="h-1.5 w-1.5 rounded-full bg-emerald" />
+          Strategy ready
+        </div>
+      </div>
+    </header>
+  )
+}
+
+// ─── Stepper ──────────────────────────────────────────────────────────────────
+
+const STEPS = ['Recommendation', 'Build Your Wallet', "You're ready"]
+
+function Stepper({ current, onJump }: { current: number; onJump: (i: number) => void }) {
+  return (
+    <div className="mx-auto max-w-6xl px-4 pt-6 sm:px-6 lg:px-8">
+      <ol className="flex items-center gap-1 overflow-x-auto pb-2 text-xs">
+        {STEPS.map((s, i) => {
+          const active = i === current
+          const done = i < current
+          return (
+            <li key={s} className="flex items-center gap-1 shrink-0">
+              <button
+                onClick={() => onJump(i)}
+                className={`flex items-center gap-2 rounded-full px-3 py-1.5 transition ${
+                  active
+                    ? 'bg-primary text-primary-foreground'
+                    : done
+                      ? 'bg-emerald-soft text-emerald'
+                      : 'bg-card text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <span className={`grid h-5 w-5 place-items-center rounded-full text-[10px] font-bold ${
+                  active ? 'bg-white/20' : done ? 'bg-emerald text-white' : 'bg-muted'
+                }`}>
+                  {done ? '✓' : i + 1}
+                </span>
+                <span className="whitespace-nowrap font-medium">{s}</span>
+              </button>
+              {i < STEPS.length - 1 && <span className="text-xs text-muted-foreground">›</span>}
+            </li>
+          )
+        })}
+      </ol>
+    </div>
+  )
+}
+
+// ─── NavRow ───────────────────────────────────────────────────────────────────
+
+function NavRow({ onBack, onNext, nextLabel }: { onBack: () => void; onNext: () => void; nextLabel: string }) {
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
+      <button onClick={onBack} className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-4 py-2.5 text-sm font-medium text-muted-foreground transition hover:bg-surface-2">
+        ← Back
+      </button>
+      <button onClick={onNext} className="inline-flex items-center gap-2 rounded-full bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground transition hover:opacity-90">
+        {nextLabel} →
+      </button>
+    </div>
+  )
+}
+
+// ─── SectionHeader ────────────────────────────────────────────────────────────
+
+function SectionHeader({ eyebrow, title, subtitle }: { eyebrow: string; title: string; subtitle: string }) {
+  return (
+    <div className="space-y-2">
+      <span className="text-xs font-semibold uppercase tracking-widest text-emerald">{eyebrow}</span>
+      <h2 className="font-display text-3xl font-bold tracking-tight text-primary sm:text-4xl">{title}</h2>
+      <p className="max-w-2xl text-base text-muted-foreground">{subtitle}</p>
+    </div>
+  )
+}
+
+// ─── SummaryStat ─────────────────────────────────────────────────────────────
+
+function SummaryStat({ label, value, tone, big }: { label: string; value: string; tone?: 'emerald'; big?: boolean }) {
+  return (
+    <div className="rounded-2xl border border-border/60 bg-card p-5 shadow-soft">
+      <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{label}</div>
+      <div className={`mt-2 font-display font-bold tabular ${big ? 'text-3xl' : 'text-2xl'} ${tone === 'emerald' ? 'text-emerald' : 'text-primary'}`}>
+        {value}
+      </div>
+    </div>
   )
 }
 
 // ─── Card Detail Popup ────────────────────────────────────────────────────────
-function CardDetailPopup({
-  cardId, cardName, cardEarnn, cardFee, prefetchedDetail, onClose,
-}: {
-  cardId: string; cardName: string; cardEarnn?: number; cardFee?: number
-  prefetchedDetail?: any
-  onClose: () => void
-}) {
-  const [detail, setDetail] = useState<any>(prefetchedDetail || null)
-  const [loading, setLoading] = useState(!prefetchedDetail)
+
+function CardDetailPopup({ cardId, onClose }: { cardId: string; onClose: () => void }) {
+  const [detail, setDetail] = useState<{ card: Record<string, unknown>; benefits: string[]; best_for: string[]; card_disclaimer: string } | null>(null)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    if (prefetchedDetail) return  // already have it — no fetch needed
     fetchCardDetail(cardId).then(d => { setDetail(d); setLoading(false) }).catch(() => setLoading(false))
-  }, [cardId, prefetchedDetail])
+  }, [cardId])
+
+  const card = detail?.card as Record<string, unknown> | undefined
 
   return (
-    <div style={{
-      position:'fixed', inset:0, background:'rgba(0,0,0,0.65)', zIndex:1100,
-      display:'flex', alignItems:'center', justifyContent:'center', padding:24,
-    }} onClick={onClose}>
+    <div style={{ position: 'fixed', inset: 0, zIndex: 1100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+      onClick={onClose}>
+      <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.55)' }} />
       <div style={{
-        background:'#fff', borderRadius:20, width:'100%', maxWidth:680, maxHeight:'85vh',
-        overflow:'auto', padding:32, position:'relative',
+        position: 'relative', background: '#fff', borderRadius: 20, padding: 28, maxWidth: 540, width: '90%',
+        maxHeight: '85vh', overflowY: 'auto', boxShadow: '0 24px 64px rgba(0,0,0,0.25)',
       }} onClick={e => e.stopPropagation()}>
-
-        {/* Close */}
-        <button onClick={onClose} style={{
-          position:'absolute', top:16, right:16, background:'#EEF3FF', border:'none',
-          borderRadius:'50%', width:32, height:32, cursor:'pointer', fontSize:18, color:'#5A6A85',
-          display:'flex', alignItems:'center', justifyContent:'center', fontWeight:700,
-        }}>×</button>
-
-        {/* Card header */}
-        <div style={{ display:'flex', alignItems:'center', gap:16, marginBottom:24 }}>
-          <img src={getCardImageUrl(cardId)} alt={cardName} width={108} height={66}
-            onError={(e) => { (e.target as HTMLImageElement).src = '/card-dummy.svg' }}
-            style={{ borderRadius:8, objectFit:'cover', boxShadow:'0 4px 16px rgba(14,55,133,0.2)' }} />
-          <div>
-            <div style={{ fontWeight:800, fontSize:18, color:'#0D1828' }}>{cardName}</div>
-            <div style={{ display:'flex', gap:16, marginTop:8 }}>
-              <div style={{ textAlign:'center' }}>
-                <div style={{ fontSize:16, fontWeight:800, color:'#00A67E' }}>
-                  {cardEarnn !== undefined ? fmtAed(cardEarnn) : '—'}
+        <button onClick={onClose} style={{ position: 'absolute', top: 14, right: 16, fontSize: 20, background: 'none', border: 'none', cursor: 'pointer', color: '#666' }}>×</button>
+        {loading ? (
+          <div style={{ textAlign: 'center', padding: 40, color: '#888' }}>Loading…</div>
+        ) : !card ? (
+          <div style={{ textAlign: 'center', padding: 40, color: '#888' }}>Details unavailable</div>
+        ) : (
+          <>
+            <div style={{ display: 'flex', gap: 18, alignItems: 'flex-start', marginBottom: 20 }}>
+              <img src={getCardImageUrl(cardId)} alt="" width={132} height={82}
+                style={{ borderRadius: 10, objectFit: 'cover', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', flexShrink: 0 }}
+                onError={(e) => { (e.target as HTMLImageElement).src = '/card-dummy.svg' }} />
+              <div>
+                <div style={{ fontWeight: 700, fontSize: 17, color: '#0D1828' }}>{String(card.card_name ?? '')}</div>
+                <div style={{ fontSize: 13, color: '#5A6A85', marginTop: 3 }}>{String(card.bank_name ?? '')}</div>
+                <div style={{ display: 'flex', gap: 12, marginTop: 10 }}>
+                  <div>
+                    <div style={{ fontSize: 11, color: '#5A6A85', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Annual Fee</div>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: '#C0392B' }}>
+                      {Number(card.annual_fee_aed) === 0 ? 'Free' : `AED ${fmt(Number(card.annual_fee_aed))}`}
+                    </div>
+                  </div>
                 </div>
-                <div style={{ fontSize:11, color:'#5A6A85' }}>Annual Rewards</div>
-              </div>
-              <div style={{ textAlign:'center' }}>
-                <div style={{ fontSize:16, fontWeight:800, color: (cardFee || 0) > 0 ? '#C0392B' : '#00A67E' }}>
-                  {cardFee !== undefined ? (cardFee > 0 ? fmtAed(cardFee) : 'No Fee') : '—'}
-                </div>
-                <div style={{ fontSize:11, color:'#5A6A85' }}>Annual Fee</div>
               </div>
             </div>
+            {[
+              { title: 'Top Benefits', items: detail?.benefits ?? [] },
+              { title: 'Best For', items: detail?.best_for ?? [] },
+              { title: 'Things To Note', items: detail?.card_disclaimer ? [detail.card_disclaimer] : [] },
+            ].map(sec => sec.items.length > 0 && (
+              <div key={sec.title} style={{ marginBottom: 16 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: '#0E3785', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>{sec.title}</div>
+                <ul style={{ paddingLeft: 16, margin: 0 }}>
+                  {sec.items.map((it, i) => <li key={i} style={{ fontSize: 13, color: '#374151', marginBottom: 4 }}>{it}</li>)}
+                </ul>
+              </div>
+            ))}
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ─── Screen 1 — Hero ─────────────────────────────────────────────────────────
+
+// builds the 3 hero card configs from wallet data + scored cards
+function buildHeroCards(walletData: WalletResponse, scoredCards: ScoredCard[]): HeroCardData[] {
+  const sorted = [...walletData.wallets].sort((a, b) => a.n_cards - b.n_cards)
+  const byN: Record<number, WalletEntry> = {}
+  for (const w of sorted) byN[w.n_cards] = w
+
+  // Hero 1: incremental >1000 threshold
+  let h1 = sorted[0]
+  for (const w of sorted.slice(1)) {
+    if (w.incremental_vs_prev_aed > 1000) h1 = w
+    else break
+  }
+
+  const toHero = (w: WalletEntry, title: string, subMsg?: string): HeroCardData => ({
+    walletEntry: w, title, subMsg,
+    card_ids: w.card_ids, n_cards: w.n_cards,
+    net_annual_value_aed: w.net_annual_value_aed,
+    gross_annual_aed: w.gross_annual_aed,
+    total_fee_aed: w.total_fee_aed,
+    category_routing: w.category_routing,
+  })
+
+  // single card fallback using scored cards
+  const singleCards = [...scoredCards].sort((a, b) => a.card_ranking - b.card_ranking)
+  const singleWallet = (idx: number): WalletEntry => {
+    const c = singleCards[idx] ?? singleCards[0]
+    const userSpend = walletData.user_spend
+    // build synthetic routing from card's own category data
+    const routing: Record<string, RouteEntry[]> = {}
+    for (const cat of SPEND_CATS) {
+      const monthlyReward = c.category_monthly_rewards[cat] ?? 0
+      const rate = c.category_effective_rates[cat] ?? 0
+      if (monthlyReward > 0 && rate > 0) {
+        routing[cat] = [{
+          card_id: c.earnn_card_id,
+          card_name: c.card_name,
+          rate,
+          annual_aed: monthlyReward * 12,
+          monthly_spend_chunk: userSpend[cat] ?? 0,
+        }]
+      }
+    }
+    return {
+      n_cards: 1, card_ids: [c.earnn_card_id],
+      gross_annual_aed: c.expected_annual_return_aed,
+      total_fee_aed: c.true_annual_fee_aed,
+      net_annual_value_aed: c.net_annual_value_aed,
+      effective_rate: 0, incremental_vs_prev_aed: 0,
+      category_routing: routing,
+      top_combinations: [],
+    }
+  }
+
+  const h1Nav = h1.net_annual_value_aed
+  const heroes: HeroCardData[] = [toHero(h1,
+    h1.n_cards === 1 ? 'Your Best Card for This Spend' :
+    h1.n_cards === 2 ? '2 Cards Deliver You Maximum Rewards' :
+    `${h1.n_cards} Cards Deliver You Maximum Rewards`
+  )]
+
+  if (h1.n_cards >= 3) {
+    // Hero 2 = 2-card, Hero 3 = single best
+    const w2 = byN[2]
+    const h2 = w2 ?? singleWallet(0)
+    const h2gain = fmt(Math.round(h1Nav - h2.net_annual_value_aed))
+    heroes.push(toHero(h2, '2 Cards Still Cover Most of Your Rewards',
+      `Adding ${h1.n_cards - 2} more card${h1.n_cards - 2 > 1 ? 's' : ''} could earn you AED ${h2gain} more each year`))
+    const w1 = byN[1] ?? singleWallet(0)
+    const h3gain = fmt(Math.round(h1Nav - w1.net_annual_value_aed))
+    heroes.push(toHero(w1, '🎯 Your Best Single Card',
+      `Adding ${h1.n_cards - 1} more card${h1.n_cards - 1 > 1 ? 's' : ''} could earn you AED ${h3gain} more each year`))
+
+  } else if (h1.n_cards === 2) {
+    const w3 = byN[3]
+    if (w3 && w3.incremental_vs_prev_aed >= 500 && w3.incremental_vs_prev_aed <= 1000) {
+      // Hero 2 = 3-card (step up), Hero 3 = single best
+      heroes.push(toHero(w3, '3 Cards Unlock a Little More',
+        `You could earn AED ${fmt(Math.round(w3.incremental_vs_prev_aed))} more — worth it if you're comfortable managing one extra card`))
+      const w1 = byN[1] ?? singleWallet(0)
+      const h3gain = fmt(Math.round(h1Nav - w1.net_annual_value_aed))
+      heroes.push(toHero(w1, '🎯 Your Best Single Card',
+        `Adding 1 more card could earn you AED ${h3gain} more each year`))
+    } else {
+      // Hero 2 & 3 = 1st and 2nd best single cards
+      const w1 = byN[1] ?? singleWallet(0)
+      const h2gain = fmt(Math.round(h1Nav - w1.net_annual_value_aed))
+      heroes.push(toHero(w1, '🎯 Your Best Single Card',
+        `Adding 1 more card could earn you AED ${h2gain} more each year`))
+      heroes.push(toHero(singleWallet(1), '🎯 2nd Best Single Card', undefined))
+    }
+
+  } else {
+    // Hero 1 = single card
+    const w2 = byN[2]
+    if (w2 && w2.incremental_vs_prev_aed >= 500 && w2.incremental_vs_prev_aed <= 1000) {
+      heroes.push(toHero(w2, '2 Cards Unlock More Rewards',
+        `You could earn AED ${fmt(Math.round(w2.incremental_vs_prev_aed))} more — worth it if you're comfortable managing one extra card`))
+      heroes.push(toHero(singleWallet(1), '🎯 2nd Best Single Card', undefined))
+    } else {
+      heroes.push(toHero(singleWallet(1), '🎯 2nd Best Single Card', undefined))
+      heroes.push(toHero(singleWallet(2), '🎯 3rd Best Single Card', undefined))
+    }
+  }
+
+  return heroes
+}
+
+interface HeroCardData {
+  walletEntry: WalletEntry; title: string; subMsg?: string
+  card_ids: string[]; n_cards: number
+  net_annual_value_aed: number; gross_annual_aed: number; total_fee_aed: number
+  category_routing: Record<string, RouteEntry[]>
+}
+
+function Screen1Hero({ scoredCards, walletData, onNext, onExplore }: {
+  scoredCards: ScoredCard[]; walletData: WalletResponse; onNext: () => void; onExplore: () => void
+}) {
+  const [heroIdx, setHeroIdx] = useState(0)
+  const [showWhy, setShowWhy] = useState(false)
+  const [detailCardId, setDetailCardId] = useState<string | null>(null)
+  const sectionRef = useRef<HTMLElement>(null)
+  const whyRef = useRef<HTMLDivElement>(null)
+  const whyBtnRef = useRef<HTMLButtonElement>(null)
+  const [feeHover, setFeeHover] = useState(false)
+  const [rewardsHover, setRewardsHover] = useState(false)
+
+  const heroCards = buildHeroCards(walletData, scoredCards)
+  const rec = heroCards[heroIdx]
+  const total = walletData.total_monthly
+  const coverage = calcCoverage(rec.card_ids, scoredCards, walletData.user_spend, total)
+  const names = rec.card_ids.map(id => cardName(id, scoredCards))
+
+  const badgeLabels = ['#1 Recommended · Maximum Rewards', '#2 Best Balance · Low Effort', '#3 Keep It Simple · Zero Complexity']
+
+  return (
+    <section ref={sectionRef} className="space-y-6">
+      <div className="space-y-3 -mt-3">
+        <h1 className="font-display text-4xl font-bold tracking-tight text-primary sm:text-5xl">
+          Your spending is unique. So is your card strategy.
+        </h1>
+        <div className="space-y-0.5 text-base text-muted-foreground sm:text-lg">
+          <p>Based on your monthly spending of <span className="font-semibold text-foreground">AED {fmt(total)}</span> across <span className="font-semibold text-foreground">{Object.values(walletData.user_spend).filter(v => v > 0).length}</span> categories,</p>
+          <p>Earnn&apos;s AI engine simulated millions of reward scenarios across UAE credit cards to uncover your highest-value strategy.</p>
+        </div>
+      </div>
+
+      {/* Hero card carousel */}
+      <div style={{ position: 'relative' }}>
+        {/* Badge + nav arrows */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+          <div style={{ fontSize: 12, fontWeight: 600, color: '#0D1828', letterSpacing: '0.02em' }}>
+            {badgeLabels[heroIdx]}
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {/* Dot indicators */}
+            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+              {heroCards.map((_, i) => (
+                <button key={i} onClick={() => { setHeroIdx(i); setShowWhy(false) }} style={{
+                  width: i === heroIdx ? 24 : 8, height: 8, borderRadius: 4,
+                  background: i === heroIdx ? '#0E3785' : '#C8D6F0',
+                  border: 'none', cursor: 'pointer', padding: 0,
+                  transition: 'all 0.2s',
+                }} />
+              ))}
+            </div>
+            {/* Arrow buttons */}
+            <button onClick={() => { setHeroIdx(i => Math.max(0, i - 1)); setShowWhy(false) }}
+              disabled={heroIdx === 0}
+              style={{ width: 36, height: 36, borderRadius: '50%', border: '1px solid #C8D6F0', background: '#EEF3FF', color: '#0E3785', cursor: heroIdx === 0 ? 'not-allowed' : 'pointer', opacity: heroIdx === 0 ? 0.35 : 1, fontSize: 20, fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              ‹
+            </button>
+            <button onClick={() => { setHeroIdx(i => Math.min(heroCards.length - 1, i + 1)); setShowWhy(false) }}
+              disabled={heroIdx === heroCards.length - 1}
+              style={{ width: 36, height: 36, borderRadius: '50%', border: '1px solid #C8D6F0', background: '#EEF3FF', color: '#0E3785', cursor: heroIdx === heroCards.length - 1 ? 'not-allowed' : 'pointer', opacity: heroIdx === heroCards.length - 1 ? 0.35 : 1, fontSize: 20, fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              ›
+            </button>
           </div>
         </div>
 
-        {/* Detail columns */}
-        {loading ? (
-          <div style={{ textAlign:'center', padding:40, color:'#5A6A85' }}>Loading details…</div>
-        ) : detail ? (
-          <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:20 }}>
+        <div className="relative overflow-hidden rounded-3xl p-5 pt-0 text-primary-foreground shadow-card sm:p-8 sm:pt-0 sm:pb-6"
+          style={{ background: 'linear-gradient(110deg,#091e42 0%,#0A2A66 35%,#143a7a 70%,#1b4080 100%)' }}>
+          <div aria-hidden className="pointer-events-none absolute -right-32 -top-32 h-96 w-96 rounded-full opacity-20"
+            style={{ background: 'radial-gradient(circle, #00A870 0%, transparent 70%)' }} />
+
+          <div className="relative grid gap-8 lg:grid-cols-[1.1fr_1fr] lg:items-center">
+            <div className="space-y-0">
+              <div className="mb-3 mt-4">
+                <div className="flex items-center gap-2 text-base font-bold text-primary-foreground">
+                  {heroIdx === 0 && (
+                    <span style={{ fontSize: 18, lineHeight: 1, flexShrink: 0 }}>🏆</span>
+                  )}
+                  {heroIdx === 1 && (
+                    <span style={{ fontSize: 20, lineHeight: 1, flexShrink: 0 }}>⚖️</span>
+                  )}
+                  {rec.title}
+                </div>
+              </div>
+              <div>
+                <div className="text-sm text-primary-foreground/70">Monthly Money Back</div>
+                <div className="mt-1 flex items-baseline gap-2 tabular">
+                  <span className="font-display text-5xl font-bold sm:text-6xl" style={{ color: '#F5D76E' }}>AED {fmt(Math.round(rec.net_annual_value_aed / 12))}</span>
+                  <span className="text-base" style={{ color: 'rgba(245,215,110,0.75)' }}>/ month</span>
+                </div>
+                <div className="mt-2 inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium" style={{ background: 'rgba(255,255,255,0.10)', border: '1px solid rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.70)' }}>
+                  🟢 Optimized across <span className="font-semibold text-emerald">{coverage}%</span> of your spending
+                </div>
+              </div>
+
+              <div>
+                <div className="text-sm text-primary-foreground/70 mb-3 mt-5">Recommended Cards</div>
+                <ul className="flex flex-col gap-1.5">
+                  {names.slice(0, 4).map((name, i) => (
+                    <li key={i}>
+                      <button onClick={() => setDetailCardId(rec.card_ids[i])}
+                        className="flex items-center gap-2 rounded-xl px-2 py-1.5 w-full text-left transition hover:bg-white/10">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" width={16} height={16} style={{ flexShrink: 0, color: 'rgba(255,255,255,0.55)' }}><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/><path d="M6 15h.01M10 15h4"/></svg>
+                        <span className="text-[13px] text-primary-foreground/90 truncate leading-tight">{name}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+
+            <div className="relative flex flex-col items-center justify-between gap-6">
+              <div style={{ marginTop: 16, transform: rec.n_cards <= 2 ? 'translateY(24px)' : 'none' }}>
+                <CardFan cardIds={rec.card_ids.slice(0, 4)} names={names} size="lg" />
+              </div>
+              <button onClick={onNext}
+                className="group inline-flex items-center gap-2.5 rounded-2xl px-5 py-3 text-sm font-semibold transition-all hover:brightness-110 active:scale-95"
+                style={{ background: '#2D8C6A', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', boxShadow: '0 2px 12px rgba(45,140,106,0.35)' }}>
+                <img src="/wallet-icon.png" alt="" width={20} height={20} style={{ width: 20, height: 20, objectFit: 'contain', opacity: 0.9 }} />
+                Build My Own Wallet
+              </button>
+            </div>
+          </div>
+
+          {/* Stats row */}
+          <div className="mt-4 grid grid-cols-2 gap-3 border-t border-primary-foreground/10 pt-4 sm:grid-cols-4">
             {[
-              { title:'✅ Top Benefits',   items: detail.benefits || [] },
-              { title:'🎯 Best For',        items: detail.best_for || [] },
-              { title:'📋 Things To Note', items: detail.card_disclaimer || [] },
-            ].map(col => (
-              <div key={col.title}>
-                <div style={{ fontWeight:700, fontSize:13, color:'#0D1828', marginBottom:10 }}>{col.title}</div>
-                {col.items.length === 0
-                  ? <div style={{ fontSize:12, color:'#A0AFC0' }}>—</div>
-                  : col.items.map((item: string, i: number) => (
-                    <div key={i} style={{ fontSize:12, color:'#3D5068', marginBottom:6, lineHeight:1.5 }}>• {item}</div>
-                  ))
-                }
+              { label: 'Annual Rewards',  value: `AED ${fmt(rec.gross_annual_aed)}`,      emerald: false, sub: 'Total cashback & benefits', icon: (
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" width={20} height={20}>
+                  <path d="M20 12v9H4v-9"/><path d="M22 7H2v5h20V7z"/><path d="M12 22V7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/>
+                </svg>
+              )},
+              { label: 'Annual Fees',     value: `AED ${fmt(rec.total_fee_aed)}`,          emerald: false, sub: 'Considering Waiver Probability', icon: (
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" width={20} height={20}>
+                  <rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/>
+                </svg>
+              )},
+              { label: 'Net Annual Value', value: `AED ${fmt(rec.net_annual_value_aed)}`, emerald: true,  sub: 'What you earn after fees', icon: (
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" width={20} height={20}>
+                  <polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/>
+                </svg>
+              )},
+              { label: 'Cards Needed',    value: String(rec.n_cards),                      emerald: false, sub: 'Easy to manage', icon: (
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" width={20} height={20}>
+                  <rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/><path d="M6 15h.01M10 15h4"/>
+                </svg>
+              )},
+            ].map(s => (
+              <div key={s.label}
+                onMouseEnter={() => { if (s.label === 'Annual Fees') setFeeHover(true); if (s.label === 'Annual Rewards') setRewardsHover(true) }}
+                onMouseLeave={() => { setFeeHover(false); setRewardsHover(false) }}
+                style={{
+                  position: 'relative', background: 'rgba(255,255,255,0.07)',
+                  border: '1px solid rgba(255,255,255,0.10)', borderRadius: 12,
+                  padding: '10px 14px', display: 'flex', flexDirection: 'column', gap: 4,
+                }}>
+                <div className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: 'rgba(255,255,255,0.45)' }}>{s.label}</div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                  <div className="font-display text-lg font-bold tabular" style={{ color: s.emerald ? '#00E5A0' : '#fff', textShadow: s.emerald ? '0 0 12px rgba(0,229,160,0.4)' : 'none' }}>{s.value}</div>
+                  <div style={{
+                    width: 30, height: 30, borderRadius: '50%', flexShrink: 0,
+                    background: s.emerald ? 'rgba(0,166,126,0.20)' : 'rgba(255,255,255,0.10)',
+                    border: `1px solid ${s.emerald ? 'rgba(0,166,126,0.35)' : 'rgba(255,255,255,0.15)'}`,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    color: s.emerald ? '#00A67E' : 'rgba(255,255,255,0.55)',
+                  }}>
+                    {s.icon}
+                  </div>
+                </div>
+                <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)' }}>{s.sub}</div>
+                {s.label === 'Annual Rewards' && rewardsHover && (
+                  <div style={{ position: 'absolute', bottom: 'calc(100% + 8px)', left: 0, right: 0, background: '#0D1828', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 8, padding: '8px 12px', zIndex: 50, fontSize: 11, color: 'rgba(255,255,255,0.70)', lineHeight: 1.5, pointerEvents: 'none' }}>
+                    Earnn model optimizes every dirham of spend by assigning purchases to the card that earns the highest rewards first, then seamlessly allocating any remaining spend to the next best option, maximizing returns without double counting.
+                  </div>
+                )}
+                {s.label === 'Annual Fees' && feeHover && (
+                  <div style={{ position: 'absolute', bottom: 'calc(100% + 8px)', left: 0, right: 0, background: '#0D1828', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 8, padding: '8px 12px', zIndex: 50, fontSize: 11, color: 'rgba(255,255,255,0.70)', lineHeight: 1.5, pointerEvents: 'none' }}>
+                    Where banks offer annual fee waivers based on minimum spend requirements, Earnn model estimates your probability of qualifying using your spending behavior and factors this into the fee calculation.
+                  </div>
+                )}
               </div>
             ))}
           </div>
-        ) : (
-          <div style={{ textAlign:'center', padding:40, color:'#5A6A85' }}>No details available.</div>
+        </div>
+      </div>
+
+      {/* See why button — just below hero card, centered */}
+      <div className="flex justify-center -mt-3">
+        <button ref={whyBtnRef} onClick={() => {
+          const opening = !showWhy
+          setShowWhy(v => !v)
+          if (opening) setTimeout(() => {
+            const btn = whyBtnRef.current
+            if (!btn) return
+            const y = btn.getBoundingClientRect().top + window.scrollY - 80
+            window.scrollTo({ top: y, behavior: 'smooth' })
+          }, 50)
+          else setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 50)
+        }}
+          className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-card px-5 py-2.5 text-sm font-semibold text-primary shadow-soft transition hover:bg-primary/5">
+          {showWhy ? '▲ Hide reasoning' : '▼ See why we chose these cards'}
+        </button>
+      </div>
+
+      {/* See why expanded content */}
+      <div ref={whyRef as React.RefObject<HTMLDivElement>}>
+        {showWhy && (
+          <div className="mt-4 space-y-4">
+            {/* How we calculated this */}
+            <div className="rounded-2xl border border-border/60 bg-card px-5 py-4 shadow-soft">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="font-semibold text-sm text-primary">How Earnn optimized it</span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" width={14} height={14} className="text-muted-foreground"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4m0-4h.01"/></svg>
+              </div>
+              <p className="text-xs text-muted-foreground mb-4">We use your spending data to find the simplest way to maximize your rewards.</p>
+              <div className="grid grid-cols-4 gap-3">
+                {[
+                  { icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" width={20} height={20}><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>, title: 'Analyzed your spending pattern', color: '#4D9FFF', bg: '#EEF6FF' },
+                  { icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" width={20} height={20}><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/><path d="M6 15h.01M10 15h4"/></svg>, title: 'Matched top cards for each category', color: '#00A67E', bg: '#E6F7F2' },
+                  { icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" width={20} height={20}><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>, title: 'Considered fees, caps & real value', color: '#F5A623', bg: '#FEF6E6' },
+                  { icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" width={20} height={20}><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>, title: 'Picked the simplest strategy for max value', color: '#8B5CF6', bg: '#F3EEFF' },
+                ].map((item, i) => (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <div style={{ position: 'relative', flexShrink: 0, width: 40, height: 40 }}>
+                      <div style={{ width: 40, height: 40, borderRadius: 10, background: item.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', color: item.color }}>
+                        {item.icon}
+                      </div>
+                      <div style={{ position: 'absolute', bottom: -4, right: -4, width: 16, height: 16, borderRadius: '50%', background: '#00A67E', border: '2px solid #fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <svg viewBox="0 0 12 12" fill="none" width={8} height={8}><polyline points="2,6 5,9 10,3" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                      </div>
+                    </div>
+                    <div className="text-xs font-semibold text-primary leading-snug">{item.title}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <WhyTheseCards scoredCards={scoredCards} walletData={walletData} forcedRec={rec.walletEntry} subMsg={rec.subMsg} heroIdx={heroIdx} />
+          </div>
         )}
-
-        {/* View & Apply */}
-        <div style={{ marginTop:28, textAlign:'center' }}>
-          <button
-            onClick={() => alert('🚀 Coming soon!')}
-            style={{
-              background:'#0E3785', color:'#fff', border:'none', borderRadius:10,
-              padding:'12px 36px', fontSize:15, fontWeight:700, cursor:'pointer',
-            }}
-          >View &amp; Apply</button>
-        </div>
       </div>
-    </div>
+
+      {detailCardId && <CardDetailPopup cardId={detailCardId} onClose={() => setDetailCardId(null)} />}
+    </section>
   )
 }
 
-// ─── Other Combinations Popup ─────────────────────────────────────────────────
-function OtherCombosPopup({
-  nCards, combinations, cardNames, cardData, onCardClick, onClose,
-}: {
-  nCards: number
-  combinations: any[]
-  cardNames: Record<string, string>
-  cardData: Record<string, any>
-  onCardClick: (id: string, name: string) => void
-  onClose: () => void
-}) {
-  return (
-    <div style={{
-      position:'fixed', inset:0, background:'rgba(0,0,0,0.55)', zIndex:1000,
-      display:'flex', alignItems:'center', justifyContent:'center', padding:24,
-    }} onClick={onClose}>
-      <div style={{
-        background:'#fff', borderRadius:20, width:'100%', maxWidth:760, maxHeight:'85vh',
-        overflow:'auto', padding:32, position:'relative',
-      }} onClick={e => e.stopPropagation()}>
+// ─── Why These Cards — reusable panel (used inline on hero + in Build Your Wallet) ─
 
-        <button onClick={onClose} style={{
-          position:'absolute', top:16, right:16, background:'#EEF3FF', border:'none',
-          borderRadius:'50%', width:32, height:32, cursor:'pointer', fontSize:18, color:'#5A6A85',
-          display:'flex', alignItems:'center', justifyContent:'center', fontWeight:700,
-        }}>×</button>
-
-        <h2 style={{ fontSize:20, fontWeight:800, color:'#0D1828', margin:'0 0 4px' }}>
-          Top {combinations.length} · {nCards}-Card Combinations
-        </h2>
-        <p style={{ color:'#5A6A85', fontSize:14, margin:'0 0 24px' }}>
-          All ranked by Net Annual Value (rewards minus fees) for your spending profile.
-        </p>
-
-        <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
-          {combinations.map((combo, i) => (
-            <div key={i} style={{
-              border: i === 0 ? '2px solid #0E3785' : '1px solid #D6E0F5',
-              borderRadius:14, padding:'16px 20px',
-              background: i === 0 ? '#F5F8FF' : '#fff',
-            }}>
-              {/* Top row: rank + stats */}
-              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12 }}>
-                <div style={{ fontWeight:800, fontSize:15, color:'#0D1828' }}>
-                  #{combo.rank} {i === 0 && <span style={{ marginLeft:8, background:'#0E3785', color:'#fff', fontSize:10, fontWeight:700, padding:'3px 10px', borderRadius:100 }}>BEST</span>}
-                </div>
-                <div style={{ display:'flex', gap:20 }}>
-                  <div style={{ textAlign:'center' }}>
-                    <div style={{ fontSize:15, fontWeight:800, color:'#00A67E' }}>{fmtAed(combo.gross_annual_aed)}</div>
-                    <div style={{ fontSize:10, color:'#5A6A85' }}>Gross Rewards</div>
-                  </div>
-                  <div style={{ textAlign:'center' }}>
-                    <div style={{ fontSize:15, fontWeight:800, color: combo.total_fee_aed > 0 ? '#C0392B' : '#00A67E' }}>
-                      {combo.total_fee_aed > 0 ? fmtAed(combo.total_fee_aed) : 'No Fee'}
-                    </div>
-                    <div style={{ fontSize:10, color:'#5A6A85' }}>Total Fee</div>
-                  </div>
-                  <div style={{ textAlign:'center' }}>
-                    <div style={{ fontSize:15, fontWeight:800, color:'#0E3785' }}>{fmtAed(combo.net_annual_value_aed)}</div>
-                    <div style={{ fontSize:10, color:'#5A6A85' }}>Net Value</div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Cards row — fixed-width tiles so position never shifts with name length */}
-              <div style={{ display:'flex', alignItems:'center', flexWrap:'wrap', gap:0 }}>
-                {combo.card_ids.map((id: string, ci: number) => {
-                  const isLast = ci === combo.card_ids.length - 1
-                  return (
-                    <div key={id} style={{ display:'flex', alignItems:'center' }}>
-                      <button
-                        onClick={() => onCardClick(id, cardNames[id] || id)}
-                        style={{
-                          width:112, display:'flex', flexDirection:'column', alignItems:'center', gap:6,
-                          background:'none', border:'1px solid #D6E0F5',
-                          borderRadius:10, padding:'8px 8px', cursor:'pointer', margin:'4px',
-                        }}
-                      >
-                        <img src={getCardImageUrl(id)} alt={cardNames[id] || id} width={64} height={39} loading="lazy"
-                          onError={(e) => { (e.target as HTMLImageElement).src = '/card-dummy.svg' }}
-                          style={{ borderRadius:4, objectFit:'cover', boxShadow:'0 2px 8px rgba(14,55,133,0.15)' }} />
-                        <span style={{
-                          fontSize:10, fontWeight:600, color:'#0D1828', textAlign:'center',
-                          lineHeight:1.35, width:'100%',
-                          display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical',
-                          overflow:'hidden',
-                        }}>{cardNames[id] || id}</span>
-                      </button>
-                      {!isLast && (
-                        <span style={{ color:'#5A6A85', fontWeight:700, fontSize:16, padding:'0 2px', flexShrink:0 }}>+</span>
-                      )}
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// ─── Wallet Combo Card ────────────────────────────────────────────────────────
-function WalletCombo({
-  combo, index, cardNames, cardData, topCardNav, onCardClick, onSeeOthers,
-}: {
-  combo: any
-  index: number
-  cardNames: Record<string, string>
-  cardData: Record<string, any>
-  topCardNav: number
-  onCardClick: (id: string, name: string) => void
-  onSeeOthers: () => void
-}) {
-  const COLORS = ['#0E3785', '#00A67E', '#E07B1F', '#6B21A8']
-  const color = COLORS[index] || '#5A6A85'
-
-  // Fix incremental for 2-card wallet: vs best single card, not vs 0
-  const incremental = combo.n_cards === 2
-    ? combo.net_annual_value_aed - topCardNav
-    : combo.incremental_vs_prev_aed
-
-  // Recommendation text
-  // Verdict applies to ALL wallet sizes using the incremental value
-  type Verdict = { label: string; emoji: string; pillBg: string; pillColor: string; bg: string; border: string; textColor: string }
-  const verdict: Verdict = (() => {
-    if (incremental < 500) return {
-      label: 'Not Recommended',
-      emoji: '⚠️',
-      pillBg: '#FEE2E2', pillColor: '#B91C1C',
-      bg: '#FFF5F5', border: '#FECACA', textColor: '#B91C1C',
+function WhyTheseCards({ scoredCards, walletData, forcedRec, subMsg, heroIdx }: { scoredCards: ScoredCard[]; walletData: WalletResponse; forcedRec?: WalletEntry; subMsg?: string; heroIdx?: number }) {
+  const rec = forcedRec ?? (() => {
+    const sorted = [...walletData.wallets].sort((a, b) => a.n_cards - b.n_cards)
+    let best = sorted[0]
+    for (const w of sorted.slice(1)) {
+      if (w.incremental_vs_prev_aed > 1000) best = w
+      else break
     }
-    if (incremental <= 1200) return {
-      label: 'Good to Have',
-      emoji: '👍',
-      pillBg: '#FEF3C7', pillColor: '#92400E',
-      bg: '#FFFBEB', border: '#FDE68A', textColor: '#92400E',
-    }
-    return {
-      label: 'Must Have',
-      emoji: '🏆',
-      pillBg: '#D1FAE5', pillColor: '#065F46',
-      bg: '#F0FFF8', border: '#6EE7B7', textColor: '#065F46',
-    }
+    return best
   })()
+  const userSpend = walletData.user_spend
 
-  const recText = (() => {
-    if (combo.n_cards === 2) {
-      return incremental > 0
-        ? `This 2-card pair earns you ${fmtAed(incremental)} more per year than your best single card. Each card targets different spend categories so together they cover more ground at higher rates.`
-        : `This is the top 2-card combination for your spend. Together they maximise coverage across your spending categories.`
-    }
-    if (combo.n_cards === 3) {
-      if (incremental < 500) {
-        return `Adding a 3rd card only earns ${fmtAed(incremental)} more per year. The complexity of managing a 3rd card outweighs the reward gain. Stick with the 2-card wallet.`
-      }
-      if (incremental <= 1200) {
-        return `Adding a 3rd card earns you ${fmtAed(incremental)} more per year (about AED ${Math.round(incremental / 12)}/month extra). Worth it if you don't mind managing one extra card — each card in this trio targets specific categories at the highest possible rate.`
-      }
-      return `Adding a 3rd card earns you ${fmtAed(incremental)} more per year — that's over AED ${Math.round(incremental / 12)}/month extra in rewards. A clear win: the 3rd card pays for itself multiple times over and meaningfully boosts your annual return.`
-    }
-    if (combo.n_cards === 4) {
-      if (incremental < 500) {
-        // Don't assume 3-card is the right fallback — it may also be not recommended
-        return `A 4th card adds only ${fmtAed(incremental)} more per year. You've hit the point of diminishing returns — fewer cards give you better value with less complexity.`
-      }
-      if (incremental <= 1200) {
-        return `A 4th card earns ${fmtAed(incremental)} more per year than the 3-card wallet (about AED ${Math.round(incremental / 12)}/month extra). A decent gain if you're comfortable managing 4 cards and using each one for its best category.`
-      }
-      return `A 4th card adds ${fmtAed(incremental)} more per year — more than AED ${Math.round(incremental / 12)}/month in additional rewards. If you're disciplined about routing each spend category to the right card, this wallet delivers maximum return.`
-    }
-    return ''
-  })()
-
-  return (
-    <div style={{
-      background:'#fff', borderRadius:18, position:'relative',
-      border:`2px solid ${verdict.border}`,
-      padding:'24px 28px',
-      boxShadow: incremental > 1200 ? `0 6px 32px ${verdict.border}55` : 'none',
-    }}>
-      {/* See other combinations — flush top-right corner */}
-      {(combo.top_combinations || []).length > 1 && (
-        <button onClick={onSeeOthers} style={{
-          position:'absolute', top:0, right:0,
-          background:'#EEF3FF', border:'none', borderRadius:'0 18px 0 10px',
-          padding:'6px 14px', fontSize:12, fontWeight:600, color:'#0E3785', cursor:'pointer',
-        }}>
-          See other combinations ↗
-        </button>
-      )}
-
-      {/* Header — icon + title only */}
-      <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:16 }}>
-        <div style={{ fontSize:26 }}>{['🥇','🥈','🥉','🏅'][index] || '💳'}</div>
-        <div style={{ fontWeight:800, fontSize:17, color:'#0D1828' }}>
-          {combo.n_cards}-Card Wallet
-        </div>
-      </div>
-
-      {/* Card images row + verdict pill in the same row, pill centred with cards */}
-      <div style={{ display:'flex', alignItems:'center', gap:16, marginBottom:20, flexWrap:'wrap' }}>
-        {/* Cards */}
-        <div style={{ display:'flex', alignItems:'center', flexWrap:'wrap', gap:0, flex:1 }}>
-          {combo.card_ids.map((id: string, ci: number) => {
-            const isLast = ci === combo.card_ids.length - 1
-            return (
-              <div key={id} style={{ display:'flex', alignItems:'center' }}>
-                <button
-                  onClick={() => onCardClick(id, cardNames[id] || id)}
-                  style={{
-                    display:'flex', flexDirection:'column', alignItems:'center', gap:5,
-                    background:'none', border:'1px solid #D6E0F5', borderRadius:12,
-                    padding:'8px 12px', cursor:'pointer', margin:'4px',
-                  }}
-                >
-                  <img src={getCardImageUrl(id)} alt={cardNames[id] || id} width={88} height={54} loading="lazy"
-                    onError={(e) => { (e.target as HTMLImageElement).src = '/card-dummy.svg' }}
-                    style={{ borderRadius:6, objectFit:'cover', boxShadow:'0 3px 12px rgba(14,55,133,0.15)' }} />
-                  <span style={{ fontSize:11, fontWeight:600, color:'#0D1828', maxWidth:100, textAlign:'center', lineHeight:1.3 }}>
-                    {cardNames[id] || id}
-                  </span>
-                </button>
-                {!isLast && (
-                  <span style={{ fontWeight:800, fontSize:20, color:'#5A6A85', padding:'0 6px' }}>+</span>
-                )}
-              </div>
-            )
-          })}
-        </div>
-
-        {/* Verdict pill — same row, vertically centred with card images */}
-        <div style={{
-          display:'flex', alignItems:'center', gap:8, flexShrink:0,
-          background: verdict.pillBg, borderRadius:12, padding:'10px 16px',
-          alignSelf:'center',
-        }}>
-          <span style={{ fontSize:18 }}>{verdict.emoji}</span>
-          <div style={{ display:'flex', flexDirection:'column', gap:3 }}>
-            <span style={{ fontSize:13, fontWeight:800, color: verdict.pillColor, letterSpacing:'0.02em', lineHeight:1 }}>
-              {verdict.label}
-            </span>
-            <span style={{ fontSize:11, color: verdict.pillColor, opacity:0.75, lineHeight:1 }}>
-              get additional {fmtAed(incremental)}/yr
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {/* Stats */}
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12, marginBottom:20 }}>
-        {[
-          { label:'Gross Rewards',    value: fmtAed(combo.gross_annual_aed),        color:'#00A67E' },
-          { label:'Total Annual Fee', value: combo.total_fee_aed > 0 ? fmtAed(combo.total_fee_aed) : 'No Fee', color:'#C0392B' },
-          { label:'Net Annual Value', value: fmtAed(combo.net_annual_value_aed),    color },
-        ].map(s => (
-          <div key={s.label} style={{ textAlign:'center', background:'#F8FAFF', borderRadius:10, padding:'12px 8px' }}>
-            <div style={{ fontSize:18, fontWeight:800, color: s.color }}>{s.value}</div>
-            <div style={{ fontSize:11, color:'#5A6A85', marginTop:2 }}>{s.label}</div>
-          </div>
-        ))}
-      </div>
-
-      {/* Incremental value badge */}
-      <div style={{
-        background: incremental > 0 ? '#F0FFF8' : '#FFF8F0',
-        border: `1px solid ${incremental > 0 ? '#A7F3D0' : '#FCD9A0'}`,
-        borderRadius:10, padding:'10px 16px',
-        display:'flex', alignItems:'center', gap:10, marginBottom:16,
-      }}>
-        <span style={{ fontSize:20 }}>{incremental > 0 ? '📈' : '⚖️'}</span>
-        <div>
-          <span style={{ fontWeight:700, fontSize:14, color: incremental > 0 ? '#065F46' : '#92400E' }}>
-            {incremental > 0 ? `+${fmtAed(incremental)}` : fmtAed(incremental)} vs {combo.n_cards === 2 ? 'best single card' : `${combo.n_cards - 1}-card wallet`}
-          </span>
-          <div style={{ fontSize:12, color:'#5A6A85', marginTop:2 }}>
-            {combo.n_cards === 2
-              ? 'Extra you earn per year by adding a 2nd card'
-              : `Extra you earn per year by adding card #${combo.n_cards}`}
-          </div>
-        </div>
-      </div>
-
-      {/* Recommendation text */}
-      <div style={{
-        background:'#F8FAFF', borderRadius:10, padding:'12px 16px',
-        fontSize:13, color:'#3D5068', lineHeight:1.6,
-        borderLeft:`3px solid ${verdict ? verdict.border : color}`,
-      }}>
-        💡 {recText}
-      </div>
-    </div>
-  )
-}
-
-// ─── Card Tile (Tab 1) ────────────────────────────────────────────────────────
-function CardTile({ card }: { card: any }) {
-  const [expanded, setExpanded] = useState(false)
-  const [detail, setDetail]     = useState<any>(null)
-  const [hoverScore, setHoverScore] = useState(false)
-  const [hoverNav, setHoverNav]     = useState(false)
-  const [hoverFee, setHoverFee]     = useState(false)
-  const [hoverBar, setHoverBar]     = useState<string | null>(null)
-  const [detailLoaded, setDetailLoaded] = useState(false)
-
-  const rank    = card.card_ranking
-  const rates   = card.category_effective_rates || {}
-  const monthly = card.category_monthly_rewards  || {}
-
-  function getRateForPill(key: string) { return rates[key] || 0 }
-  function getMonthlyForPill(key: string) { return monthly[key] || 0 }
-  const maxRate = Math.max(...RATE_PILLS.map(p => getRateForPill(p.key))) || 1
-
-  async function prefetchDetail() {
-    if (detailLoaded || !card.earnn_card_id) return
-    setDetailLoaded(true)
-    try { const d = await fetchCardDetail(card.earnn_card_id); setDetail(d) } catch { /* ignore */ }
-  }
-
-  const isTop = rank === 1
-  const rankStyle = rank === 1
-    ? { bg:'linear-gradient(135deg,#B8860B,#FFD700)', color:'#fff', border:'2px solid #FFD700' }
-    : rank <= 3
-    ? { bg:'linear-gradient(135deg,#0E3785,#1A4FCC)', color:'#fff', border:'2px solid #0E3785' }
-    : { bg:'#EEF3FF', color:'#0E3785', border:'2px solid #D6E0F5' }
-
-  return (
-    <div onMouseEnter={prefetchDetail} style={{
-      background:'#fff', borderRadius:18, overflow:'visible',
-      border: isTop ? '2px solid #0E3785' : '1.5px solid #D6E0F5',
-      boxShadow: isTop ? '0 6px 32px rgba(14,55,133,0.13)' : '0 2px 8px rgba(0,0,0,0.04)',
-    }}>
-      {/* Header */}
-      <div style={{ display:'flex', alignItems:'center', gap:12, padding:'16px 20px 0' }}>
-        <div style={{
-          width:36, height:36, borderRadius:'50%', flexShrink:0,
-          background: rankStyle.bg, border: rankStyle.border, color: rankStyle.color,
-          display:'flex', alignItems:'center', justifyContent:'center', fontWeight:800, fontSize:14,
-        }}>#{rank}</div>
-        <div style={{ flex:1, minWidth:0 }}>
-          <div style={{ fontWeight:700, fontSize:15, color:'#0D1828', lineHeight:1.25 }}>{card.card_name}</div>
-          {card.bank_name && <div style={{ fontSize:12, color:'#5A6A85', marginTop:2 }}>{card.bank_name}</div>}
-        </div>
-        <div style={{ position:'relative', cursor:'default' }}
-          onMouseEnter={() => setHoverScore(true)} onMouseLeave={() => setHoverScore(false)}>
-          <div style={{
-            background: scoreColor(card.earnn_score), color:'#fff',
-            fontWeight:800, fontSize:14, padding:'6px 14px', borderRadius:20, whiteSpace:'nowrap',
-          }}>{fmtScore(card.earnn_score)}</div>
-          {hoverScore && <InlineTooltip text="earnn score is hyper-personalised, calculated based on your spending pattern." />}
-        </div>
-        <button onClick={() => {
-          const t = document.createElement('div')
-          t.textContent = '🚀 Coming soon!'
-          Object.assign(t.style, { position:'fixed', bottom:'24px', left:'50%', transform:'translateX(-50%)',
-            background:'#0D1828', color:'#fff', padding:'12px 24px', borderRadius:12,
-            fontWeight:600, fontSize:15, zIndex:9999, pointerEvents:'none' })
-          document.body.appendChild(t); setTimeout(() => t.remove(), 2200)
-        }} style={{
-          background:'#0E3785', color:'#fff', border:'none', borderRadius:8,
-          padding:'7px 14px', fontSize:13, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap', flexShrink:0,
-        }}>View &amp; Apply</button>
-      </div>
-
-      {/* Body */}
-      <div style={{ display:'flex', alignItems:'center', gap:0, padding:'14px 20px 0' }}>
-        {/* Card image */}
-        <div style={{ flexShrink:0, padding:'0 12px 0 0', display:'flex', alignItems:'center' }}>
-          <img src={getCardImageUrl(card.earnn_card_id)} alt={card.card_name} width={108} height={66} loading="lazy"
-            onError={(e) => { (e.target as HTMLImageElement).src = '/card-dummy.svg' }}
-            style={{ borderRadius:8, objectFit:'cover', boxShadow:'0 4px 16px rgba(14,55,133,0.2)', display:'block' }} />
-        </div>
-
-        {/* Divider */}
-        <div style={{ width:1, background:'#D6E0F5', height:80, margin:'0 12px', flexShrink:0 }} />
-
-        {/* Rate bars 2×4 */}
-        <div style={{ flex:1, display:'grid', gridTemplateColumns:'1fr 1fr', gap:'4px 16px' }}>
-          {[leftBars, rightBars].map((col, ci) =>
-            col.map(pill => {
-              const rate = getRateForPill(pill.key)
-              const mon  = getMonthlyForPill(pill.key)
-              const hKey = `${ci}-${pill.key}`
-              return (
-                <div key={pill.key} style={{ position:'relative', cursor:'default' }}
-                  onMouseEnter={() => setHoverBar(hKey)} onMouseLeave={() => setHoverBar(null)}>
-                  <div style={{ display:'flex', justifyContent:'space-between', fontSize:11, color:'#5A6A85', marginBottom:3 }}>
-                    <span>{pill.icon} {pill.name}</span>
-                    <span style={{ fontWeight:600, color:'#0D1828' }}>{fmtRate(rate)}</span>
-                  </div>
-                  <div style={{ height:5, background:'#EEF3FF', borderRadius:3, overflow:'hidden' }}>
-                    <div style={{ height:'100%', width:`${(rate / maxRate) * 100}%`, background:'#8B2E2E', borderRadius:3 }} />
-                  </div>
-                  {hoverBar === hKey && (
-                    <div style={{
-                      position:'absolute', top:'110%', left:'50%', transform:'translateX(-50%)',
-                      background:'#0D1828', color:'#fff', fontSize:12, padding:'8px 12px',
-                      borderRadius:8, zIndex:300, whiteSpace:'nowrap', pointerEvents:'none',
-                    }}>Monthly reward: AED {mon.toFixed(2)}</div>
-                  )}
-                </div>
-              )
-            })
-          )}
-        </div>
-
-        {/* Divider */}
-        <div style={{ width:1, background:'#D6E0F5', height:80, margin:'0 16px', flexShrink:0 }} />
-
-        {/* Earn Up To */}
-        <div style={{ position:'relative', textAlign:'center', minWidth:110, cursor:'default' }}
-          onMouseEnter={() => setHoverNav(true)} onMouseLeave={() => setHoverNav(false)}>
-          <div style={{ fontSize:11, color:'#5A6A85', fontWeight:600, marginBottom:4 }}>EARN UP TO</div>
-          <div style={{ fontSize:18, fontWeight:800, color:'#00A67E' }}>{fmtAed(card.expected_annual_return_aed)}</div>
-          <div style={{ fontSize:11, color:'#5A6A85' }}>/yr</div>
-          {hoverNav && <InlineTooltip text="Estimated annual rewards based on your spending, before the card's annual fee." />}
-        </div>
-
-        {/* Divider */}
-        <div style={{ width:1, background:'#D6E0F5', height:80, margin:'0 16px', flexShrink:0 }} />
-
-        {/* Effective Fee */}
-        <div style={{ position:'relative', textAlign:'center', minWidth:110, cursor:'default' }}
-          onMouseEnter={() => setHoverFee(true)} onMouseLeave={() => setHoverFee(false)}>
-          <div style={{ fontSize:11, color:'#5A6A85', fontWeight:600, marginBottom:4 }}>EFFECTIVE FEE</div>
-          <div style={{ fontSize:18, fontWeight:800, color: card.true_annual_fee_aed > 0 ? '#C0392B' : '#00A67E' }}>
-            {card.true_annual_fee_aed > 0 ? fmtAed(card.true_annual_fee_aed) : 'No Fee'}
-          </div>
-          <div style={{ fontSize:11, color:'#5A6A85' }}>/yr</div>
-          {hoverFee && <InlineTooltip text="Estimated annual fee for this card based on your spend." />}
-        </div>
-      </div>
-
-      {/* Expand toggle */}
-      <div style={{ display:'flex', justifyContent:'center', padding:'10px 0 2px' }}>
-        <button onClick={() => { setExpanded(e => !e); if (!detailLoaded) prefetchDetail() }}
-          style={{ background:'none', border:'none', cursor:'pointer', color:'#5A6A85', fontSize:12, fontWeight:600 }}>
-          {expanded ? 'HIDE DETAILS ▲' : 'MORE DETAILS ▼'}
-        </button>
-      </div>
-
-      {/* Expanded */}
-      {expanded && (
-        <div style={{
-          borderTop:'1px solid #EEF3FF', padding:'18px 20px 20px',
-          display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:20,
-        }}>
-          {[
-            { title:'✅ Top Benefits',   items: detail?.benefits || [] },
-            { title:'🎯 Best For',        items: detail?.best_for || [] },
-            { title:'📋 Things To Note', items: detail?.card_disclaimer || [] },
-          ].map(col => (
-            <div key={col.title}>
-              <div style={{ fontWeight:700, fontSize:13, color:'#0D1828', marginBottom:10 }}>{col.title}</div>
-              {col.items.length === 0
-                ? <div style={{ fontSize:12, color:'#A0AFC0' }}>Loading…</div>
-                : col.items.map((item: string, i: number) => (
-                  <div key={i} style={{ fontSize:12, color:'#3D5068', marginBottom:6, lineHeight:1.5 }}>• {item}</div>
-                ))
-              }
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
-
-// ─── Main Page ────────────────────────────────────────────────────────────────
-export default function ResultsPage() {
-  const router = useRouter()
-  const [result, setResult]           = useState<any>(null)
-  const [activeTab, setActiveTab]     = useState<'ranking' | 'wallet'>('ranking')
-  const [walletData, setWalletData]   = useState<any>(null)
-  const [walletLoading, setWalletLoading] = useState(false)
-  const [walletError, setWalletError]     = useState('')
-  const [cardNames, setCardNames]         = useState<Record<string, string>>({})
-  const [cardData, setCardData]           = useState<Record<string, any>>({})
-  // Pre-fetched card detail cache: cardId → {benefits, best_for, card_disclaimer}
-  const [detailCache, setDetailCache]     = useState<Record<string, any>>({})
-
-  // Popups
-  const [detailPopup, setDetailPopup] = useState<{ cardId: string; cardName: string; earnn?: number; fee?: number } | null>(null)
-  const [comboPopup, setComboPopup]   = useState<{ nCards: number; combinations: any[] } | null>(null)
-
-  useEffect(() => {
-    const stored = sessionStorage.getItem('earnn_result')
-    if (!stored) { router.push('/analyse'); return }
-    const parsed = JSON.parse(stored)
-    setResult(parsed.data)
-  }, [router])
-
-  useEffect(() => {
-    if (!result?.scored_cards) return
-    const names: Record<string, string> = {}
-    const data: Record<string, any>    = {}
-    for (const c of result.scored_cards) {
-      if (c.earnn_card_id) {
-        names[c.earnn_card_id] = c.card_name
-        data[c.earnn_card_id]  = c
-      }
-    }
-    setCardNames(names)
-    setCardData(data)
-  }, [result])
-
-  async function loadWallet() {
-    if (walletData || walletLoading || !result?.user_spend) return
-    setWalletLoading(true); setWalletError('')
-    try {
-      const d = await getOptimalWallet(result.user_spend)
-      setWalletData(d)
-
-      // Pre-fetch details for every unique card across all wallet combos — fire in parallel
-      const allIds = new Set<string>()
-      for (const combo of (d.wallets || [])) {
-        for (const id of (combo.card_ids || [])) allIds.add(id)
-        for (const tc of (combo.top_combinations || [])) {
-          for (const id of (tc.card_ids || [])) allIds.add(id)
-        }
-      }
-      const fetches = [...allIds].map(id =>
-        fetchCardDetail(id)
-          .then(detail => ({ id, detail }))
-          .catch(() => null)
-      )
-      const results = await Promise.all(fetches)
-      const cache: Record<string, any> = {}
-      for (const r of results) { if (r) cache[r.id] = r.detail }
-      setDetailCache(cache)
-    }
-    catch (e: any) { setWalletError(e.message || 'Failed to load wallet') }
-    finally { setWalletLoading(false) }
-  }
-
-  function openCardDetail(cardId: string, cardName: string) {
-    const cd = cardData[cardId]
-    setDetailPopup({
-      cardId, cardName,
-      earnn:  cd?.expected_annual_return_aed,
-      fee:    cd?.true_annual_fee_aed,
+  // All categories with user spend > 0, sorted by annual rewards descending
+  type CatItem = { key: string; label: string; emoji: string; monthly: number; routes: RouteEntry[]; totalAnnual: number; totalMonthly: number }
+  const items: CatItem[] = SPEND_CATS
+    .map(key => {
+      const monthly = userSpend[key] ?? 0
+      const routes = (rec.category_routing[key] ?? []).filter(r => r.annual_aed > 0)
+      const totalAnnual = routes.reduce((s, r) => s + r.annual_aed, 0)
+      const totalMonthly = Math.round(totalAnnual / 12)
+      return { key, label: CAT_LABELS[key], emoji: CAT_EMOJI[key], monthly, routes, totalAnnual, totalMonthly }
     })
-  }
-
-  if (!result) return (
-    <div style={{ display:'flex', justifyContent:'center', alignItems:'center', height:'60vh' }}>
-      <div style={{ textAlign:'center' }}>
-        <div style={{ fontSize:40, marginBottom:16 }}>⏳</div>
-        <p style={{ color:'#5A6A85', fontSize:17 }}>Loading your results…</p>
-      </div>
-    </div>
-  )
-
-  const scoredCards: any[] = result.scored_cards || []
-  const topCard = scoredCards[0]
-  const totalMonthly: number = result.total_monthly || 0
+    .filter(c => c.monthly > 0)
+    .sort((a, b) => b.totalAnnual - a.totalAnnual)
 
   return (
-    <div style={{ maxWidth:1100, margin:'0 auto', padding:'40px 24px' }}>
-
-      {/* Header */}
-      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', flexWrap:'wrap', gap:16, marginBottom:32 }}>
-        <div>
-          <div style={{ fontSize:12, fontWeight:700, color:'#5A6A85', letterSpacing:'0.08em', marginBottom:6 }}>YOUR PERSONALISED RESULTS</div>
-          <h1 style={{ fontSize:'clamp(22px,3.5vw,32px)', fontWeight:800, color:'#0E3785', margin:0 }}>
-            Best Cards For Your Spending
-          </h1>
-          <p style={{ color:'#5A6A85', fontSize:14, margin:'6px 0 0' }}>
-            Monthly spend: <strong style={{ color:'#0D1828' }}>{fmtAed(totalMonthly)}</strong>
-            {' · '}<strong style={{ color:'#0D1828' }}>{scoredCards.length}</strong> cards analysed
-          </p>
-        </div>
-        <Link href="/analyse" style={{
-          padding:'10px 20px', background:'#EEF3FF', borderRadius:8,
-          color:'#0E3785', fontSize:14, fontWeight:600, textDecoration:'none',
-        }}>← New Analysis</Link>
+    <div className="space-y-3">
+      {/* Header row */}
+      <div className="grid grid-cols-[160px_minmax(0,1fr)_140px_130px] gap-2 px-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+        <div>Category</div>
+        <div className="pl-8">Recommended Card(s)</div>
+        <div>Monthly Spend</div>
+        <div className="text-right">Monthly Rewards</div>
       </div>
 
-      {/* Current vs Best Card — annual comparison (statement-upload flow only) */}
-      {(() => {
-        const currentCardId = result.current_card_id
-        if (!currentCardId || !topCard) return null
-        const currentCard = scoredCards.find(c => c.earnn_card_id === currentCardId)
-        if (!currentCard) return null
-
-        const currentName = result.current_card_info?.card_name || currentCard.card_name
-        const currentNav  = currentCard.net_annual_value_aed || 0
-        const bestNav     = topCard.net_annual_value_aed || 0
-        const gap         = bestNav - currentNav
-
-        const isAlreadyBest = currentCard.earnn_card_id === topCard.earnn_card_id
-
-        return (
-          <div style={{
-            background: isAlreadyBest ? 'linear-gradient(135deg,#00A67E 0%,#00805F 100%)' : 'linear-gradient(135deg,#C0392B 0%,#8B2E2E 100%)',
-            borderRadius:20, padding:'24px 36px', marginBottom:24, color:'#fff',
-            display:'flex', flexWrap:'wrap', gap:24, alignItems:'center', justifyContent:'space-between',
-            boxShadow:'0 10px 36px rgba(14,55,133,0.15)',
-          }}>
-            <div style={{ flex:1, minWidth:240 }}>
-              <div style={{ fontSize:11, fontWeight:700, letterSpacing:'0.1em', color:'rgba(255,255,255,0.7)', marginBottom:8 }}>
-                {isAlreadyBest ? '✅ YOU\'RE ALREADY ON YOUR BEST CARD' : '⚠️ YOU MAY BE LEAVING MONEY ON THE TABLE'}
-              </div>
-              {isAlreadyBest ? (
-                <div style={{ fontSize:18, fontWeight:700 }}>
-                  {currentName} is already the top match for your spending — nice!
-                </div>
+      {items.map(c => (
+        <div key={c.key} className="rounded-xl border border-border/60 bg-card px-3 py-3 shadow-soft">
+          {/* Main row: Category | Card Earning | Monthly Spend | Monthly Rewards */}
+          <div className="grid grid-cols-[160px_minmax(0,1fr)_140px_130px] items-center gap-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="text-lg">{c.emoji}</span>
+              <span className="font-semibold text-sm text-primary truncate">{c.label}</span>
+            </div>
+            <div className="min-w-0 pl-8">
+              {c.routes.length === 1 ? (
+                <span className="inline-flex items-center rounded-full bg-[#EEF3FF] px-2.5 py-0.5 text-[11px] font-medium text-[#0E3785] truncate max-w-full">
+                  {c.routes[0].card_name.split(' ').slice(0, 4).join(' ')}
+                </span>
+              ) : c.routes.length === 0 ? (
+                <span className="text-[11px] text-muted-foreground/40 italic">No reward</span>
               ) : (
-                <div style={{ fontSize:18, fontWeight:700 }}>
-                  Switching from <u>{currentName}</u> to <u>{topCard.card_name}</u> could earn you{' '}
-                  <span style={{ color:'#FFD700' }}>{fmtAed(Math.max(gap, 0))} more per year</span>.
-                </div>
+                <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-0.5 text-[11px] font-medium text-amber-700">
+                  <span>↔</span> {c.routes.length} cards earning
+                </span>
               )}
             </div>
-            <div style={{ display:'flex', gap:32, flexWrap:'wrap' }}>
-              <div style={{ textAlign:'center' }}>
-                <div style={{ fontSize:22, fontWeight:800 }}>{fmtAed(currentNav)}</div>
-                <div style={{ fontSize:12, color:'rgba(255,255,255,0.7)', marginTop:3 }}>Your Card — Annual Net Value</div>
+            <div className="text-left text-[13px] tabular-nums text-muted-foreground">AED {fmt(c.monthly)}</div>
+            <div className="text-right">
+              {c.totalMonthly > 0 ? (
+                <span className="font-display font-bold text-emerald tabular-nums text-[15px]">AED {fmt(c.totalMonthly)}<span className="text-[10px] font-normal text-muted-foreground"> /mo</span></span>
+              ) : (
+                <span className="text-sm text-muted-foreground/40">—</span>
+              )}
+            </div>
+          </div>
+          {/* Spillover rows */}
+          {c.routes.length > 1 && (
+            <div className="mt-2.5 border-t border-border/40 pt-2 space-y-1">
+              {c.routes.map((r, i) => (
+                <div key={i} className="grid grid-cols-[160px_minmax(0,1fr)_140px_130px] items-center gap-2">
+                  <div />
+                  <div className="flex items-center gap-1.5 min-w-0 pl-8">
+                    <span className="h-1.5 w-1.5 rounded-full bg-[#0E3785]/30 flex-shrink-0" />
+                    <span className="text-[11px] text-[#0E3785] font-medium truncate">{r.card_name.split(' ').slice(0, 4).join(' ')}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-left text-[11px] text-muted-foreground tabular-nums">AED {fmt(r.monthly_spend_chunk)}/mo</span>
+                    {i < c.routes.length - 1 && (
+                      <span className="flex-shrink-0 rounded-full bg-amber-100 px-1.5 py-px text-[9px] font-semibold uppercase tracking-wide text-amber-700">capped</span>
+                    )}
+                  </div>
+                  <span className="text-right text-[12px] text-emerald font-semibold tabular-nums">+AED {fmt(Math.round(r.annual_aed / 12))}/mo</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      ))}
+
+      {subMsg && (
+        <div className="mt-2 rounded-xl border px-4 py-3 text-sm" style={{ borderColor: heroIdx === 0 ? 'rgba(14,55,133,0.20)' : 'rgba(245,215,110,0.35)', background: heroIdx === 0 ? 'rgba(14,55,133,0.05)' : 'rgba(245,215,110,0.08)', color: heroIdx === 0 ? '#5A6A85' : '#92660A' }}>
+          {subMsg}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── Screen 2 — Why these cards (kept as standalone step if needed) ────────────
+
+function Screen2Why({ scoredCards, walletData, onBack, onNext }: {
+  scoredCards: ScoredCard[]; walletData: WalletResponse; onBack: () => void; onNext: () => void
+}) {
+  return (
+    <section className="space-y-6">
+      <SectionHeader eyebrow="The reasoning" title="Why these cards?" subtitle="Your biggest spending areas are where these cards shine." />
+      <WhyTheseCards scoredCards={scoredCards} walletData={walletData} />
+      <NavRow onBack={onBack} onNext={onNext} nextLabel="Choose your style" />
+    </section>
+  )
+}
+
+function AlternativesModal({ category, scoredCards, onClose }: {
+  category: string; scoredCards: ScoredCard[]; onClose: () => void
+}) {
+  const top5 = [...scoredCards]
+    .filter(c => (c.category_monthly_rewards[category] ?? 0) > 0)
+    .sort((a, b) => (b.category_monthly_rewards[category] ?? 0) - (a.category_monthly_rewards[category] ?? 0))
+    .slice(0, 5)
+
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-end bg-primary/30 backdrop-blur-sm sm:place-items-center" onClick={onClose}>
+      <div className="w-full max-w-2xl rounded-t-3xl bg-background p-6 shadow-elevated sm:rounded-3xl" onClick={e => e.stopPropagation()}>
+        <div className="mb-4 flex items-start justify-between gap-4">
+          <div>
+            <div className="text-xs font-semibold uppercase tracking-wider text-emerald">Top 5 for {CAT_LABELS[category]}</div>
+            <h3 className="mt-1 font-display text-2xl font-bold text-primary">Alternatives we considered</h3>
+          </div>
+          <button onClick={onClose} className="grid h-9 w-9 place-items-center rounded-full bg-muted text-foreground hover:bg-muted/70">
+            ✕
+          </button>
+        </div>
+        <ul className="max-h-[60vh] space-y-2 overflow-y-auto">
+          {top5.map((c, i) => (
+            <li key={c.earnn_card_id} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-2xl border border-border/60 p-3 sm:grid-cols-[auto_minmax(0,1fr)_auto]">
+              <CardImg id={c.earnn_card_id} size="sm" className="hidden sm:block" />
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  {i === 0 && <span className="rounded-full bg-emerald-soft px-2 py-0.5 text-[10px] font-bold text-emerald">PICK</span>}
+                  <span className="truncate font-semibold text-primary">{c.card_name}</span>
+                </div>
+                <div className="mt-1 flex flex-wrap gap-2 text-xs text-muted-foreground">
+                  <span>Annual fee: AED {fmt(c.true_annual_fee_aed)}</span>
+                  <span>·</span>
+                  <span>Rewards: <span className="font-semibold text-emerald">AED {fmt(c.category_monthly_rewards[category] * 12)}/yr</span></span>
+                </div>
               </div>
-              <div style={{ textAlign:'center' }}>
-                <div style={{ fontSize:22, fontWeight:800, color:'#FFD700' }}>{fmtAed(bestNav)}</div>
-                <div style={{ fontSize:12, color:'rgba(255,255,255,0.7)', marginTop:3 }}>Best Card — Annual Net Value</div>
+              <button className="rounded-full bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground hover:opacity-90"
+                onClick={() => alert('Coming soon')}>
+                Apply
+              </button>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
+  )
+}
+
+// ─── Screen 3 — Choose your style ────────────────────────────────────────────
+
+function Screen3Style({ scoredCards, walletData, chosen, onChoose, onBack, onNext }: {
+  scoredCards: ScoredCard[]; walletData: WalletResponse; chosen: string
+  onChoose: (id: string) => void; onBack: () => void; onNext: () => void
+}) {
+  const best1 = scoredCards[0]
+  const w2 = walletData.wallets.find(w => w.n_cards === 2)
+  const w3 = walletData.wallets.find(w => w.n_cards === 3)
+  const w4 = walletData.wallets.find(w => w.n_cards === 4)
+
+  // 3rd tile always shows the highest available combo
+  const wMax = w4 ?? w3 ?? w2
+
+  const strategies = [
+    {
+      id: 'simple', best: 'Best for beginners', name: 'Keep It Simple',
+      cardsNeeded: 1, rewards: best1.expected_annual_return_aed, fees: best1.true_annual_fee_aed,
+      cardIds: [best1.earnn_card_id],
+      pros: ['Easy to manage', 'No card switching', 'One statement'],
+    },
+    {
+      id: 'balanced', best: 'Recommended', name: 'Balanced Rewards',
+      cardsNeeded: w2?.n_cards ?? 2, rewards: w2?.gross_annual_aed ?? 0, fees: w2?.total_fee_aed ?? 0,
+      cardIds: w2?.card_ids ?? [],
+      pros: ['High rewards', 'Minimal effort', 'Most popular'],
+    },
+    {
+      id: 'max', best: 'For optimizers', name: 'Maximize Rewards',
+      cardsNeeded: wMax?.n_cards ?? 4, rewards: wMax?.gross_annual_aed ?? 0, fees: wMax?.total_fee_aed ?? 0,
+      cardIds: wMax?.card_ids ?? [],
+      pros: ['Highest possible rewards', 'Perfect category coverage'],
+      cons: ['Requires active card management'],
+    },
+  ]
+
+  const max = Math.max(...strategies.map(s => s.rewards))
+
+  const dimRows = [
+    { label: '1 card', value: best1.net_annual_value_aed },
+    ...(w2 ? [{ label: '2 cards', value: w2.net_annual_value_aed }] : []),
+    ...(w3 ? [{ label: '3 cards', value: w3.net_annual_value_aed }] : []),
+    ...(w4 ? [{ label: '4 cards', value: w4.net_annual_value_aed }] : []),
+  ]
+  const dimMax = Math.max(...dimRows.map(r => r.value))
+
+  return (
+    <section className="space-y-6">
+      <SectionHeader
+        eyebrow="Your call"
+        title="Choose your style"
+        subtitle="Pick how much effort you want to spend managing cards. We do the math."
+      />
+
+      <div className="grid gap-4 lg:grid-cols-3">
+        {strategies.map(s => {
+          const active = chosen === s.id
+          return (
+            <button
+              key={s.id}
+              onClick={() => onChoose(s.id)}
+              className={`group relative flex h-full flex-col gap-5 rounded-3xl border p-6 text-left shadow-soft transition ${
+                active
+                  ? 'border-emerald bg-card shadow-elevated ring-2 ring-emerald'
+                  : 'border-border/60 bg-card hover:border-primary/30 hover:shadow-elevated'
+              }`}
+            >
+              <div>
+                <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{s.best}</div>
+                <h3 className="mt-1 font-display text-2xl font-bold text-primary">{s.name}</h3>
               </div>
+
+              <div className={`flex ${s.cardsNeeded >= 4 ? '-space-x-14' : '-space-x-8'}`}>
+                {s.cardIds.slice(0, 4).map((id) => (
+                  <CardImg key={id} id={id} size="sm" className="ring-2 ring-card" />
+                ))}
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 rounded-2xl bg-surface-2 p-4">
+                <div>
+                  <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Annual rewards</div>
+                  <div className="mt-1 font-display text-xl font-bold text-emerald tabular">AED {fmt(s.rewards)}</div>
+                </div>
+                <div>
+                  <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Cards</div>
+                  <div className="mt-1 font-display text-xl font-bold text-primary tabular">{s.cardsNeeded}</div>
+                </div>
+              </div>
+
+              <ul className="space-y-1.5 text-sm">
+                {s.pros.map(p => (
+                  <li key={p} className="flex items-center gap-2 text-foreground">
+                    <span className="h-4 w-4 shrink-0 font-bold text-emerald">✓</span> {p}
+                  </li>
+                ))}
+                {s.cons?.map(p => (
+                  <li key={p} className="flex items-center gap-2 text-muted-foreground">
+                    <span className="h-4 w-4 shrink-0">–</span> {p}
+                  </li>
+                ))}
+              </ul>
+
+              <div className={`mt-auto inline-flex items-center justify-center gap-2 rounded-full px-4 py-2.5 text-sm font-semibold transition ${
+                active ? 'bg-emerald text-primary' : 'bg-primary text-primary-foreground group-hover:opacity-90'
+              }`}>
+                {active ? '✓ Selected' : 'Choose strategy →'}
+              </div>
+            </button>
+          )
+        })}
+      </div>
+
+      {/* Diminishing returns */}
+      <div className="rounded-3xl border border-border/60 bg-card p-6 shadow-soft">
+        <div className="flex items-center gap-2 text-sm font-semibold text-primary">
+          📉 Diminishing returns
+        </div>
+        <p className="mt-1 text-sm text-muted-foreground">More cards = more rewards, but the gains shrink quickly.</p>
+        <div className="mt-5 space-y-3">
+          {dimRows.map(row => (
+            <div key={row.label} className="grid grid-cols-[6rem_minmax(0,1fr)_auto] items-center gap-3 text-sm">
+              <span className="font-semibold text-primary">{row.label}</span>
+              <div className="h-3 overflow-hidden rounded-full bg-surface-2">
+                <div className="h-full rounded-full bg-emerald transition-all duration-700"
+                  style={{ width: `${(row.value / dimMax) * 100}%` }} />
+              </div>
+              <span className="font-display font-bold text-emerald tabular">AED {fmt(row.value)}</span>
+            </div>
+          ))}
+        </div>
+        <div className="mt-5 grid gap-2 rounded-2xl bg-surface-2 p-4 text-xs text-muted-foreground sm:grid-cols-2">
+          {w3 && <span>Adding 3rd card → only <span className="font-semibold text-foreground">+AED {fmt(w3.incremental_vs_prev_aed)}/yr</span></span>}
+          {w4 && <span>Adding 4th card → only <span className="font-semibold text-foreground">+AED {fmt(w4.incremental_vs_prev_aed)}/yr</span></span>}
+        </div>
+      </div>
+
+      <NavRow onBack={onBack} onNext={onNext} nextLabel="Customize my wallet" />
+    </section>
+  )
+}
+
+// ─── Screen 4 — Wallet playground ────────────────────────────────────────────
+
+function Screen4Wallet({ scoredCards, walletData, wallet, setWallet, onBack, onNext }: {
+  scoredCards: ScoredCard[]; walletData: WalletResponse
+  wallet: string[]; setWallet: (w: string[]) => void; onBack: () => void; onNext: () => void
+}) {
+  const [q, setQ] = useState('')
+  const [activeFilter, setActiveFilter] = useState<string | null>(null)
+  const [pgScore, setPgScore] = useState<CustomScore | null>(null)
+  const [pgLoading, setPgLoading] = useState(false)
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+
+  useEffect(() => {
+    if (wallet.length === 0) { setPgScore(null); return }
+    clearTimeout(debounceRef.current)
+    debounceRef.current = setTimeout(async () => {
+      setPgLoading(true)
+      try {
+        const res = await fetch('/api/rewards/wallet/custom', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ spend: walletData.user_spend, card_ids: wallet }),
+        })
+        if (res.ok) setPgScore(await res.json())
+      } catch { /* ignore */ }
+      finally { setPgLoading(false) }
+    }, 800)
+    return () => clearTimeout(debounceRef.current)
+  }, [wallet, walletData.user_spend])
+
+  // Non-null spend categories for this user
+  const activeCatsForFilter = SPEND_CATS.filter(k => (walletData.user_spend[k] ?? 0) > 0)
+
+  // Top 5 cards per active category, keyed by card id → which categories they appear for
+  const catTopCards = new Map<string, string[]>() // card_id → [cat keys]
+  for (const cat of activeCatsForFilter) {
+    const top5 = [...scoredCards]
+      .filter(c => (c.category_monthly_rewards[cat] ?? 0) > 0)
+      .sort((a, b) => (b.category_monthly_rewards[cat] ?? 0) - (a.category_monthly_rewards[cat] ?? 0))
+      .slice(0, 5)
+    for (const card of top5) {
+      const existing = catTopCards.get(card.earnn_card_id) ?? []
+      catTopCards.set(card.earnn_card_id, [...existing, cat])
+    }
+  }
+
+  // Personalized list: dedup by card_family (keep best card_ranking), sorted by card_ranking
+  const personalizedCards = (() => {
+    const candidates = scoredCards.filter(c => catTopCards.has(c.earnn_card_id))
+    const seenFamilies = new Set<string>()
+    const deduped: ScoredCard[] = []
+    // candidates already sorted by card_ranking from scoredCards order
+    for (const c of candidates) {
+      if (c.card_family) {
+        if (seenFamilies.has(c.card_family)) continue
+        seenFamilies.add(c.card_family)
+      }
+      deduped.push(c)
+    }
+    return deduped
+  })()
+
+  // Filter: 'Personalized' | a category key | null (search-only, shows all)
+  const FILTER_PERSONALIZED = '__personalized__'
+  const filterIsPersonalized = activeFilter === FILTER_PERSONALIZED || activeFilter === null
+
+  const filtered = (() => {
+    const matchQ = (c: ScoredCard) => !q || c.card_name.toLowerCase().includes(q.toLowerCase()) || (c.bank_name ?? '').toLowerCase().includes(q.toLowerCase())
+    if (filterIsPersonalized) return personalizedCards.filter(matchQ)
+    // category filter: top 5 for that category, deduped by card_family
+    const sorted = [...scoredCards]
+      .filter(c => (c.category_monthly_rewards[activeFilter!] ?? 0) > 0 && matchQ(c))
+      .sort((a, b) => (b.category_monthly_rewards[activeFilter!] ?? 0) - (a.category_monthly_rewards[activeFilter!] ?? 0))
+    const seenFamilies = new Set<string>()
+    const deduped: ScoredCard[] = []
+    for (const c of sorted) {
+      if (c.card_family) {
+        if (seenFamilies.has(c.card_family)) continue
+        seenFamilies.add(c.card_family)
+      }
+      deduped.push(c)
+      if (deduped.length === 5) break
+    }
+    return deduped
+  })()
+
+  const inWallet = wallet.map(id => scoredCards.find(c => c.earnn_card_id === id)!).filter(Boolean)
+  const gross = pgScore?.gross_annual_aed ?? inWallet.reduce((s, c) => s + c.expected_annual_return_aed, 0)
+  const fees  = pgScore?.total_fee_aed   ?? inWallet.reduce((s, c) => s + c.true_annual_fee_aed, 0)
+  const net   = pgScore?.net_annual_value_aed ?? (gross - fees)
+  const totalAnnual = walletData.total_monthly * 12
+  const effective = totalAnnual > 0 ? ((gross / totalAnnual) * 100).toFixed(2) : '0.00'
+  const alloc = pgScore?.category_routing ?? {}
+
+  const [showAllCards, setShowAllCards] = useState(false)
+  const [allQ, setAllQ] = useState('')
+  const [allBankFilter, setAllBankFilter] = useState<string | null>(null)
+  const allBanks = [...new Set(scoredCards.map(c => c.bank_name ?? '').filter(Boolean))].sort()
+  const [warningReady, setWarningReady] = useState(false)
+
+  useEffect(() => {
+    setWarningReady(false)
+    const t = setTimeout(() => setWarningReady(true), 10000)
+    return () => clearTimeout(t)
+  }, [wallet.join(',')])
+
+  const toggle = (id: string) => {
+    if (wallet.includes(id)) setWallet(wallet.filter(x => x !== id))
+    else if (wallet.length < 4) setWallet([...wallet, id])
+  }
+
+  return (
+    <section className="space-y-6">
+      <SectionHeader
+        eyebrow="Advanced"
+        title="Build Your Wallet"
+        subtitle="Experiment with cards and see how your rewards change in real time."
+      />
+
+      {/* Low-value card warning */}
+      {warningReady && pgScore && inWallet.length > 1 && (() => {
+        const cardRewards: Record<string, number> = {}
+        for (const routes of Object.values(pgScore.category_routing)) {
+          for (const r of routes) {
+            cardRewards[r.card_id] = (cardRewards[r.card_id] ?? 0) + r.annual_aed
+          }
+        }
+        const totalGross = Object.values(cardRewards).reduce((s, v) => s + v, 0)
+        const lowCards = inWallet
+          .map(c => ({ c, share: totalGross > 0 ? (cardRewards[c.earnn_card_id] ?? 0) / totalGross : 0 }))
+          .filter(({ share }) => share < 0.10)
+        if (lowCards.length === 0) return null
+        return (
+          <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 flex items-start gap-3">
+            <span className="text-lg flex-shrink-0">⚠️</span>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-amber-800">
+                {lowCards.map(({ c }) => c.card_name).join(', ')} {lowCards.length === 1 ? 'is' : 'are'} not adding much value
+              </p>
+              <p className="mt-0.5 text-xs text-amber-700">
+                {lowCards.map(({ c, share }) => `${c.card_name} contributes only ${(share * 100).toFixed(1)}%`).join(' · ')} of your total wallet rewards. Consider swapping {lowCards.length === 1 ? 'it' : 'them'} for a card that better covers your spending.
+              </p>
             </div>
           </div>
         )
       })()}
 
-      {/* Hero */}
-      {topCard && (
-        <div style={{
-          background:'linear-gradient(135deg,#0E3785 0%,#0A2860 100%)',
-          borderRadius:20, padding:'28px 36px', marginBottom:32, color:'#fff',
-          display:'flex', flexWrap:'wrap', gap:28, alignItems:'center',
-          boxShadow:'0 10px 36px rgba(14,55,133,0.25)',
-        }}>
-          <div style={{ flex:1, minWidth:200 }}>
-            <div style={{ fontSize:11, fontWeight:700, letterSpacing:'0.1em', color:'rgba(255,255,255,0.55)', marginBottom:8 }}>🏆 YOUR BEST CARD MATCH</div>
-            <div style={{ fontSize:22, fontWeight:800 }}>{topCard.card_name}</div>
-            <div style={{ fontSize:13, color:'rgba(255,255,255,0.7)', marginTop:4 }}>
-              earnn Score: {fmtScore(topCard.earnn_score)} · {topCard.rating_band}
-            </div>
+      <div className="grid gap-5 lg:grid-cols-[0.52fr_1fr]">
+        {/* Left: available cards */}
+        <div className="rounded-3xl border border-border/60 bg-card p-4 shadow-soft flex flex-col">
+          <div className="relative">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">🔍</span>
+            <input
+              value={q}
+              onChange={e => setQ(e.target.value)}
+              placeholder="Search cards or issuers"
+              className="w-full rounded-full border border-border bg-surface-2 py-2.5 pl-10 pr-4 text-sm outline-none focus:border-emerald"
+            />
           </div>
-          <div style={{ display:'flex', gap:32, flexWrap:'wrap' }}>
-            {[
-              { label:'Annual Rewards',  value: fmtAed(topCard.expected_annual_return_aed), color:'#00E5B0' },
-              { label:'After Fee (NAV)', value: fmtAed(topCard.net_annual_value_aed),       color:'#FFD700' },
-              { label:'Annual Fee',      value: topCard.true_annual_fee_aed > 0 ? fmtAed(topCard.true_annual_fee_aed) : 'No Fee', color:'rgba(255,255,255,0.85)' },
-            ].map(s => (
-              <div key={s.label} style={{ textAlign:'center' }}>
-                <div style={{ fontSize:24, fontWeight:800, color: s.color }}>{s.value}</div>
-                <div style={{ fontSize:12, color:'rgba(255,255,255,0.6)', marginTop:3 }}>{s.label}</div>
-              </div>
-            ))}
+
+          <div className="mt-3 flex flex-wrap gap-1.5 items-center">
+            {/* Personalized (default) */}
+            {[{ key: FILTER_PERSONALIZED, label: '✦ All Personalized' }, ...activeCatsForFilter.map(k => ({ key: k, label: `${CAT_EMOJI[k]} ${CAT_LABELS[k]}` }))].map(f => {
+              const a = activeFilter === f.key || (f.key === FILTER_PERSONALIZED && activeFilter === null)
+              return (
+                <button key={f.key} onClick={() => setActiveFilter(f.key === FILTER_PERSONALIZED ? null : (activeFilter === f.key ? null : f.key))}
+                  className={`rounded-full px-3 py-1 text-xs font-medium transition ${
+                    a ? 'bg-primary text-primary-foreground' : 'bg-surface-2 text-muted-foreground hover:text-foreground'
+                  }`}>
+                  {f.label}
+                </button>
+              )
+            })}
           </div>
+
+          <ul className="mt-4 grid flex-1 min-h-0 gap-2 overflow-y-auto pr-1">
+            {filtered.map(c => {
+              const inW = wallet.includes(c.earnn_card_id)
+              const limit = !inW && wallet.length >= 4
+              // For personalized view use catTopCards; for category filter derive from activeFilter
+              const cardCats = filterIsPersonalized
+                ? (catTopCards.get(c.earnn_card_id) ?? [])
+                : (activeFilter ? [activeFilter] : [])
+              return (
+                <li key={c.earnn_card_id} className="relative rounded-xl border border-border/60 px-2.5 py-2">
+                  <div className="flex items-start gap-2.5 pr-24">
+                    <CardImg id={c.earnn_card_id} size="sm" className="flex-shrink-0 mt-0.5" />
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate font-semibold text-sm text-primary max-w-[240px]">{c.card_name}</div>
+                      <div className="mt-1 flex items-center gap-1 text-[10px]">
+                        <span className="text-muted-foreground">Fee {fmt(c.true_annual_fee_aed)}</span>
+                        <span className="text-muted-foreground/40">·</span>
+                        <span className="text-muted-foreground">Est Reward </span>
+                        <span className="font-medium text-emerald">{fmt(c.expected_annual_return_aed)}/yr</span>
+                      </div>
+                      <div className="mt-1 flex flex-nowrap gap-1 overflow-hidden">
+                        {Object.entries(c.category_effective_rates)
+                          .filter(([, rate]) => rate > 0)
+                          .sort(([, a], [, b]) => b - a)
+                          .slice(0, 4)
+                          .map(([cat, rate]) => (
+                            <span key={cat} className="inline-flex items-center gap-0.5 rounded-md bg-surface-2 px-1.5 py-px text-[10px] text-muted-foreground whitespace-nowrap">
+                              {CAT_EMOJI[cat] || CAT_LABELS[cat] || cat} <span className="font-semibold text-primary">{(rate * 100).toFixed(1)}%</span>
+                            </span>
+                          ))}
+                      </div>
+                    </div>
+                  </div>
+                  {/* + button — right, vertically centered */}
+                  <div className="absolute right-2 top-[65%] -translate-y-1/2 group z-10 hover:z-[200]">
+                    <button onClick={() => toggle(c.earnn_card_id)} disabled={limit}
+                      className={`grid h-6 w-6 place-items-center rounded-full transition text-xs font-bold ${
+                        inW ? 'bg-emerald text-white hover:opacity-90'
+                          : limit ? 'cursor-default bg-muted text-muted-foreground'
+                          : 'bg-primary text-primary-foreground hover:opacity-90'
+                      }`}>
+                      {inW ? '✓' : '+'}
+                    </button>
+                    {limit && (
+                      <div className="pointer-events-none absolute bottom-full right-0 mb-2 hidden group-hover:block z-[300]">
+                        <div className="rounded-xl bg-[#0D1828] px-3 py-2 text-[11px] text-white shadow-lg w-44 leading-snug">
+                          <span className="font-semibold">Wallet maxed out.</span> Remove an existing card to add a new one.
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  {/* Category pills — top right */}
+                  {cardCats.length > 0 && (
+                    <div className="absolute top-2.5 right-2.5 flex flex-wrap justify-end gap-1 max-w-[120px]">
+                      {cardCats.map(cat => (
+                        <span key={cat} className="inline-flex items-center gap-0.5 rounded-full bg-[#EEF3FF] px-1.5 py-px text-[9px] font-medium text-[#0E3785]">
+                          {CAT_EMOJI[cat]} {CAT_LABELS[cat]}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </li>
+              )
+            })}
+            {filtered.length === 0 && (
+              <li className="rounded-2xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+                No cards match your filters.
+              </li>
+            )}
+          </ul>
+          <button onClick={() => { setShowAllCards(true); setAllQ(''); setAllBankFilter(null) }}
+            className="mt-3 w-full rounded-full border border-primary px-3 py-2 text-xs font-medium text-primary hover:bg-primary hover:text-primary-foreground transition">
+            + Add from All UAE Cards
+          </button>
         </div>
-      )}
 
-      {/* Tab bar */}
-      <div style={{ display:'flex', borderBottom:'2px solid #D6E0F5', marginBottom:28 }}>
-        {[
-          { key:'ranking', label:'📊 Card Ranking' },
-          { key:'wallet',  label:'💳 earnn Wallet' },
-        ].map(tab => (
-          <button key={tab.key}
-            onClick={() => { setActiveTab(tab.key as any); if (tab.key === 'wallet') loadWallet() }}
-            style={{
-              flex:1, padding:'14px 0', border:'none', background:'none', cursor:'pointer',
-              fontSize:15, fontWeight:600, textAlign:'center',
-              color: activeTab === tab.key ? '#0E3785' : '#5A6A85',
-              borderBottom: activeTab === tab.key ? '3px solid #0E3785' : '3px solid transparent',
-              marginBottom:-2,
-            }}
-          >{tab.label}</button>
-        ))}
-      </div>
-
-      {/* Tab 1: Card Ranking */}
-      {activeTab === 'ranking' && (
-        <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
-          {scoredCards.length === 0
-            ? <div style={{ textAlign:'center', padding:60, color:'#5A6A85' }}>No cards found.</div>
-            : scoredCards.map((card: any) => <CardTile key={card.earnn_card_id} card={card} />)
-          }
-        </div>
-      )}
-
-      {/* Tab 2: earnn Wallet */}
-      {activeTab === 'wallet' && (
-        <div>
-          {walletLoading && (
-            <div style={{ textAlign:'center', padding:'80px 24px' }}>
-              <style>{`
-                @keyframes cardSpin {
-                  0%   { transform: rotateY(0deg) rotate(-8deg); }
-                  50%  { transform: rotateY(180deg) rotate(8deg); }
-                  100% { transform: rotateY(360deg) rotate(-8deg); }
-                }
-                @keyframes cardSpin2 {
-                  0%   { transform: rotateY(60deg) rotate(6deg); }
-                  50%  { transform: rotateY(240deg) rotate(-6deg); }
-                  100% { transform: rotateY(420deg) rotate(6deg); }
-                }
-                @keyframes cardSpin3 {
-                  0%   { transform: rotateY(120deg) rotate(-4deg); }
-                  50%  { transform: rotateY(300deg) rotate(4deg); }
-                  100% { transform: rotateY(480deg) rotate(-4deg); }
-                }
-                @keyframes pulse {
-                  0%, 100% { opacity: 1; }
-                  50%       { opacity: 0.5; }
-                }
-              `}</style>
-
-              {/* Spinning card stack */}
-              <div style={{ position:'relative', width:120, height:76, margin:'0 auto 36px', perspective:400 }}>
-                {/* Card 3 — back */}
-                <div style={{
-                  position:'absolute', inset:0, borderRadius:10,
-                  background:'linear-gradient(135deg,#1A4FCC,#0E3785)',
-                  boxShadow:'0 8px 24px rgba(14,55,133,0.35)',
-                  animation:'cardSpin3 1.8s ease-in-out infinite',
-                  opacity:0.45,
-                }} />
-                {/* Card 2 — middle */}
-                <div style={{
-                  position:'absolute', inset:0, borderRadius:10,
-                  background:'linear-gradient(135deg,#2563EB,#0E3785)',
-                  boxShadow:'0 8px 24px rgba(14,55,133,0.35)',
-                  animation:'cardSpin2 1.8s ease-in-out infinite',
-                  opacity:0.7,
-                }} />
-                {/* Card 1 — front */}
-                <div style={{
-                  position:'absolute', inset:0, borderRadius:10,
-                  background:'linear-gradient(135deg,#3B82F6,#1D4ED8)',
-                  boxShadow:'0 8px 32px rgba(14,55,133,0.5)',
-                  animation:'cardSpin 1.8s ease-in-out infinite',
-                  display:'flex', alignItems:'center', justifyContent:'center',
-                }}>
-                  <div style={{ width:36, height:6, background:'rgba(255,255,255,0.6)', borderRadius:3 }} />
-                </div>
+        {/* Right: wallet */}
+        <div className="space-y-4">
+          <div className="sticky top-20 space-y-4">
+            <div className="overflow-hidden rounded-3xl bg-primary p-6 text-primary-foreground shadow-card">
+              <div className="flex items-center justify-between text-xs uppercase tracking-wider text-primary-foreground/70">
+                <span>💳 Your wallet</span>
+                <span>{wallet.length} / 4{pgLoading ? ' · recalculating…' : ''}</span>
               </div>
-
-              <p style={{ color:'#0E3785', fontSize:17, fontWeight:700, margin:'0 0 8px', animation:'pulse 1.8s ease-in-out infinite' }}>
-                Running simulation…
-              </p>
-              <p style={{ color:'#5A6A85', fontSize:14, margin:0 }}>
-                Finding your best card combinations across {' '}
-                <strong style={{ color:'#0D1828' }}>thousands of possible wallets</strong>
-              </p>
-            </div>
-          )}
-          {walletError && !walletLoading && (
-            <div style={{
-              background:'#FFF5F5', border:'1px solid #FECACA', borderRadius:12,
-              padding:'20px 24px', color:'#C0392B', textAlign:'center',
-            }}>
-              ⚠️ {walletError}
-              <button onClick={loadWallet} style={{
-                marginLeft:16, background:'#0E3785', color:'#fff', border:'none',
-                borderRadius:8, padding:'8px 16px', cursor:'pointer', fontWeight:600,
-              }}>Retry</button>
-            </div>
-          )}
-          {walletData && !walletLoading && (
-            <div>
-              <div style={{ marginBottom:24 }}>
-                <h2 style={{ fontSize:20, fontWeight:800, color:'#0D1828', margin:'0 0 8px' }}>earnn Wallet Recommendation</h2>
-                <p style={{ color:'#5A6A85', fontSize:14, margin:0 }}>
-                  Optimal card combinations for your spending profile, ranked by Net Annual Value. Click any card to see full details.
-                </p>
+              <div className="mt-3">
+                <div className="text-xs text-primary-foreground/70">Net annual value</div>
+                <div className="font-display text-4xl font-bold tabular">{pgScore ? `AED ${fmt(Math.max(net, 0))}` : 'AED XX,XXX'}</div>
               </div>
-              <div style={{ display:'flex', flexDirection:'column', gap:24 }}>
-                {(walletData.wallets || []).map((combo: any, i: number) => (
-                  <WalletCombo
-                    key={i}
-                    combo={combo}
-                    index={i}
-                    cardNames={cardNames}
-                    cardData={cardData}
-                    topCardNav={topCard?.net_annual_value_aed || 0}
-                    onCardClick={openCardDetail}
-                    onSeeOthers={() => setComboPopup({ nCards: combo.n_cards, combinations: combo.top_combinations || [] })}
-                  />
+              <div className="mt-4 grid grid-cols-3 gap-3 text-xs">
+                {[{ l: 'Gross', v: pgScore ? `AED ${fmt(gross)}` : 'AED XX,XXX' }, { l: 'Fees', v: pgScore ? `AED ${fmt(fees)}` : 'AED XX,XXX' }, { l: 'Effective', v: pgScore ? `${effective}%` : 'X.XX%' }].map(st => (
+                  <div key={st.l} className="rounded-xl bg-primary-foreground/10 p-3">
+                    <div className="text-[10px] uppercase tracking-wider text-primary-foreground/70">{st.l}</div>
+                    <div className="mt-0.5 font-display text-sm font-bold tabular text-primary-foreground">{st.v}</div>
+                  </div>
                 ))}
               </div>
-
-              {/* Spend profile used */}
-              <div style={{
-                marginTop:36, background:'#F8FAFF', borderRadius:16,
-                border:'1px solid #D6E0F5', padding:'24px 28px',
-              }}>
-                <div style={{ fontWeight:700, fontSize:15, color:'#0D1828', marginBottom:16 }}>📋 Your Spending Profile Used</div>
-                <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(140px,1fr))', gap:12 }}>
-                  {Object.entries(walletData.user_spend || {})
-                    .filter(([,v]) => (v as number) > 0)
-                    .sort(([,a],[,b]) => (b as number) - (a as number))
-                    .map(([k,v]: any) => (
-                      <div key={k} style={{
-                        background:'#fff', borderRadius:10, border:'1px solid #D6E0F5', padding:'12px 16px', textAlign:'center',
-                      }}>
-                        <div style={{ fontSize:22, marginBottom:4 }}>{CAT_ICONS[k] || '💳'}</div>
-                        <div style={{ fontSize:15, fontWeight:700, color:'#0E3785' }}>{fmtAed(v)}</div>
-                        <div style={{ fontSize:11, color:'#5A6A85', marginTop:2, textTransform:'capitalize' }}>{k.replace(/_/g,' ')}</div>
-                      </div>
-                    ))}
-                </div>
+              <div className="mt-5 flex -space-x-3">
+                {inWallet.map(c => (
+                  <div key={c.earnn_card_id} className="relative">
+                    <CardImg id={c.earnn_card_id} size="sm" className="ring-2 ring-primary" />
+                    <button onClick={() => toggle(c.earnn_card_id)}
+                      className="absolute -top-1 -left-1 grid h-4 w-4 place-items-center rounded-full bg-red-500 text-white text-[10px] font-bold shadow hover:bg-red-600 transition z-10">
+                      −
+                    </button>
+                  </div>
+                ))}
+                {inWallet.length === 0 && (
+                  <div className="rounded-2xl border border-dashed border-primary-foreground/30 px-4 py-3 text-xs text-primary-foreground/70">
+                    Add cards from the left to start.
+                  </div>
+                )}
               </div>
             </div>
-          )}
-        </div>
-      )}
 
-      {/* Bottom CTA */}
-      <div style={{ marginTop:48, padding:'28px 32px', background:'#EEF3FF', borderRadius:16, textAlign:'center' }}>
-        <h3 style={{ fontSize:18, fontWeight:700, color:'#0E3785', margin:'0 0 8px' }}>Have questions about these cards?</h3>
-        <p style={{ color:'#5A6A85', fontSize:14, margin:'0 0 18px' }}>
-          Ask earnn anything — lounge access, fee waivers, earn rates for specific merchants.
-        </p>
-        <Link href="/chat" style={{
-          background:'#0E3785', color:'#fff', padding:'13px 32px',
-          borderRadius:8, textDecoration:'none', fontWeight:700, fontSize:15,
-        }}>💬 Ask earnn →</Link>
+            {/* Category allocation */}
+            <div className="rounded-3xl border border-border/60 bg-card p-5 shadow-soft">
+              <div className="flex items-center gap-2 text-sm font-semibold text-primary mb-4">
+                🗂️ Category Allocation
+              </div>
+              {wallet.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Add cards to your wallet to see category allocation.</p>
+              ) : !pgScore ? (
+                <p className="text-sm text-muted-foreground">{pgLoading ? 'Calculating…' : 'Select cards to see allocation.'}</p>
+              ) : (() => {
+                const routing = pgScore.category_routing
+                type CatItem = { key: string; label: string; emoji: string; monthly: number; routes: RouteEntry[]; totalAnnual: number; totalMonthly: number }
+                const items: CatItem[] = SPEND_CATS
+                  .map(key => {
+                    const monthly = walletData.user_spend[key] ?? 0
+                    const routes = (routing[key] ?? []).filter(r => r.annual_aed > 0)
+                    const totalAnnual = routes.reduce((s, r) => s + r.annual_aed, 0)
+                    const totalMonthly = Math.round(totalAnnual / 12)
+                    return { key, label: CAT_LABELS[key], emoji: CAT_EMOJI[key], monthly, routes, totalAnnual, totalMonthly }
+                  })
+                  .filter(c => c.monthly > 0)
+                  .sort((a, b) => b.totalAnnual - a.totalAnnual)
+
+                return (
+                  <div className="space-y-2">
+                    {items.map(c => (
+                      <div key={c.key} className="rounded-xl border border-border/60 bg-card px-4 py-3 shadow-soft">
+                        {/* Row 1: category + monthly rewards */}
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="text-base">{c.emoji}</span>
+                            <span className="font-semibold text-sm text-primary truncate">{c.label}</span>
+                            <span className="text-[12px] text-muted-foreground tabular-nums">· AED {fmt(c.monthly)}/mo spend</span>
+                          </div>
+                          <div className="flex-shrink-0">
+                            {c.totalMonthly > 0 ? (
+                              <span className="font-bold text-emerald tabular-nums text-[15px]">AED {fmt(c.totalMonthly)}<span className="text-[10px] font-normal text-muted-foreground"> /mo</span></span>
+                            ) : (
+                              <span className="text-sm text-muted-foreground/40">No reward</span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Row 2: card allocation */}
+                        {c.routes.length === 1 && (
+                          <div className="mt-2 flex items-center gap-2">
+                            <span className="text-[10px] uppercase tracking-wide text-muted-foreground/60 font-semibold">Earning via</span>
+                            <span className="inline-flex items-center rounded-full bg-[#EEF3FF] px-2.5 py-0.5 text-[11px] font-medium text-[#0E3785]">
+                              {c.routes[0].card_name.split(' ').slice(0, 4).join(' ')}
+                            </span>
+                          </div>
+                        )}
+
+                        {/* Spillover rows */}
+                        {c.routes.length > 1 && (
+                          <div className="mt-2 space-y-1.5 border-t border-border/40 pt-2">
+                            {c.routes.map((r, i) => (
+                              <div key={i} className="flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <span className="h-1.5 w-1.5 rounded-full bg-[#0E3785]/30 flex-shrink-0" />
+                                  <span className="text-[11px] text-[#0E3785] font-medium truncate">{r.card_name.split(' ').slice(0, 4).join(' ')}</span>
+                                  {i < c.routes.length - 1 && (
+                                    <span className="rounded-full bg-amber-100 px-1.5 py-px text-[9px] font-semibold uppercase tracking-wide text-amber-700">capped</span>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-3 flex-shrink-0">
+                                  <span className="text-[11px] text-muted-foreground tabular-nums">AED {fmt(r.monthly_spend_chunk)}/mo</span>
+                                  <span className="text-[12px] text-emerald font-semibold tabular-nums">+AED {fmt(Math.round(r.annual_aed / 12))}/mo</span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )
+              })()}
+            </div>
+          </div>
+        </div>
       </div>
 
-      {/* Card Detail Popup */}
-      {detailPopup && (
-        <CardDetailPopup
-          cardId={detailPopup.cardId}
-          cardName={detailPopup.cardName}
-          cardEarnn={detailPopup.earnn}
-          cardFee={detailPopup.fee}
-          prefetchedDetail={detailCache[detailPopup.cardId] || undefined}
-          onClose={() => setDetailPopup(null)}
-        />
-      )}
+      <NavRow onBack={onBack} onNext={onNext} nextLabel="See my final plan" />
 
-      {/* Other Combinations Popup */}
-      {comboPopup && (
-        <OtherCombosPopup
-          nCards={comboPopup.nCards}
-          combinations={comboPopup.combinations}
-          cardNames={cardNames}
-          cardData={cardData}
-          onCardClick={(id, name) => {
-            const cd = cardData[id]
-            setDetailPopup({ cardId: id, cardName: name, earnn: cd?.expected_annual_return_aed, fee: cd?.true_annual_fee_aed })
-          }}
-          onClose={() => setComboPopup(null)}
-        />
+      {/* All UAE Cards modal */}
+      {showAllCards && (
+        <div className="fixed inset-0 z-[500] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4" onClick={() => setShowAllCards(false)}>
+          <div className="w-full max-w-2xl rounded-3xl bg-background shadow-elevated flex flex-col max-h-[85vh]" onClick={e => e.stopPropagation()}>
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-border/60">
+              <div>
+                <div className="font-display text-lg font-bold text-primary">All UAE Cards</div>
+                <div className="text-xs text-muted-foreground mt-0.5">{scoredCards.length} cards · click + to add to wallet</div>
+              </div>
+              <button onClick={() => setShowAllCards(false)} className="grid h-8 w-8 place-items-center rounded-full bg-muted text-foreground hover:bg-muted/70 text-sm">✕</button>
+            </div>
+            {/* Search + bank filter */}
+            <div className="px-5 pt-3 pb-2 flex gap-3">
+              <div className="relative flex-1">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">🔍</span>
+                <input value={allQ} onChange={e => setAllQ(e.target.value)} placeholder="Search cards or issuers"
+                  className="w-full rounded-full border border-border bg-surface-2 py-2 pl-10 pr-4 text-sm outline-none focus:border-emerald" />
+              </div>
+              <select value={allBankFilter ?? ''} onChange={e => setAllBankFilter(e.target.value || null)}
+                className="flex-1 rounded-full border border-border bg-surface-2 px-4 py-2 text-sm text-foreground outline-none focus:border-emerald">
+                <option value="">All Banks</option>
+                {allBanks.map(bank => <option key={bank} value={bank}>{bank}</option>)}
+              </select>
+            </div>
+            {/* Card list */}
+            <ul className="flex-1 overflow-y-auto px-5 pb-5 space-y-2 mt-1">
+              {scoredCards
+                .filter(c => {
+                  const matchQ = !allQ || c.card_name.toLowerCase().includes(allQ.toLowerCase()) || (c.bank_name ?? '').toLowerCase().includes(allQ.toLowerCase())
+                  const matchB = !allBankFilter || c.bank_name === allBankFilter
+                  return matchQ && matchB
+                })
+                .map(c => {
+                  const inW = wallet.includes(c.earnn_card_id)
+                  const full = !inW && wallet.length >= 4
+                  return (
+                    <li key={c.earnn_card_id} className="flex items-center gap-3 rounded-2xl border border-border/60 p-3">
+                      <CardImg id={c.earnn_card_id} size="sm" />
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate font-semibold text-sm text-primary">{c.card_name}</div>
+                        <div className="mt-0.5 flex items-center gap-2 text-xs text-muted-foreground">
+                          <span>{c.bank_name}</span>
+                          <span>·</span>
+                          <span>Fee AED {fmt(c.true_annual_fee_aed)}</span>
+                          <span className="text-emerald">+AED {fmt(c.expected_annual_return_aed)}/yr</span>
+                        </div>
+                      </div>
+                      <div className="relative flex-shrink-0 group/add">
+                      <button onClick={() => { if (!inW && !full) { toggle(c.earnn_card_id); setShowAllCards(false) } else if (inW) toggle(c.earnn_card_id) }}
+                        className={`grid h-8 w-8 place-items-center rounded-full transition text-sm font-bold ${
+                          inW ? 'bg-emerald text-white hover:opacity-90'
+                            : full ? 'cursor-pointer bg-muted text-muted-foreground'
+                            : 'bg-primary text-primary-foreground hover:opacity-90'
+                        }`}>
+                        {inW ? '✓' : '+'}
+                      </button>
+                      {full && (
+                        <div className="pointer-events-none absolute bottom-full right-0 mb-2 w-48 rounded-xl border border-border bg-card px-3 py-2 text-[11px] text-foreground shadow-lg opacity-0 group-hover/add:opacity-100 transition-opacity z-50">
+                          Wallet Max out. Remove an existing card to add new card.
+                        </div>
+                      )}
+                      </div>
+                    </li>
+                  )
+                })}
+            </ul>
+          </div>
+        </div>
       )}
+    </section>
+  )
+}
+
+// ─── Screen 5 — Final ─────────────────────────────────────────────────────────
+
+function Screen5Final({ scoredCards, walletData, wallet, onBack }: {
+  scoredCards: ScoredCard[]; walletData: WalletResponse; wallet: string[]; onBack: () => void
+}) {
+  const [pgScore, setPgScore] = useState<CustomScore | null>(null)
+  const [detailCardId, setDetailCardId] = useState<string | null>(null)
+  const [cardDetails, setCardDetails] = useState<Record<string, Record<string, unknown>>>({})
+
+  useEffect(() => {
+    wallet.forEach(id => {
+      fetchCardDetail(id).then(d => {
+        if (d?.card) setCardDetails(prev => ({ ...prev, [id]: { ...d.card, card_summary_tag: d.card_summary_tag } as Record<string, unknown> }))
+      }).catch(() => {})
+    })
+  }, [wallet])
+
+  useEffect(() => {
+    if (wallet.length === 0) return
+    fetch('/api/rewards/wallet/custom', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ spend: walletData.user_spend, card_ids: wallet }),
+    }).then(r => r.ok ? r.json() : null).then(d => { if (d) setPgScore(d) }).catch(() => {})
+  }, [wallet, walletData.user_spend])
+
+  const cards = wallet.map(id => scoredCards.find(c => c.earnn_card_id === id)!).filter(Boolean)
+  const gross = pgScore?.gross_annual_aed ?? cards.reduce((s, c) => s + c.expected_annual_return_aed, 0)
+  const fees  = cards.reduce((s, c) => s + c.true_annual_fee_aed, 0)
+  const net   = pgScore?.net_annual_value_aed ?? (gross - fees)
+  const avgBaseline = walletData.total_monthly * 12 * 0.01
+  const multiplier = avgBaseline > 0 ? (net / avgBaseline).toFixed(1) : '–'
+
+  return (
+    <section className="space-y-6">
+      <div className="space-y-3 text-center">
+        <span className="inline-flex items-center gap-2 rounded-full bg-emerald-soft px-3 py-1 text-xs font-semibold text-emerald">
+          ✓ Plan locked in
+        </span>
+        <h1 className="font-display text-4xl font-bold tracking-tight text-primary sm:text-5xl">You're ready</h1>
+        <p className="mx-auto max-w-xl text-base text-muted-foreground">
+          Here's your final wallet and what it earns you. Apply in a few minutes — most cards approve same-day in the UAE.
+        </p>
+      </div>
+
+      <div className="overflow-hidden rounded-3xl bg-gradient-to-br from-primary to-[#0d1f4a] p-8 text-primary-foreground shadow-card">
+        <div className="grid gap-8 lg:grid-cols-[1fr_1.1fr] lg:items-center">
+          <div>
+            <div className="text-xs uppercase tracking-widest text-primary-foreground/70">You could earn</div>
+            <div className="mt-2 font-display text-6xl font-bold tabular text-emerald">{pgScore ? `AED ${fmt(net)}` : 'AED XX,XXX'}</div>
+            <div className="mt-1 text-sm text-primary-foreground/80">per year, after fees</div>
+            <div className="mt-6 grid gap-3 sm:grid-cols-2">
+              <div className="rounded-2xl bg-primary-foreground/10 p-4">
+                <div className="text-xs text-primary-foreground/70">vs. average UAE cardholder</div>
+                <div className="mt-1 font-display text-xl font-bold">{multiplier}× more rewards</div>
+              </div>
+              <div className="rounded-2xl bg-primary-foreground/10 p-4">
+                <div className="text-xs text-primary-foreground/70">Cards in wallet</div>
+                <div className="mt-1 font-display text-xl font-bold text-emerald">{cards.length}</div>
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center justify-center">
+            <CardFan cardIds={cards.map(c => c.earnn_card_id)} names={cards.map(c => c.card_name)} size="lg" />
+          </div>
+        </div>
+      </div>
+
+      <div className="grid gap-3 rounded-3xl border border-border/60 bg-card p-6 shadow-soft">
+        <div className="text-sm font-semibold text-primary">Your Selected Cards</div>
+        <ul className="divide-y divide-border/60">
+          {cards.map(c => (
+            <li key={c.earnn_card_id} className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-4 py-3">
+              <CardImg id={c.earnn_card_id} size="sm" />
+              <div className="min-w-0">
+                <button onClick={() => setDetailCardId(c.earnn_card_id)}
+                  className="truncate font-semibold text-primary hover:underline underline-offset-2 text-left">
+                  {c.card_name}
+                </button>
+                <div className="text-xs text-muted-foreground">{c.bank_name ?? ''}</div>
+                {(() => {
+                  const d = cardDetails[c.earnn_card_id]
+                  return (
+                    <div className="mt-1 flex flex-nowrap gap-1 overflow-hidden">
+                      {Object.entries(c.category_effective_rates)
+                        .filter(([, rate]) => rate > 0)
+                        .sort(([, a], [, b]) => b - a)
+                        .slice(0, 4)
+                        .map(([cat, rate]) => {
+                          const tierCapped = d?.[`is_tier_capped_${cat}`]
+                          const tierCapAed = tierCapped && d?.[`${cat}_tier_cap_aed`] ? Number(d[`${cat}_tier_cap_aed`]) : null
+                          return (
+                            <span key={cat} className="inline-flex items-center gap-0.5 rounded-md bg-surface-2 px-1.5 py-0.5 text-[12px] text-muted-foreground whitespace-nowrap">
+                              {CAT_EMOJI[cat] || CAT_LABELS[cat] || cat} <span className="font-semibold text-primary">{(rate * 100).toFixed(1)}%</span>
+                              {tierCapped && <span className="text-amber-600">{tierCapAed ? ` (cap AED ${fmt(tierCapAed)})` : ' (capped)'}</span>}
+                            </span>
+                          )
+                        })}
+                    </div>
+                  )
+                })()}
+                {(() => {
+                  const d = cardDetails[c.earnn_card_id]
+                  if (!d) return null
+                  const salary = d.min_salary_aed ? `AED ${fmt(Number(d.min_salary_aed))}` : 'Not specified'
+                  const tag = d.card_summary_tag as string | undefined
+                  return (
+                    <div className="mt-1.5 flex items-center gap-3 flex-wrap">
+                      <div className="flex items-center gap-1 text-[10px]">
+                        <span className="text-muted-foreground/60">Salary Req.:</span>
+                        <span className="font-medium text-foreground">{salary}</span>
+                      </div>
+                      {tag && (
+                        <span className="inline-flex items-center rounded-full bg-[#EEF3FF] px-2 py-px text-[10px] font-medium text-[#0E3785]">{tag}</span>
+                      )}
+                    </div>
+                  )
+                })()}
+              </div>
+              <div className="flex flex-col items-end justify-between self-stretch py-0.5">
+                <div className="text-right">
+                  <div className="font-display font-bold text-emerald tabular text-sm">+AED {fmt(c.expected_annual_return_aed)}</div>
+                  <div className="mt-0.5 text-[10px] text-muted-foreground">Fee AED {fmt(c.true_annual_fee_aed)}</div>
+                </div>
+                <button
+                  onClick={() => alert('Coming soon')}
+                  className="mt-2 rounded-full border border-[#0E3785] px-3 py-1 text-[11px] font-semibold text-[#0E3785] hover:bg-[#EEF3FF] transition-colors"
+                >
+                  View &amp; Apply
+                </button>
+              </div>
+            </li>
+          ))}
+        </ul>
+        {detailCardId && <CardDetailPopup cardId={detailCardId} onClose={() => setDetailCardId(null)} />}
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-3">
+        <button onClick={() => alert('Coming soon')}
+          className="inline-flex items-center justify-center gap-2 rounded-full bg-emerald px-5 py-3.5 text-sm font-semibold text-primary shadow-soft transition hover:opacity-90 sm:col-span-3">
+          Apply for selected cards →
+        </button>
+        <button onClick={() => alert('Coming soon')}
+          className="inline-flex items-center justify-center gap-2 rounded-full border border-border bg-card px-5 py-3 text-sm font-semibold text-primary transition hover:bg-surface-2">
+          ⬇ Download PDF report
+        </button>
+        <button onClick={() => alert('Coming soon')}
+          className="inline-flex items-center justify-center gap-2 rounded-full border border-border bg-card px-5 py-3 text-sm font-semibold text-primary transition hover:bg-surface-2">
+          ✉ Email me this plan
+        </button>
+        <button onClick={onBack}
+          className="inline-flex items-center justify-center gap-2 rounded-full border border-border bg-card px-5 py-3 text-sm font-semibold text-muted-foreground transition hover:bg-surface-2">
+          ← Back to wallet
+        </button>
+      </div>
+    </section>
+  )
+}
+
+// ─── Main Page ────────────────────────────────────────────────────────────────
+
+export default function ResultsPage() {
+  const router = useRouter()
+  const [step, setStep] = useState(0)
+  const [scoredCards, setScoredCards] = useState<ScoredCard[]>([])
+  const [walletData, setWalletData] = useState<WalletResponse | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [chosenStrategy, setChosenStrategy] = useState('')
+  const [wallet, setWallet] = useState<string[]>([])
+
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem('earnn_result')
+      if (!raw) { router.replace('/analyse'); return }
+      const { data } = JSON.parse(raw)
+      const cards: ScoredCard[] = data.scored_cards ?? []
+      setScoredCards(cards)
+      const userSpend: Record<string, number> = data.user_spend ?? {}
+      getOptimalWallet(userSpend)
+        .then((wd: WalletResponse) => {
+          setWalletData(wd)
+          const sorted = [...wd.wallets].sort((a: WalletEntry, b: WalletEntry) => a.n_cards - b.n_cards)
+          let rec = sorted[0]
+          for (const w of sorted.slice(1)) {
+            if (w.incremental_vs_prev_aed > 1000) rec = w
+            else break
+          }
+          if (rec) setWallet(rec.card_ids)
+        })
+        .catch((e: Error) => setError(e.message))
+        .finally(() => setLoading(false))
+    } catch (e: any) {
+      setError(e.message)
+      setLoading(false)
+    }
+  }, [router])
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-surface-2">
+
+        <main className="mx-auto max-w-6xl px-4 pb-24 pt-6 sm:px-6 lg:px-8">
+          <LoadingScreen />
+        </main>
+      </div>
+    )
+  }
+
+  if (error || !walletData || scoredCards.length === 0) {
+    return (
+      <div className="min-h-screen bg-surface-2">
+
+        <main className="mx-auto max-w-6xl px-4 pb-24 pt-24 text-center sm:px-6 lg:px-8">
+          <h2 className="font-display text-3xl font-bold text-primary">Something went wrong</h2>
+          <p className="mt-3 text-muted-foreground">{error ?? 'No results found.'}</p>
+          <button onClick={() => router.push('/analyse')}
+            className="mt-8 inline-flex items-center gap-2 rounded-full bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground transition hover:opacity-90">
+            ← Start again
+          </button>
+        </main>
+      </div>
+    )
+  }
+
+  return (
+    <div className="min-h-screen bg-surface-2">
+      <Stepper current={step} onJump={setStep} />
+
+      <main className="mx-auto max-w-6xl px-4 pb-24 pt-6 sm:px-6 lg:px-8">
+        {step === 0 && <Screen1Hero scoredCards={scoredCards} walletData={walletData} onNext={() => setStep(1)} onExplore={() => setStep(1)} />}
+        {step === 1 && <Screen4Wallet scoredCards={scoredCards} walletData={walletData} wallet={wallet} setWallet={setWallet} onBack={() => setStep(0)} onNext={() => setStep(2)} />}
+        {step === 2 && <Screen5Final scoredCards={scoredCards} walletData={walletData} wallet={wallet.length > 0 ? wallet : (walletData.wallets.find(w => w.n_cards === 2)?.card_ids ?? [])} onBack={() => setStep(1)} />}
+      </main>
+
+      <footer className="border-t border-border/60 bg-background">
+        <div className="mx-auto flex max-w-6xl flex-col items-start justify-between gap-2 px-4 py-6 text-xs text-muted-foreground sm:flex-row sm:items-center sm:px-6 lg:px-8">
+          <span>© {new Date().getFullYear()} earnn.money · AI credit card strategy for the UAE</span>
+          <span>Estimates based on published reward rates. Actual rewards may vary.</span>
+        </div>
+      </footer>
     </div>
   )
 }
