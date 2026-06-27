@@ -1,7 +1,7 @@
 'use client'
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { uploadStatement, scoreCards, fetchCardDetail, fetchCards, searchCards, pingBackend, getCardImageUrl } from '@/lib/api'
+import { uploadStatement, scoreCards, getOptimalWallet, fetchCardDetail, fetchCards, searchCards, pingBackend, getCardImageUrl } from '@/lib/api'
 import { Suspense } from 'react'
 
 const MERCHANT_OPTIONS: Record<string, { key: string; label: string }[]> = {
@@ -25,6 +25,141 @@ const CATEGORIES = [
   { key: 'education',     label: 'Education',                icon: '📚',  hint: 'School fees, courses' },
   { key: 'miscellaneous', label: 'Other / Miscellaneous',    icon: '🔖',  hint: 'Everything else' },
 ]
+
+// =============================================================================
+// PARSE VALIDATION DEBUG PANEL — independent component, remove when no longer needed
+// Shows raw parse output for validating statement parsing accuracy.
+// To remove: delete this component + the <ParseDataDebug data={reviewData} /> usage above.
+// =============================================================================
+
+const HEADER_LABELS: Record<string, string> = {
+  bank_name_code: 'Bank', bank_country: 'Country', card_last4: 'Card Last 4', card_type: 'Card Type', earnn_card_id: 'earnn Card ID',
+  statement_start_date: 'Statement Start', statement_end_date: 'Statement End', statement_generation_date: 'Statement Date', payment_due_date: 'Payment Due Date',
+  total_credit_limit_aed: 'Credit Limit (AED)', available_credit_limit_aed: 'Available Credit (AED)',
+  minimum_payment_due_aed: 'Min Payment Due (AED)', total_amount_due_aed: 'Total Amount Due (AED)', outstanding_current_balance: 'Outstanding Balance (AED)',
+  previous_balance_aed: 'Previous Balance (AED)', purchase_cash_advances: 'Purchases & Cash Advances (AED)', payment_received_credit: 'Payment Received (AED)',
+  interest: 'Interest (AED)', fee_and_other_charges: 'Fees & Charges (AED)',
+  parsed_total_debits_aed: 'Parsed Total Debits (AED)', parsed_total_credits_aed: 'Parsed Total Credits (AED)',
+  stated_purchases_aed: 'Stated Purchases (AED)', stated_credits_aed: 'Stated Credits (AED)',
+  confidence_score: 'Confidence Score', confidence_verdict: 'Confidence Verdict', statement_parsing_flag: 'Parser Path',
+  mapper_used: 'Mapper Used', pdf_type_detected: 'PDF Type',
+  chk_dates_in_window_pass: 'Check: Dates in Window', chk_debit_reconciliation_pass: 'Check: Debit Recon',
+  chk_credit_reconciliation_pass: 'Check: Credit Recon', chk_descriptions_valid_pass: 'Check: Descriptions Valid',
+  debit_reconciliation_ratio: 'Debit Recon Ratio', credit_reconciliation_ratio: 'Credit Recon Ratio',
+}
+
+function ParseDataDebug({ data }: { data: any }) {
+  const [open, setOpen] = useState(false)
+  const [tab, setTab] = useState<'header' | 'transactions'>('header')
+
+  if (!data) return null
+
+  const header: Record<string, any> = data.statement_header || {}
+  const transactions: any[] = data.transactions_raw || []
+
+  return (
+    <div style={{ marginTop: 24, borderTop: '1px dashed #D6E0F5', paddingTop: 16 }}>
+      <button
+        onClick={() => setOpen(v => !v)}
+        style={{
+          display: 'flex', alignItems: 'center', gap: 8, width: '100%',
+          background: 'none', border: '1px dashed #C8D4E8', borderRadius: 8,
+          padding: '10px 16px', cursor: 'pointer', color: '#5A6A85', fontSize: 13,
+          fontWeight: 600, textAlign: 'left',
+        }}
+      >
+        <span style={{ fontSize: 16 }}>{open ? '▾' : '▸'}</span>
+        🔍 View raw parse data ({transactions.length} transactions)
+        <span style={{ marginLeft: 'auto', fontSize: 11, fontWeight: 400, color: '#9DAEC8' }}>for parse validation only</span>
+      </button>
+
+      {open && (
+        <div style={{ marginTop: 12, background: '#F8FAFF', borderRadius: 12, border: '1px solid #D6E0F5', overflow: 'hidden' }}>
+
+          {/* Tab bar */}
+          <div style={{ display: 'flex', borderBottom: '1px solid #D6E0F5' }}>
+            {([['header', '📋 Statement Header'], ['transactions', `📄 Transactions (${transactions.length})`]] as const).map(([k, label]) => (
+              <button key={k} onClick={() => setTab(k)} style={{
+                flex: 1, padding: '10px 0', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 600,
+                background: tab === k ? 'white' : 'transparent',
+                color: tab === k ? '#0E3785' : '#5A6A85',
+                borderBottom: tab === k ? '2px solid #0E3785' : '2px solid transparent',
+              }}>
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {/* Statement header tab */}
+          {tab === 'header' && (
+            <div style={{ padding: '16px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0' }}>
+              {Object.entries(header).map(([k, v], i) => {
+                const label = HEADER_LABELS[k] || k
+                const isNull = v === null || v === undefined || v === ''
+                const isCheck = k.startsWith('chk_')
+                const displayVal = isNull ? '—' : isCheck ? (v ? '✅ Pass' : '❌ Fail') : String(v)
+                return (
+                  <div key={k} style={{
+                    padding: '8px 12px',
+                    borderBottom: '1px solid #EEF3FF',
+                    background: i % 2 === 0 ? 'white' : '#F8FAFF',
+                    display: 'flex', flexDirection: 'column', gap: 2,
+                  }}>
+                    <div style={{ fontSize: 10, color: '#9DAEC8', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{label}</div>
+                    <div style={{ fontSize: 13, color: isNull ? '#C8D4E8' : '#0D1828', fontWeight: isNull ? 400 : 500, fontFamily: 'monospace' }}>{displayVal}</div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
+          {/* Transactions tab */}
+          {tab === 'transactions' && (
+            <div style={{ overflowX: 'auto' }}>
+              {transactions.length === 0 ? (
+                <div style={{ padding: 24, textAlign: 'center', fontSize: 13, color: '#9DAEC8' }}>No transactions found</div>
+              ) : (
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                  <thead>
+                    <tr style={{ background: '#EEF3FF' }}>
+                      {['#', 'Date', 'Description', 'Merchant (clean)', 'Category', 'Debit AED', 'Credit AED', 'Instalment'].map(h => (
+                        <th key={h} style={{ padding: '8px 10px', textAlign: 'left', fontSize: 10, fontWeight: 700, color: '#5A6A85', textTransform: 'uppercase', letterSpacing: '0.04em', whiteSpace: 'nowrap', borderBottom: '1px solid #D6E0F5' }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {transactions.map((t, i) => (
+                      <tr key={i} style={{ background: i % 2 === 0 ? 'white' : '#F8FAFF' }}>
+                        <td style={{ padding: '7px 10px', color: '#9DAEC8', fontFamily: 'monospace' }}>{i + 1}</td>
+                        <td style={{ padding: '7px 10px', color: '#5A6A85', whiteSpace: 'nowrap', fontFamily: 'monospace' }}>{t.transaction_date || '—'}</td>
+                        <td style={{ padding: '7px 10px', color: '#0D1828', maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={t.description_raw}>{t.description_raw || '—'}</td>
+                        <td style={{ padding: '7px 10px', color: '#5A6A85', maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.parent_merchant || t.merchant_name_clean || '—'}</td>
+                        <td style={{ padding: '7px 10px' }}>
+                          {t.earnn_category_code ? (
+                            <span style={{ background: '#EEF3FF', color: '#0E3785', borderRadius: 4, padding: '2px 7px', fontWeight: 600, fontSize: 11 }}>{t.earnn_category_code}</span>
+                          ) : <span style={{ color: '#C8D4E8' }}>—</span>}
+                        </td>
+                        <td style={{ padding: '7px 10px', color: t.debit_amount_aed ? '#C0392B' : '#C8D4E8', fontWeight: 600, textAlign: 'right', whiteSpace: 'nowrap', fontFamily: 'monospace' }}>
+                          {t.debit_amount_aed ? t.debit_amount_aed.toLocaleString('en-AE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'}
+                        </td>
+                        <td style={{ padding: '7px 10px', color: t.credit_amount_aed ? '#00A67E' : '#C8D4E8', fontWeight: 600, textAlign: 'right', whiteSpace: 'nowrap', fontFamily: 'monospace' }}>
+                          {t.credit_amount_aed ? t.credit_amount_aed.toLocaleString('en-AE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'}
+                        </td>
+                        <td style={{ padding: '7px 10px', textAlign: 'center', color: '#9DAEC8' }}>{t.is_installment ? '✅' : ''}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// =============================================================================
 
 function AnalyseContent() {
   const router = useRouter()
@@ -86,15 +221,17 @@ function AnalyseContent() {
     else setError('Please upload a PDF file')
   }, [])
 
-  // Upload path
-  const handleUpload = async () => {
+  // Upload path — auto-retries once on gateway timeout (Railway cold start)
+  const handleUpload = async (isRetry = false) => {
     if (!file) return setError('Please select a PDF file first')
     if (passwordMode === null) return setError('Please confirm if your PDF has a password')
     if (passwordMode === 'has_password' && !password.trim()) return setError('Please enter your PDF password')
-    setLoadingType('upload'); setLoading(true); setError('')
+    setLoadingType('upload'); setLoading(true)
+    setError(isRetry ? 'Server was waking up — retrying now…' : '')
     try {
       const result = await uploadStatement(file, passwordMode === 'has_password' ? password.trim() : undefined)
       if (result.success) {
+        setError('')
         setReviewData(result)
         setReviewTab('category')
         const cardId = result.earnn_card_id || null
@@ -111,6 +248,11 @@ function AnalyseContent() {
       } else {
         if (result.error_code === 'PDF_ENCRYPTED_NO_PASSWORD') {
           setPasswordMode('has_password')
+        }
+        // Auto-retry once on gateway timeout — Railway was cold-starting
+        if ((result.error_code === 'GATEWAY_TIMEOUT' || result.error_code === 'GATEWAY_ERROR') && !isRetry) {
+          setLoading(false)
+          return handleUpload(true)
         }
         setError(result.error_message || 'Could not parse this statement. Try manual entry.')
       }
@@ -189,12 +331,17 @@ function AnalyseContent() {
       const activeMerchantPrefs = Object.fromEntries(
         Object.entries(merchantPrefs).filter(([, v]) => v.length > 0)
       )
-      const result = await scoreCards(spendNumbers, Object.keys(activeMerchantPrefs).length > 0 ? activeMerchantPrefs : undefined)
+      const [result, walletData] = await Promise.all([
+        scoreCards(spendNumbers, Object.keys(activeMerchantPrefs).length > 0 ? activeMerchantPrefs : undefined),
+        getOptimalWallet(spendNumbers),
+        new Promise(res => setTimeout(res, 7000)),  // minimum 7s hold
+      ])
       sessionStorage.setItem('earnn_result', JSON.stringify({
         type: 'manual',
         data: { ...result, current_card_id: currentCardId, current_card_info: currentCardInfo, merchant_prefs: activeMerchantPrefs },
         salary: parseFloat(salary) || 0,
       }))
+      sessionStorage.setItem('earnn_wallet', JSON.stringify(walletData))
 
       // Fire-and-forget image preloads — primes browser cache, doesn't block navigation
       const topIds: string[] = (result.scored_cards || [])
@@ -324,6 +471,56 @@ function AnalyseContent() {
             </div>
           ))}
 
+          {/* Floating spend category chips — 3 copies each, full-screen scatter, gold */}
+          {(() => {
+            const activeSpend = CATEGORIES.filter(c => parseFloat(spend[c.key] || '0') > 0)
+            const allChips: { cat: typeof CATEGORIES[0]; aed: number; copy: number }[] = []
+            activeSpend.forEach(cat => {
+              for (let copy = 0; copy < 3; copy++) allChips.push({ cat, aed: parseFloat(spend[cat.key] || '0'), copy })
+            })
+            // Slots interleaved across full screen — each consecutive entry is in a different vertical zone
+            const SLOTS = [
+              { x: 3,  y: 4  }, { x: 72, y: 62 }, { x: 20, y: 82 }, { x: 55, y: 24 },
+              { x: 80, y: 88 }, { x: 38, y: 8  }, { x: 5,  y: 65 }, { x: 65, y: 36 },
+              { x: 25, y: 92 }, { x: 82, y: 18 }, { x: 48, y: 70 }, { x: 10, y: 30 },
+              { x: 68, y: 84 }, { x: 35, y: 14 }, { x: 78, y: 55 }, { x: 8,  y: 78 },
+              { x: 52, y: 6  }, { x: 22, y: 58 }, { x: 85, y: 40 }, { x: 42, y: 88 },
+              { x: 15, y: 10 }, { x: 60, y: 75 }, { x: 3,  y: 44 }, { x: 75, y: 8  },
+              { x: 30, y: 68 }, { x: 58, y: 20 }, { x: 12, y: 86 }, { x: 70, y: 48 },
+              { x: 45, y: 3  }, { x: 88, y: 72 }, { x: 18, y: 38 }, { x: 50, y: 90 },
+            ]
+            return allChips.map(({ cat, aed, copy }, i) => {
+              const slot = SLOTS[i % SLOTS.length]
+              const animIdx = i % 6
+              const dur = (5 + (i % 5)).toFixed(1)
+              const delay = ((i * 0.6) % 5).toFixed(1)
+              return (
+                <div key={`${cat.key}-${copy}`} style={{
+                  position: 'absolute', zIndex: 8,
+                  left: `${slot.x}%`, top: `${slot.y}%`,
+                  animation: `floatChip${animIdx} ${dur}s ease-in-out ${delay}s infinite`,
+                  pointerEvents: 'none',
+                }}>
+                  <div style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 7,
+                    background: 'rgba(212,175,55,0.06)',
+                    border: '1px solid rgba(212,175,55,0.22)',
+                    backdropFilter: 'blur(8px)',
+                    borderRadius: 999, padding: '7px 16px',
+                    fontSize: 14, fontWeight: 600,
+                    color: 'rgba(245,217,122,0.55)',
+                    whiteSpace: 'nowrap',
+                    boxShadow: '0 2px 12px rgba(212,175,55,0.08)',
+                  }}>
+                    <span style={{ fontSize: 16 }}>{cat.icon}</span>
+                    <span>{cat.label}</span>
+                    <span style={{ color: 'rgba(255,233,122,0.6)', fontWeight: 700 }}>AED {aed.toLocaleString()}</span>
+                  </div>
+                </div>
+              )
+            })
+          })()}
+
           {/* Centre message overlay */}
           <div style={{
             position: 'absolute', inset: 0, zIndex: 10,
@@ -339,11 +536,11 @@ function AnalyseContent() {
               animation: 'colSpin 0.9s linear infinite',
               marginBottom: 22,
             }} />
-            <div style={{ fontSize: 22, fontWeight: 800, color: 'white', textAlign: 'center', letterSpacing: '-0.3px', lineHeight: 1.35, maxWidth: 320 }}>
-              Matching best card for your spending pattern
+            <div style={{ fontSize: 22, fontWeight: 800, color: 'white', textAlign: 'center', letterSpacing: '-0.3px', lineHeight: 1.35, whiteSpace: 'nowrap' }}>
+              Matching best cards for your spending…
             </div>
-            <div style={{ marginTop: 10, fontSize: 13, color: 'rgba(255,255,255,0.45)', letterSpacing: '0.02em' }}>
-              Scoring across all UAE credit cards…
+            <div style={{ marginTop: 10, fontSize: 13, color: 'rgba(255,255,255,0.55)', textAlign: 'center', letterSpacing: '0.02em', whiteSpace: 'nowrap' }}>
+              Running simulations across thousands of card combinations
             </div>
           </div>
 
@@ -351,6 +548,42 @@ function AnalyseContent() {
             @keyframes cardColdn { from { transform: translateY(-33.33%); } to { transform: translateY(0%); } }
             @keyframes cardColup { from { transform: translateY(0%); } to { transform: translateY(-33.33%); } }
             @keyframes colSpin   { to { transform: rotate(360deg); } }
+            @keyframes floatChip0 {
+              0%   { transform: translate(0px,0px)      rotate(-8deg);  opacity:0.65; }
+              30%  { transform: translate(40px,-60px)   rotate(6deg);   opacity:1;    }
+              60%  { transform: translate(-30px,-100px) rotate(-4deg);  opacity:0.8;  }
+              100% { transform: translate(0px,0px)      rotate(-8deg);  opacity:0.65; }
+            }
+            @keyframes floatChip1 {
+              0%   { transform: translate(0px,0px)     rotate(10deg);  opacity:0.7;  }
+              40%  { transform: translate(-50px,70px)  rotate(-12deg); opacity:1;    }
+              70%  { transform: translate(30px,110px)  rotate(5deg);   opacity:0.75; }
+              100% { transform: translate(0px,0px)     rotate(10deg);  opacity:0.7;  }
+            }
+            @keyframes floatChip2 {
+              0%   { transform: translate(0px,0px)     rotate(-5deg);  opacity:0.6;  }
+              25%  { transform: translate(60px,50px)   rotate(14deg);  opacity:1;    }
+              55%  { transform: translate(20px,-80px)  rotate(-8deg);  opacity:0.85; }
+              80%  { transform: translate(-40px,30px)  rotate(10deg);  opacity:0.9;  }
+              100% { transform: translate(0px,0px)     rotate(-5deg);  opacity:0.6;  }
+            }
+            @keyframes floatChip3 {
+              0%   { transform: translate(0px,0px)      rotate(7deg);   opacity:0.7;  }
+              35%  { transform: translate(-60px,-90px)  rotate(-15deg); opacity:1;    }
+              65%  { transform: translate(50px,-50px)   rotate(9deg);   opacity:0.8;  }
+              100% { transform: translate(0px,0px)      rotate(7deg);   opacity:0.7;  }
+            }
+            @keyframes floatChip4 {
+              0%   { transform: translate(0px,0px)    rotate(-12deg); opacity:0.65; }
+              45%  { transform: translate(70px,80px)  rotate(8deg);   opacity:1;    }
+              100% { transform: translate(0px,0px)    rotate(-12deg); opacity:0.65; }
+            }
+            @keyframes floatChip5 {
+              0%   { transform: translate(0px,0px)     rotate(4deg);   opacity:0.7;  }
+              30%  { transform: translate(-70px,60px)  rotate(-10deg); opacity:0.9;  }
+              60%  { transform: translate(40px,100px)  rotate(16deg);  opacity:1;    }
+              100% { transform: translate(0px,0px)     rotate(4deg);   opacity:0.7;  }
+            }
           `}</style>
         </div>
       )}
@@ -544,14 +777,33 @@ function AnalyseContent() {
 
           {error && <div style={{ background: '#FFF3F0', border: '1px solid #FFD0C8', borderRadius: 8, padding: '12px 16px', color: '#C0392B', fontSize: 14, marginBottom: 20 }}>⚠️ {error}</div>}
 
+          {/* Total spend sum */}
+          {(() => {
+            const total = (reviewData.category_split || []).reduce((s: number, c: any) => s + (c.amount_aed || 0), 0)
+            return total > 0 ? (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px', borderRadius: 12, background: '#EEF3FF', border: '1px solid #D6E0F5', marginBottom: 16 }}>
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: '#5A6A85', letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: 2 }}>Total categorised spend</div>
+                  <div style={{ fontSize: 13, color: '#9DAEC8' }}>{(reviewData.category_split || []).length} categories · {reviewData.transaction_count || 0} transactions</div>
+                </div>
+                <div style={{ fontSize: 26, fontWeight: 800, color: '#0E3785', letterSpacing: '-0.5px' }}>
+                  AED {total.toLocaleString('en-AE', { maximumFractionDigits: 0 })}
+                </div>
+              </div>
+            ) : null
+          })()}
+
           <button onClick={proceedToManual} disabled={proceedLoading} style={{
             width: '100%', padding: '18px', fontSize: 17, fontWeight: 700, border: 'none', borderRadius: 10,
             background: proceedLoading ? '#6B8EC7' : '#0E3785', color: 'white',
             cursor: proceedLoading ? 'default' : 'pointer', boxShadow: '0 6px 20px rgba(14,55,133,0.25)',
             transition: 'background 0.2s',
           }}>
-            Here is your spend..... Find the best card for you
+            Here is your spend — Find the best card for me →
           </button>
+
+          {/* Parse validation debug panel — independent, removable */}
+          <ParseDataDebug data={reviewData} />
         </div>
       )}
 
