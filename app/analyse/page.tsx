@@ -232,144 +232,215 @@ function ComparisonPopup({ data, onContinue }: {
   }
   onContinue: () => void
 }) {
-  const [showLoss, setShowLoss] = useState(false)
-  const [showWhy,  setShowWhy]  = useState(false)
-  const [showCta,  setShowCta]  = useState(false)
+  const [showBox,       setShowBox]       = useState(false)
+  const [showBreakdown, setShowBreakdown] = useState(false)
+  const [showCta,       setShowCta]       = useState(false)
 
   const monthly = Math.round(Math.abs(data.monthlyDiff))
   const annual  = Math.round(Math.abs(data.annualDiff))
   const witty   = getWittyMessage(data.spendNumbers, annual)
+  const currentEarns = Math.round(data.currentMonthly)
+  const potential    = currentEarns + monthly
+  const fillPct      = potential > 0 ? Math.round((currentEarns / potential) * 100) : 0
 
   useEffect(() => {
-    if (data.isWinning) { setShowLoss(true); setShowWhy(true); setShowCta(true); return }
-    const t0 = setTimeout(() => setShowLoss(true), 1400)
-    const t1 = setTimeout(() => setShowWhy(true),  2200)
-    const t2 = setTimeout(() => setShowCta(true),  2800)
+    if (data.isWinning) { setShowBox(true); setShowBreakdown(true); setShowCta(true); return }
+    const t0 = setTimeout(() => setShowBox(true),       700)
+    const t1 = setTimeout(() => setShowBreakdown(true), 1300)
+    const t2 = setTimeout(() => setShowCta(true),       1900)
     return () => { clearTimeout(t0); clearTimeout(t1); clearTimeout(t2) }
   }, [])
 
   return (
-    <div style={{
-      position: 'fixed', inset: 0, zIndex: 2500,
-      background: '#07112B',
-      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-      padding: '40px 24px',
-    }}>
+    <div style={{ position: 'fixed', inset: 0, zIndex: 2500, background: '#f0f9fa', overflowY: 'auto' }}>
       <style>{`
-        @keyframes cmp-up   { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
-        @keyframes cmp-btn  { 0%,100% { box-shadow:0 8px 32px rgba(74,142,255,0.3); } 50% { box-shadow:0 12px 48px rgba(74,142,255,0.55); } }
+        @keyframes cmp-worry { 0%,100%{transform:rotate(0) translateX(0)} 15%{transform:rotate(-1.5deg) translateX(-2px)} 40%{transform:rotate(1deg) translateX(1px)} 60%{transform:rotate(-2deg) translateX(-1px)} 80%{transform:rotate(1.5deg) translateX(2px)} }
+        @keyframes cmp-armL  { 0%,100%{transform:rotate(-40deg)} 50%{transform:rotate(-58deg)} }
+        @keyframes cmp-armR  { 0%,100%{transform:rotate(40deg)}  50%{transform:rotate(58deg)} }
+        @keyframes cmp-sweat { 0%,50%{transform:translateY(0);opacity:1} 100%{transform:translateY(14px);opacity:0} }
+        @keyframes cmp-brow  { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-2px)} }
+        @keyframes cmp-fly1  { 0%{transform:translate(0,0) scale(1);opacity:1} 100%{transform:translate(-62px,-32px) scale(.3);opacity:0} }
+        @keyframes cmp-fly2  { 0%{transform:translate(0,0) scale(1);opacity:1} 100%{transform:translate(-52px,22px) scale(.25);opacity:0} }
+        @keyframes cmp-fly3  { 0%{transform:translate(0,0) scale(1);opacity:1} 100%{transform:translate(-78px,-8px) scale(.35);opacity:0} }
+        @keyframes cmp-fly4  { 0%{transform:translate(0,0) scale(1);opacity:1} 100%{transform:translate(-42px,-58px) scale(.3);opacity:0} }
+        @keyframes cmp-note1 { 0%{transform:translate(0,0) rotate(0) scale(1);opacity:1} 100%{transform:translate(-82px,-28px) rotate(-20deg) scale(.38);opacity:0} }
+        @keyframes cmp-note2 { 0%{transform:translate(0,0) rotate(0) scale(1);opacity:1} 100%{transform:translate(-72px,32px) rotate(14deg) scale(.32);opacity:0} }
+        @keyframes cmp-note3 { 0%{transform:translate(0,0) rotate(0) scale(1);opacity:1} 100%{transform:translate(-92px,-48px) rotate(-8deg) scale(.44);opacity:0} }
+        @keyframes cmp-fadein{ from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
+        @keyframes cmp-boxin { from{opacity:0;transform:translateY(20px) scale(.96)} to{opacity:1;transform:translateY(0) scale(1)} }
       `}</style>
 
-      <div style={{ width: '100%', maxWidth: 400 }}>
+      {/* ── HERO: teal + animated worried man ── */}
+      <div style={{ background: '#0e7490', padding: '28px 20px 46px', display: 'flex', alignItems: 'center', gap: 14 }}>
 
-        {!data.isWinning ? (
-          <>
-            {/* Witty personalised intro */}
-            <div style={{ marginBottom: 28, animation: 'cmp-up 0.5s ease both' }}>
-              <div style={{ fontSize: 40, marginBottom: 14 }}>{witty.emoji}</div>
-              <div style={{ fontSize: 'clamp(18px,4vw,24px)', fontWeight: 700, color: 'white', lineHeight: 1.4, marginBottom: 8 }}>
-                {witty.line1}
-              </div>
-              <div style={{ fontSize: 'clamp(14px,3vw,17px)', color: 'rgba(255,255,255,0.5)', lineHeight: 1.5 }}>
-                {witty.line2}
-              </div>
-            </div>
+        {/* Cartoon man */}
+        <div style={{ flexShrink: 0, width: 118, height: 138 }}>
+          <svg width="118" height="138" viewBox="0 0 118 138" overflow="visible">
+            {/* AED banknotes flying left */}
+            <g style={{ animation: 'cmp-note1 1.6s ease-out infinite' }}>
+              <rect x="54" y="42" width="30" height="17" rx="3" fill="#4ade80" opacity=".9"/>
+              <rect x="56" y="45" width="26" height="11" rx="1" fill="#16a34a" opacity=".35"/>
+              <text x="69" y="55" fontSize="6" fill="#fff" textAnchor="middle" fontWeight="bold">AED</text>
+            </g>
+            <g style={{ animation: 'cmp-note2 1.6s ease-out .5s infinite' }}>
+              <rect x="50" y="65" width="27" height="15" rx="3" fill="#34d399" opacity=".85"/>
+              <text x="64" y="76" fontSize="5" fill="#fff" textAnchor="middle" fontWeight="bold">AED</text>
+            </g>
+            <g style={{ animation: 'cmp-note3 1.6s ease-out 1s infinite' }}>
+              <rect x="57" y="30" width="34" height="18" rx="3" fill="#6ee7b7" opacity=".8"/>
+              <text x="74" y="42" fontSize="6" fill="#065f46" textAnchor="middle" fontWeight="bold">AED</text>
+            </g>
+            {/* Gold coins */}
+            <circle cx="66" cy="48" r="8" fill="#fbbf24" style={{ animation: 'cmp-fly1 1.6s ease-out .2s infinite' }}/>
+            <circle cx="58" cy="63" r="6" fill="#f59e0b" style={{ animation: 'cmp-fly2 1.6s ease-out .6s infinite' }}/>
+            <circle cx="68" cy="68" r="7" fill="#fbbf24" style={{ animation: 'cmp-fly3 1.6s ease-out 1s infinite' }}/>
+            <circle cx="63" cy="40" r="5" fill="#fcd34d" style={{ animation: 'cmp-fly4 1.6s ease-out .4s infinite' }}/>
 
-            {/* Divider */}
-            <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', marginBottom: 24 }} />
+            {/* Man body — shaking */}
+            <g style={{ animation: 'cmp-worry .5s ease-in-out infinite', transformOrigin: '82px 72px' }}>
+              {/* Legs */}
+              <rect x="70" y="114" width="12" height="24" rx="5" fill="#1e3a5f"/>
+              <rect x="86" y="110" width="12" height="24" rx="5" fill="#1e3a5f" transform="rotate(6 92 122)"/>
+              <ellipse cx="76" cy="138" rx="10" ry="4" fill="#2d1b09"/>
+              <ellipse cx="94" cy="133" rx="10" ry="4" fill="#2d1b09" transform="rotate(6 94 133)"/>
+              {/* Shirt */}
+              <rect x="65" y="84" width="38" height="34" rx="7" fill="#f5f0e0"/>
+              <path d="M 80 84 L 77 104 L 84 112 L 91 104 L 88 84 Z" fill="#1e3a5f"/>
+              {/* Left arm raised */}
+              <g style={{ animation: 'cmp-armL .8s ease-in-out infinite', transformOrigin: '65px 88px' }}>
+                <rect x="42" y="82" width="24" height="10" rx="5" fill="#fcd7a1" transform="rotate(-42 65 88)"/>
+                <circle cx="43" cy="74" r="6" fill="#fcd7a1"/>
+              </g>
+              {/* Right arm raised */}
+              <g style={{ animation: 'cmp-armR .8s ease-in-out .2s infinite', transformOrigin: '103px 88px' }}>
+                <rect x="103" y="82" width="24" height="10" rx="5" fill="#fcd7a1" transform="rotate(42 103 88)"/>
+                <circle cx="124" cy="74" r="6" fill="#fcd7a1"/>
+              </g>
+              {/* Head */}
+              <circle cx="84" cy="60" r="28" fill="#fcd7a1"/>
+              {/* Hair */}
+              <path d="M 60 50 Q 64 28 84 26 Q 104 28 108 50 Q 99 36 84 34 Q 69 36 60 50" fill="#6b3f1f"/>
+              <rect x="58" y="45" width="6" height="9" rx="3" fill="#6b3f1f"/>
+              <rect x="108" y="45" width="6" height="9" rx="3" fill="#6b3f1f"/>
+              {/* Worried eyebrows */}
+              <g style={{ animation: 'cmp-brow .8s ease-in-out infinite' }}>
+                <path d="M 67 42 Q 73 36 79 41" stroke="#5d3a1a" strokeWidth="2.5" fill="none" strokeLinecap="round"/>
+                <path d="M 89 41 Q 95 36 101 42" stroke="#5d3a1a" strokeWidth="2.5" fill="none" strokeLinecap="round"/>
+              </g>
+              {/* Wide eyes */}
+              <ellipse cx="75" cy="56" rx="8" ry="9" fill="white"/>
+              <ellipse cx="93" cy="56" rx="8" ry="9" fill="white"/>
+              <circle cx="77" cy="58" r="4.5" fill="#1c1917"/>
+              <circle cx="95" cy="58" r="4.5" fill="#1c1917"/>
+              <circle cx="79" cy="56" r="1.8" fill="white"/>
+              <circle cx="97" cy="56" r="1.8" fill="white"/>
+              {/* Worried mouth */}
+              <path d="M 73 72 Q 79 67 84 70 Q 89 67 95 72" stroke="#5d3a1a" strokeWidth="2.5" fill="none" strokeLinecap="round"/>
+              {/* Sweat */}
+              <g style={{ animation: 'cmp-sweat 1.2s ease-in infinite' }}>
+                <path d="M 109 42 Q 111 48 109 54 Q 107 48 109 42" fill="#7dd3fc"/>
+              </g>
+              <g style={{ animation: 'cmp-sweat 1.2s ease-in .5s infinite' }}>
+                <path d="M 60 50 Q 62 56 60 62 Q 58 56 60 50" fill="#7dd3fc"/>
+              </g>
+            </g>
+          </svg>
+        </div>
 
-            {/* Main loss statement */}
-            {showLoss && (
-              <div style={{ animation: 'cmp-up 0.5s ease both', marginBottom: 8 }}>
-                <div style={{ fontSize: 'clamp(22px,5vw,30px)', fontWeight: 800, color: 'white', lineHeight: 1.3 }}>
-                  💸 You&apos;re losing{' '}
-                  <span style={{ color: '#FFD700' }}>AED {monthly.toLocaleString('en-AE')}</span>{' '}
-                  every month
-                </div>
-                <div style={{ fontSize: 15, color: 'rgba(255,255,255,0.4)', marginTop: 6 }}>
-                  AED {annual.toLocaleString('en-AE')}/year
-                </div>
-              </div>
-            )}
-
-            {/* Divider */}
-            {showWhy && <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', margin: '20px 0' }} />}
-
-            {/* Why breakdown */}
-            {showWhy && data.categoryGaps.length > 0 && (
-              <div style={{ animation: 'cmp-up 0.5s ease both', marginBottom: 32 }}>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginBottom: 16 }}>
-                  <span style={{ fontSize: 15, fontWeight: 700, color: 'rgba(255,255,255,0.5)' }}>Why?</span>
-                  <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.3)' }}>
-                    Your card earns <strong style={{ color: 'rgba(255,255,255,0.55)' }}>AED {Math.round(data.currentMonthly).toLocaleString('en-AE')}/month</strong> total
-                  </span>
-                </div>
-
-                {/* Column headers */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', gap: '6px 16px', marginBottom: 8 }}>
-                  <span style={{ fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.25)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Category</span>
-                  <span style={{ fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.25)', textTransform: 'uppercase', letterSpacing: '0.08em', textAlign: 'right' }}>You earn</span>
-                  <span style={{ fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.25)', textTransform: 'uppercase', letterSpacing: '0.08em', textAlign: 'right' }}>Gap</span>
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {data.categoryGaps.map(g => (
-                    <div key={g.label} style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', gap: '6px 16px', alignItems: 'center' }}>
-                      <span style={{ fontSize: 14, color: 'rgba(255,255,255,0.65)' }}>{g.label}</span>
-                      <span style={{ fontSize: 14, color: 'rgba(255,255,255,0.4)', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
-                        {g.current > 0 ? `AED ${g.current.toLocaleString('en-AE')}` : '—'}
-                      </span>
-                      <span style={{ fontSize: 14, fontWeight: 700, color: g.diff > 0 ? '#00C48C' : 'rgba(255,255,255,0.2)', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
-                        {g.diff > 0 ? `+AED ${g.diff.toLocaleString('en-AE')}` : '—'}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Divider before CTA */}
-            {showCta && <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', marginBottom: 28 }} />}
-
-            {/* CTA */}
-            {showCta && (
-              <div style={{ animation: 'cmp-up 0.4s ease both' }}>
-                <div style={{ fontSize: 18, fontWeight: 700, color: 'white', marginBottom: 20 }}>
-                  Really? 😲
-                </div>
-                <button onClick={onContinue} style={{
-                  width: '100%', padding: '16px', fontSize: 16, fontWeight: 800,
-                  border: 'none', borderRadius: 12,
-                  background: 'linear-gradient(135deg, #4A8EFF, #0E3785)',
-                  color: 'white', cursor: 'pointer',
-                  animation: 'cmp-btn 2s ease infinite',
-                }}>
-                  Show me how to fix this →
-                </button>
-              </div>
-            )}
-          </>
-        ) : (
-          /* Winning variant */
-          <div style={{ animation: 'cmp-up 0.5s ease both', textAlign: 'center' }}>
-            <div style={{ fontSize: 40, marginBottom: 16 }}>👏</div>
-            <div style={{ fontSize: 'clamp(20px,4vw,26px)', fontWeight: 800, color: 'white', lineHeight: 1.3, marginBottom: 12 }}>
-              You already have a very good card
-            </div>
-            <div style={{ fontSize: 15, color: 'rgba(255,255,255,0.45)', marginBottom: 36 }}>
-              See more options for your spend — there might be an even better fit 👀
-            </div>
-            <button onClick={onContinue} style={{
-              width: '100%', padding: '16px', fontSize: 16, fontWeight: 800,
-              border: 'none', borderRadius: 12,
-              background: 'linear-gradient(135deg, #4A8EFF, #0E3785)',
-              color: 'white', cursor: 'pointer', animation: 'cmp-btn 2s ease infinite',
-            }}>
-              See all options for me →
-            </button>
+        {/* Hook text */}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'inline-block', background: 'rgba(255,255,255,.15)', borderRadius: 20, padding: '3px 10px', fontSize: 11, color: 'rgba(255,255,255,.75)', letterSpacing: '.08em', marginBottom: 10 }}>
+            💸 reward gap
           </div>
-        )}
+          <div style={{ fontSize: 'clamp(14px,3.5vw,19px)', fontWeight: 700, color: '#fff', lineHeight: 1.4, marginBottom: 6, animation: 'cmp-fadein .4s ease both' }}>
+            {witty.line1}
+          </div>
+          <div style={{ fontSize: 12, color: 'rgba(255,255,255,.62)', lineHeight: 1.5, animation: 'cmp-fadein .4s .1s ease both' }}>
+            {witty.line2}
+          </div>
+        </div>
       </div>
+
+      {/* ── LOSING BOX — floats over hero ── */}
+      {showBox && (
+        <div style={{ margin: '-22px 16px 0', background: '#fff', borderRadius: 14, border: '1.5px solid #fcd34d', padding: '20px', textAlign: 'center', animation: 'cmp-boxin .45s ease both', position: 'relative', zIndex: 1 }}>
+          <div style={{ fontSize: 11, letterSpacing: '.14em', color: '#b45309', marginBottom: 6, fontWeight: 600 }}>EVERY MONTH YOU LOSE</div>
+          <div style={{ fontSize: 'clamp(54px,14vw,84px)', fontWeight: 800, color: '#ea580c', lineHeight: 1, letterSpacing: '-3px', fontVariantNumeric: 'tabular-nums' }}>
+            {monthly.toLocaleString('en-AE')}
+          </div>
+          <div style={{ fontSize: 19, color: '#d97706', marginTop: 4, fontWeight: 700 }}>AED</div>
+          <div style={{ fontSize: 12, color: '#9ca3af', marginTop: 6 }}>
+            AED {annual.toLocaleString('en-AE')} every year — that&apos;s a holiday you&apos;re not taking
+          </div>
+          {/* Progress bar: what you earn vs full potential */}
+          <div style={{ marginTop: 14 }}>
+            <div style={{ height: 7, background: '#fef3c7', borderRadius: 4, overflow: 'hidden' }}>
+              <div style={{ height: '100%', width: `${fillPct}%`, background: '#ea580c', borderRadius: 4, transition: 'width 1s ease' }}/>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 5 }}>
+              <span style={{ fontSize: 10, color: '#9ca3af' }}>Your card earns AED {currentEarns}/mo</span>
+              <span style={{ fontSize: 10, color: '#9ca3af' }}>Potential AED {potential}/mo</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── BREAKDOWN ── */}
+      {showBreakdown && data.categoryGaps.filter(g => g.diff > 0 || g.current > 0).length > 0 && (
+        <div style={{ margin: '14px 16px 0', background: '#fffbf0', border: '0.5px solid #fcd34d', borderRadius: 12, padding: '14px 16px', animation: 'cmp-fadein .4s ease both' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 10 }}>
+            <span style={{ fontSize: 11, fontWeight: 600, color: '#b45309', letterSpacing: '.06em' }}>WHY? YOUR CARD EARNS:</span>
+            <span style={{ fontSize: 11, color: '#9ca3af' }}>vs what&apos;s possible</span>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 62px 70px', borderTop: '0.5px solid #fcd34d' }}>
+            {['Category', 'You earn', 'Gap'].map((h, i) => (
+              <span key={h} style={{ fontSize: 10, color: '#9ca3af', padding: '7px 0 5px', borderBottom: '0.5px solid #fef3c7', textAlign: i > 0 ? 'right' : 'left', letterSpacing: '.04em' }}>{h}</span>
+            ))}
+            {data.categoryGaps.filter(g => g.diff > 0 || g.current > 0).map((g, i, arr) => (
+              <>
+                <span key={`${g.label}-c`} style={{ fontSize: 13, padding: '8px 0', borderBottom: i < arr.length - 1 ? '0.5px solid #fef3c7' : 'none', color: '#7c2d12' }}>{g.label}</span>
+                <span key={`${g.label}-y`} style={{ fontSize: 13, padding: '8px 0', borderBottom: i < arr.length - 1 ? '0.5px solid #fef3c7' : 'none', color: '#9ca3af', textAlign: 'right' }}>
+                  {g.current > 0 ? `AED ${g.current}` : '—'}
+                </span>
+                <span key={`${g.label}-g`} style={{ fontSize: 13, padding: '8px 0', borderBottom: i < arr.length - 1 ? '0.5px solid #fef3c7' : 'none', color: '#16a34a', fontWeight: 600, textAlign: 'right' }}>
+                  {g.diff > 0 ? `+${g.diff}` : '—'}
+                </span>
+              </>
+            ))}
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 10, marginTop: 4, borderTop: '0.5px solid #fcd34d' }}>
+            <span style={{ fontSize: 12, color: '#b45309', fontWeight: 600 }}>Total monthly loss</span>
+            <span style={{ fontSize: 14, fontWeight: 700, color: '#ea580c' }}>AED {monthly.toLocaleString('en-AE')} / mo</span>
+          </div>
+        </div>
+      )}
+
+      {/* ── CTA ── */}
+      {showCta && (
+        <div style={{ padding: '20px 16px 36px', textAlign: 'center', animation: 'cmp-fadein .4s ease both' }}>
+          <div style={{ fontSize: 18, fontWeight: 700, color: '#7c2d12', marginBottom: 14 }}>Really? 😲</div>
+          <button onClick={onContinue} style={{ width: '100%', padding: 15, background: '#ea580c', border: 'none', borderRadius: 10, color: '#fff', fontSize: 16, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+            Show me how to fix this →
+          </button>
+          <div style={{ marginTop: 10, fontSize: 12, color: '#9ca3af' }}>Takes less than 30 seconds</div>
+        </div>
+      )}
+
+      {/* ── Winning variant (replaces everything above) ── */}
+      {data.isWinning && (
+        <div style={{ padding: '32px 20px', textAlign: 'center', animation: 'cmp-fadein .5s ease both' }}>
+          <div style={{ fontSize: 48, marginBottom: 14 }}>👏</div>
+          <div style={{ fontSize: 'clamp(20px,4vw,26px)', fontWeight: 800, color: '#0e7490', lineHeight: 1.3, marginBottom: 10 }}>
+            You already have a very good card
+          </div>
+          <div style={{ fontSize: 14, color: '#5A6A85', marginBottom: 32, lineHeight: 1.6 }}>
+            See more options for your spend — there might be an even better fit 👀
+          </div>
+          <button onClick={onContinue} style={{ width: '100%', padding: 15, background: '#0e7490', border: 'none', borderRadius: 10, color: '#fff', fontSize: 16, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+            See all options for me →
+          </button>
+        </div>
+      )}
     </div>
   )
 }
