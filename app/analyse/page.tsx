@@ -192,164 +192,116 @@ function ParseDataDebug({ data }: { data: any }) {
 
 function ComparisonPopup({ data, onContinue }: {
   data: {
-    currentCard: { earnn_card_id: string; card_name: string; bank_name?: string; monthlyReward: number }
-    heroCard:    { card_name: string; bank_name?: string; monthlyReward: number }
-    monthlyDiff: number
-    annualDiff:  number
-    isWinning:   boolean
+    monthlyDiff:  number
+    annualDiff:   number
+    isWinning:    boolean
+    categoryGaps: { label: string; diff: number }[]
   }
   onContinue: () => void
 }) {
-  const [count, setCount] = useState(0)
-  const [showBreakdown, setShowBreakdown] = useState(false)
-  const [showCta, setShowCta]             = useState(false)
+  const [showWhy, setShowWhy] = useState(false)
+  const [showCta, setShowCta] = useState(false)
 
   const monthly = Math.round(Math.abs(data.monthlyDiff))
   const annual  = Math.round(Math.abs(data.annualDiff))
-  const currentMonthly = Math.round(data.currentCard.monthlyReward)
-  const heroMonthly    = Math.round(data.heroCard.monthlyReward)
 
   useEffect(() => {
-    if (data.isWinning) { setShowBreakdown(true); setShowCta(true); return }
-    // Count up to monthly gap
-    const target = monthly
-    if (target === 0) { setShowBreakdown(true); setShowCta(true); return }
-    const duration = 1600
-    const fps = 60
-    const step = target / ((duration / 1000) * fps)
-    let cur = 0
-    const interval = setInterval(() => {
-      cur = Math.min(cur + step, target)
-      setCount(Math.round(cur))
-      if (cur >= target) {
-        clearInterval(interval)
-        setTimeout(() => setShowBreakdown(true), 400)
-        setTimeout(() => setShowCta(true), 1200)
-      }
-    }, 1000 / fps)
-    return () => clearInterval(interval)
+    if (data.isWinning) { setShowWhy(true); setShowCta(true); return }
+    const t1 = setTimeout(() => setShowWhy(true), 600)
+    const t2 = setTimeout(() => setShowCta(true), 1000)
+    return () => { clearTimeout(t1); clearTimeout(t2) }
   }, [])
 
   return (
     <div style={{
       position: 'fixed', inset: 0, zIndex: 2500,
-      background: 'linear-gradient(160deg, #050E1F 0%, #0A1A3A 60%, #050E1F 100%)',
+      background: '#07112B',
       display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-      padding: '32px 24px', textAlign: 'center',
+      padding: '40px 24px',
     }}>
       <style>{`
-        @keyframes cmp-fadeUp { from { opacity:0; transform:translateY(24px); } to { opacity:1; transform:translateY(0); } }
-        @keyframes cmp-glow   { 0%,100% { text-shadow:0 0 40px rgba(255,165,0,0.4); } 50% { text-shadow:0 0 80px rgba(255,165,0,0.8); } }
-        @keyframes cmp-pulse  { 0%,100% { transform:scale(1); box-shadow:0 8px 32px rgba(74,142,255,0.35); } 50% { transform:scale(1.03); box-shadow:0 12px 48px rgba(74,142,255,0.55); } }
-        @keyframes cmp-in     { from { opacity:0; transform:scale(0.92); } to { opacity:1; transform:scale(1); } }
+        @keyframes cmp-up   { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
+        @keyframes cmp-btn  { 0%,100% { box-shadow:0 8px 32px rgba(74,142,255,0.3); } 50% { box-shadow:0 12px 48px rgba(74,142,255,0.55); } }
       `}</style>
 
-      {!data.isWinning ? (
-        <>
-          {/* Eyebrow */}
-          <div style={{ fontSize: 13, fontWeight: 700, color: 'rgba(255,200,50,0.65)', letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 20, animation: 'cmp-fadeUp 0.5s ease both' }}>
-            💸 reward gap detected
-          </div>
+      <div style={{ width: '100%', maxWidth: 400 }}>
 
-          {/* Big gap number */}
-          <div style={{ marginBottom: 4, animation: 'cmp-fadeUp 0.5s 0.1s ease both' }}>
-            <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.4)', marginBottom: 8 }}>
-              You could be earning an extra
+        {!data.isWinning ? (
+          <>
+            {/* Main loss statement */}
+            <div style={{ animation: 'cmp-up 0.5s ease both', marginBottom: 8 }}>
+              <div style={{ fontSize: 'clamp(22px,5vw,32px)', fontWeight: 800, color: 'white', lineHeight: 1.3 }}>
+                💸 You&apos;re losing{' '}
+                <span style={{ color: '#FFD700' }}>AED {monthly.toLocaleString('en-AE')}</span>{' '}
+                every month
+              </div>
             </div>
-            <div style={{
-              fontSize: 'clamp(72px,18vw,120px)', fontWeight: 900, lineHeight: 1,
-              color: '#FFD700',
-              animation: 'cmp-glow 2s ease infinite',
-              fontVariantNumeric: 'tabular-nums', letterSpacing: '-2px',
-            }}>
-              {count.toLocaleString('en-AE')}
+
+            {/* Annual */}
+            <div style={{ fontSize: 16, color: 'rgba(255,255,255,0.4)', marginBottom: 32, animation: 'cmp-up 0.5s 0.1s ease both', opacity: 0, animationFillMode: 'forwards' }}>
+              AED {annual.toLocaleString('en-AE')}/year
             </div>
-            <div style={{ fontSize: 22, fontWeight: 700, color: 'rgba(255,215,0,0.7)', marginTop: 4 }}>AED every month</div>
-            {annual > 0 && showBreakdown && (
-              <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.35)', marginTop: 6, animation: 'cmp-fadeUp 0.4s ease both' }}>
-                That's AED {annual.toLocaleString('en-AE')} a year you're missing out on
+
+            {/* Divider */}
+            <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', marginBottom: 24 }} />
+
+            {/* Why breakdown */}
+            {showWhy && data.categoryGaps.length > 0 && (
+              <div style={{ animation: 'cmp-up 0.5s ease both', marginBottom: 32 }}>
+                <div style={{ fontSize: 15, fontWeight: 700, color: 'rgba(255,255,255,0.5)', marginBottom: 16 }}>Why?</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {data.categoryGaps.map(g => (
+                    <div key={g.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: 15, color: 'rgba(255,255,255,0.65)' }}>{g.label}</span>
+                      <span style={{ fontSize: 15, fontWeight: 700, color: '#00C48C' }}>+AED {g.diff.toLocaleString('en-AE')}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
-          </div>
 
-          {/* Breakdown row */}
-          {showBreakdown && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 0, marginTop: 36, marginBottom: 32, animation: 'cmp-in 0.5s ease both', width: '100%', maxWidth: 420 }}>
-              {/* Your card */}
-              <div style={{ flex: 1, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 14, padding: '16px 12px' }}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.3)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 8 }}>Your card</div>
-                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', marginBottom: 10, lineHeight: 1.3 }}>{data.currentCard.card_name}</div>
-                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)', marginBottom: 3 }}>Monthly reward</div>
-                <div style={{ fontSize: 26, fontWeight: 800, color: 'rgba(255,255,255,0.5)' }}>
-                  {currentMonthly > 0 ? `AED ${currentMonthly.toLocaleString('en-AE')}` : '—'}
+            {/* Divider */}
+            {showCta && <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', marginBottom: 28 }} />}
+
+            {/* CTA */}
+            {showCta && (
+              <div style={{ animation: 'cmp-up 0.4s ease both' }}>
+                <div style={{ fontSize: 18, fontWeight: 700, color: 'white', marginBottom: 20 }}>
+                  Really? 😲
                 </div>
+                <button onClick={onContinue} style={{
+                  width: '100%', padding: '16px', fontSize: 16, fontWeight: 800,
+                  border: 'none', borderRadius: 12,
+                  background: 'linear-gradient(135deg, #4A8EFF, #0E3785)',
+                  color: 'white', cursor: 'pointer',
+                  animation: 'cmp-btn 2s ease infinite',
+                }}>
+                  Show me how to fix this →
+                </button>
               </div>
-
-              {/* Arrow */}
-              <div style={{ flexShrink: 0, padding: '0 10px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-                <div style={{ fontSize: 22 }}>→</div>
-                <div style={{ fontSize: 9, fontWeight: 700, color: '#00C48C', letterSpacing: '0.05em' }}>+AED {monthly.toLocaleString('en-AE')}/mo</div>
-              </div>
-
-              {/* Best card */}
-              <div style={{ flex: 1, background: 'rgba(14,55,133,0.5)', border: '1.5px solid rgba(74,142,255,0.3)', borderRadius: 14, padding: '16px 12px' }}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: 'rgba(74,142,255,0.7)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 8 }}>Best for you</div>
-                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.7)', marginBottom: 10, lineHeight: 1.3 }}>{data.heroCard.card_name}</div>
-                <div style={{ fontSize: 11, color: 'rgba(74,142,255,0.5)', marginBottom: 3 }}>Monthly reward</div>
-                <div style={{ fontSize: 26, fontWeight: 800, color: '#4A8EFF' }}>
-                  AED {heroMonthly.toLocaleString('en-AE')}
-                </div>
-              </div>
+            )}
+          </>
+        ) : (
+          /* Winning variant */
+          <div style={{ animation: 'cmp-up 0.5s ease both', textAlign: 'center' }}>
+            <div style={{ fontSize: 40, marginBottom: 16 }}>👏</div>
+            <div style={{ fontSize: 'clamp(20px,4vw,26px)', fontWeight: 800, color: 'white', lineHeight: 1.3, marginBottom: 12 }}>
+              You already have a very good card
             </div>
-          )}
-
-          {/* Really + CTA */}
-          {showCta && (
-            <div style={{ animation: 'cmp-fadeUp 0.5s ease both' }}>
-              <div style={{ fontSize: 20, fontWeight: 700, color: 'white', marginBottom: 20 }}>
-                Really? 😲 &nbsp;<span style={{ color: 'rgba(255,255,255,0.4)', fontWeight: 400, fontSize: 16 }}>Yes, really.</span>
-              </div>
-              <button onClick={onContinue} style={{
-                padding: '16px 52px', fontSize: 16, fontWeight: 800, border: 'none', borderRadius: 50,
-                background: 'linear-gradient(135deg, #4A8EFF, #0E3785)',
-                color: 'white', cursor: 'pointer', letterSpacing: '-0.2px',
-                animation: 'cmp-pulse 2s ease infinite',
-              }}>
-                Show me how to fix this →
-              </button>
+            <div style={{ fontSize: 15, color: 'rgba(255,255,255,0.45)', marginBottom: 36 }}>
+              See more options for your spend — there might be an even better fit 👀
             </div>
-          )}
-        </>
-      ) : (
-        /* Winning variant */
-        <div style={{ animation: 'cmp-fadeUp 0.5s ease both' }}>
-          <div style={{ fontSize: 48, marginBottom: 16 }}>👏</div>
-          <div style={{ fontSize: 'clamp(20px,4vw,28px)', fontWeight: 800, color: 'white', lineHeight: 1.3, marginBottom: 12 }}>
-            You already have a very good card
+            <button onClick={onContinue} style={{
+              width: '100%', padding: '16px', fontSize: 16, fontWeight: 800,
+              border: 'none', borderRadius: 12,
+              background: 'linear-gradient(135deg, #4A8EFF, #0E3785)',
+              color: 'white', cursor: 'pointer', animation: 'cmp-btn 2s ease infinite',
+            }}>
+              See all options for me →
+            </button>
           </div>
-          <div style={{ fontSize: 16, color: 'rgba(255,255,255,0.5)', marginBottom: 36 }}>
-            See more options for your spend — there might be an even better fit
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'center', gap: 48, marginBottom: 40 }}>
-            {[
-              { label: 'Your card earns', value: `AED ${currentMonthly.toLocaleString('en-AE')}/mo`, color: 'rgba(255,255,255,0.6)' },
-              { label: 'Best card earns', value: `AED ${heroMonthly.toLocaleString('en-AE')}/mo`,   color: '#4A8EFF' },
-            ].map(item => (
-              <div key={item.label}>
-                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', marginBottom: 4 }}>{item.label}</div>
-                <div style={{ fontSize: 22, fontWeight: 800, color: item.color }}>{item.value}</div>
-              </div>
-            ))}
-          </div>
-          <button onClick={onContinue} style={{
-            padding: '16px 52px', fontSize: 16, fontWeight: 800, border: 'none', borderRadius: 50,
-            background: 'linear-gradient(135deg, #4A8EFF, #0E3785)',
-            color: 'white', cursor: 'pointer', animation: 'cmp-pulse 2s ease infinite',
-          }}>
-            See all options for me →
-          </button>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   )
 }
@@ -527,11 +479,10 @@ function AnalyseContent() {
 
   // Comparison popup state (shown after scoring, before navigating to results)
   const [comparisonData, setComparisonData] = useState<{
-    currentCard: { earnn_card_id: string; card_name: string; bank_name?: string; monthlyReward: number }
-    heroCard:    { card_name: string; bank_name?: string; monthlyReward: number }
-    monthlyDiff: number
-    annualDiff:  number
-    isWinning:   boolean
+    monthlyDiff:    number
+    annualDiff:     number
+    isWinning:      boolean
+    categoryGaps:   { label: string; diff: number }[]
   } | null>(null)
 
   // Manual path
@@ -563,30 +514,36 @@ function AnalyseContent() {
       topIds.forEach(id => { const img = new Image(); img.src = getCardImageUrl(id) })
 
       // Build comparison popup if we know the user's current card
-      if (currentCardId && currentCardInfo) {
+      if (currentCardId) {
         const scoredCards: any[] = result.scored_cards || []
-        const heroCard        = scoredCards[0]
+        const heroCard         = scoredCards[0]
         const currentInResults = scoredCards.find((c: any) => c.earnn_card_id === currentCardId)
 
-        // API returns snake_case: expected_annual_return_aed / net_annual_value_aed
-        const currentMonthly = currentInResults
-          ? ((currentInResults.expected_annual_return_aed ?? currentInResults.net_annual_value_aed ?? 0) / 12)
-          : 0
-        const heroMonthly = heroCard
-          ? ((heroCard.expected_annual_return_aed ?? heroCard.net_annual_value_aed ?? 0) / 12)
-          : 0
+        if (heroCard && currentInResults) {
+          const heroCatRewards:    Record<string, number> = heroCard.category_monthly_rewards    || {}
+          const currentCatRewards: Record<string, number> = currentInResults.category_monthly_rewards || {}
+          const catLabelMap: Record<string, string> = Object.fromEntries(CATEGORIES.map(c => [c.key, c.label]))
 
-        if (heroCard) {
-          const monthlyDiff = heroMonthly - currentMonthly
+          const categoryGaps = Object.entries(heroCatRewards)
+            .map(([cat, heroAmt]) => ({
+              label: catLabelMap[cat] || cat,
+              diff:  Math.round((heroAmt ?? 0) - (currentCatRewards[cat] ?? 0)),
+            }))
+            .filter(g => g.diff > 0)
+            .sort((a, b) => b.diff - a.diff)
+
+          const heroMonthly    = heroCard.gross_monthly_rewards_aed    ?? 0
+          const currentMonthly = currentInResults.gross_monthly_rewards_aed ?? 0
+          const monthlyDiff    = heroMonthly - currentMonthly
+
           setComparisonData({
-            currentCard: { earnn_card_id: currentCardId, card_name: currentCardInfo.card_name, bank_name: currentCardInfo.bank_name, monthlyReward: currentMonthly },
-            heroCard:    { card_name: heroCard.card_name, bank_name: heroCard.bank_name, monthlyReward: heroMonthly },
             monthlyDiff,
-            annualDiff: monthlyDiff * 12,
-            isWinning: monthlyDiff <= 0,
+            annualDiff:   monthlyDiff * 12,
+            isWinning:    monthlyDiff <= 0,
+            categoryGaps,
           })
           setLoading(false)
-          return   // wait for user to click "Show me how" before navigating
+          return
         }
       }
 
