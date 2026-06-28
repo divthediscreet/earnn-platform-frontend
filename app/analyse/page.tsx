@@ -676,36 +676,62 @@ function AnalyseContent() {
             </button>
           </div>
 
-          {/* Card picker — two dependent dropdowns */}
+          {/* Card picker */}
           {cardPickerOpen && (
-            <div style={{ marginBottom: 28, padding: '16px 20px', background: '#F8FAFF', borderRadius: 12, border: '1.5px solid #D6E0F5', display: 'flex', gap: 12 }}>
+            <div style={{ marginBottom: 28, background: '#F8FAFF', borderRadius: 12, border: '1.5px solid #D6E0F5', overflow: 'hidden' }}>
               {/* Bank dropdown */}
-              <select
-                value={pickerSelectedBank}
-                onChange={e => { setPickerSelectedBank(e.target.value) }}
-                style={{ flex: 1, padding: '10px 14px', border: '1.5px solid #0E3785', borderRadius: 8, fontSize: 14, color: pickerSelectedBank ? '#0D1828' : '#9DAEC8', outline: 'none', background: 'white', cursor: 'pointer' }}
-              >
-                <option value="">Select bank…</option>
-                {pickerBanks.map(b => <option key={b} value={b}>{b}</option>)}
-              </select>
-              {/* Card dropdown */}
-              <select
-                value=""
-                disabled={!pickerSelectedBank || pickerBankCardsLoading}
-                onChange={e => {
-                  const card = pickerBankCards.find(c => c.earnn_card_id === e.target.value)
-                  if (card) {
-                    setCurrentCardId(card.earnn_card_id)
-                    setCurrentCardInfo({ card_name: card.card_name, bank_name: card.bank_name })
-                    setCardPickerOpen(false)
-                    setPickerSelectedBank('')
-                  }
-                }}
-                style={{ flex: 1, padding: '10px 14px', border: '1.5px solid #D6E0F5', borderRadius: 8, fontSize: 14, color: '#9DAEC8', outline: 'none', background: 'white', cursor: pickerSelectedBank ? 'pointer' : 'not-allowed', opacity: pickerSelectedBank ? 1 : 0.6 }}
-              >
-                <option value="">{pickerBankCardsLoading ? 'Loading…' : pickerSelectedBank ? 'Select card…' : 'Select bank first'}</option>
-                {pickerBankCards.map(c => <option key={c.earnn_card_id} value={c.earnn_card_id}>{c.card_name}</option>)}
-              </select>
+              <div style={{ padding: '14px 16px', borderBottom: pickerSelectedBank ? '1px solid #D6E0F5' : 'none' }}>
+                <select
+                  value={pickerSelectedBank}
+                  onChange={e => setPickerSelectedBank(e.target.value)}
+                  style={{ width: '100%', padding: '10px 14px', border: '1.5px solid #0E3785', borderRadius: 8, fontSize: 14, color: pickerSelectedBank ? '#0D1828' : '#9DAEC8', outline: 'none', background: 'white', cursor: 'pointer' }}
+                >
+                  <option value="">Select bank…</option>
+                  {pickerBanks.map(b => <option key={b} value={b}>{b}</option>)}
+                </select>
+              </div>
+
+              {/* Card list with images — appears when bank is selected */}
+              {pickerSelectedBank && (
+                <div style={{ maxHeight: 320, overflowY: 'auto' }}>
+                  {pickerBankCardsLoading ? (
+                    <div style={{ padding: '20px 16px', textAlign: 'center', fontSize: 13, color: '#9DAEC8' }}>Loading cards…</div>
+                  ) : pickerBankCards.length === 0 ? (
+                    <div style={{ padding: '20px 16px', textAlign: 'center', fontSize: 13, color: '#9DAEC8' }}>No cards found for this bank</div>
+                  ) : (
+                    pickerBankCards.map((card, i) => (
+                      <div
+                        key={card.earnn_card_id}
+                        onClick={() => {
+                          setCurrentCardId(card.earnn_card_id)
+                          setCurrentCardInfo({ card_name: card.card_name, bank_name: card.bank_name })
+                          setCardPickerOpen(false)
+                          setPickerSelectedBank('')
+                        }}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: 14,
+                          padding: '10px 16px', cursor: 'pointer',
+                          borderBottom: i < pickerBankCards.length - 1 ? '1px solid #EEF3FF' : 'none',
+                          background: 'white', transition: 'background 0.15s',
+                        }}
+                        onMouseEnter={e => (e.currentTarget.style.background = '#EEF3FF')}
+                        onMouseLeave={e => (e.currentTarget.style.background = 'white')}
+                      >
+                        <img
+                          src={getCardImageUrl(card.earnn_card_id)}
+                          onError={e => { (e.target as HTMLImageElement).src = '/card-dummy.svg' }}
+                          alt=""
+                          style={{ width: 72, height: 45, objectFit: 'cover', borderRadius: 6, flexShrink: 0, border: '1px solid #EEF3FF' }}
+                        />
+                        <div>
+                          <div style={{ fontSize: 14, fontWeight: 700, color: '#0D1828', lineHeight: 1.3 }}>{card.card_name}</div>
+                          {card.bank_name && <div style={{ fontSize: 12, color: '#5A6A85', marginTop: 2 }}>{card.bank_name}</div>}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
             </div>
           )}
 
