@@ -1,5 +1,5 @@
 'use client'
-import { useState, useRef, useCallback, useEffect } from 'react'
+import React, { useState, useRef, useCallback, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { uploadStatement, scoreCards, getOptimalWallet, fetchCardDetail, fetchCards, searchCards, pingBackend, getCardImageUrl } from '@/lib/api'
 import { Suspense } from 'react'
@@ -252,7 +252,10 @@ function ComparisonPopup({ data, onContinue }: {
   }, [])
 
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 2500, background: '#f0f9fa', overflowY: 'auto' }}>
+    <div style={{ position: 'fixed', inset: 0, zIndex: 2500, background: 'rgba(7,17,43,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}
+      onClick={onContinue}>
+      <div style={{ width: '100%', maxWidth: 440, maxHeight: '88vh', overflowY: 'auto', borderRadius: 20, background: '#f0f9fa', position: 'relative' }}
+        onClick={e => e.stopPropagation()}>
       <style>{`
         @keyframes cmp-worry { 0%,100%{transform:rotate(0) translateX(0)} 15%{transform:rotate(-1.5deg) translateX(-2px)} 40%{transform:rotate(1deg) translateX(1px)} 60%{transform:rotate(-2deg) translateX(-1px)} 80%{transform:rotate(1.5deg) translateX(2px)} }
         @keyframes cmp-armL  { 0%,100%{transform:rotate(-40deg)} 50%{transform:rotate(-58deg)} }
@@ -397,15 +400,15 @@ function ComparisonPopup({ data, onContinue }: {
               <span key={h} style={{ fontSize: 10, color: '#9ca3af', padding: '7px 0 5px', borderBottom: '0.5px solid #fef3c7', textAlign: i > 0 ? 'right' : 'left', letterSpacing: '.04em' }}>{h}</span>
             ))}
             {data.categoryGaps.filter(g => g.diff > 0 || g.current > 0).map((g, i, arr) => (
-              <>
-                <span key={`${g.label}-c`} style={{ fontSize: 13, padding: '8px 0', borderBottom: i < arr.length - 1 ? '0.5px solid #fef3c7' : 'none', color: '#7c2d12' }}>{g.label}</span>
-                <span key={`${g.label}-y`} style={{ fontSize: 13, padding: '8px 0', borderBottom: i < arr.length - 1 ? '0.5px solid #fef3c7' : 'none', color: '#9ca3af', textAlign: 'right' }}>
+              <React.Fragment key={g.label}>
+                <span style={{ fontSize: 13, padding: '8px 0', borderBottom: i < arr.length - 1 ? '0.5px solid #fef3c7' : 'none', color: '#7c2d12' }}>{g.label}</span>
+                <span style={{ fontSize: 13, padding: '8px 0', borderBottom: i < arr.length - 1 ? '0.5px solid #fef3c7' : 'none', color: '#9ca3af', textAlign: 'right' }}>
                   {g.current > 0 ? `AED ${g.current}` : '—'}
                 </span>
-                <span key={`${g.label}-g`} style={{ fontSize: 13, padding: '8px 0', borderBottom: i < arr.length - 1 ? '0.5px solid #fef3c7' : 'none', color: '#16a34a', fontWeight: 600, textAlign: 'right' }}>
+                <span style={{ fontSize: 13, padding: '8px 0', borderBottom: i < arr.length - 1 ? '0.5px solid #fef3c7' : 'none', color: '#16a34a', fontWeight: 600, textAlign: 'right' }}>
                   {g.diff > 0 ? `+${g.diff}` : '—'}
                 </span>
-              </>
+              </React.Fragment>
             ))}
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 10, marginTop: 4, borderTop: '0.5px solid #fcd34d' }}>
@@ -441,6 +444,7 @@ function ComparisonPopup({ data, onContinue }: {
           </button>
         </div>
       )}
+      </div>
     </div>
   )
 }
