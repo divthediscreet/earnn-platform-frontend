@@ -202,22 +202,22 @@ function getWittyMessage(spend: Record<string, number>, annualLoss: number): { e
   const cat = top?.[0] || ''
 
   const msgs: Record<string, { emoji: string; line1: string; line2: string }> = {
-    dining:        { emoji: '🍕', line1: 'Seems like you hate cooking... totally valid.', line2: `But your card? It's been eating your rewards for free.` },
-    grocery:       { emoji: '🛒', line1: 'Feeding a small army, or just really into meal prep?', line2: `Either way, your card is not doing its job at the checkout.` },
-    travel:        { emoji: '✈️', line1: 'Passport full, rewards empty.', line2: `All those flights and hotels — and your card's just along for the ride.` },
-    fuel:          { emoji: '⛽', line1: "You've basically funded ENOC single-handedly.", line2: `Your car gets premium fuel. Your rewards? Running on empty.` },
-    online:        { emoji: '📦', line1: 'The delivery guy knows your name by now.', line2: `But your card doesn't know how to reward online shopping properly.` },
-    international: { emoji: '🌍', line1: 'Living the global life — spending in currencies your card barely understands.', line2: `Those foreign transaction fees aren't the only thing draining you.` },
-    entertainment: { emoji: '🎬', line1: 'VOX, Reel, Global Village — you live for the experience.', line2: `But your card is sitting in the dark with zero rewards.` },
-    retail:        { emoji: '🛍️', line1: 'The malls of Dubai thank you personally.', line2: `Your card, though? Not quite keeping up with your lifestyle.` },
-    telecom:       { emoji: '📱', line1: 'Always connected. Except to the right credit card.', line2: `Etisalat and du love you. Your rewards? Dial tone.` },
-    transport:     { emoji: '🚕', line1: "Careem's ride rating: ⭐⭐⭐⭐⭐. Your card's reward rating: 😐", line2: `All those rides, and nothing to show for it.` },
-    utility:       { emoji: '💡', line1: 'Keeping the lights on, the AC running, the DEWA bill climbing.', line2: `Essential spending — but your card's treating it like it doesn't count.` },
-    education:     { emoji: '📚', line1: 'Investing in brains. Except the one choosing your card.', line2: `Your tuition fees deserve better reward treatment.` },
-    miscellaneous: { emoji: '🎲', line1: 'A little bit of everything — and your card rewards? Also a little bit of nothing.', line2: `Turns out "misc" doesn't have to mean missed rewards.` },
+    dining:        { emoji: '🍕', line1: "Seems like you hate cooking.",                               line2: "Your card is eating your rewards for free." },
+    grocery:       { emoji: '🛒', line1: "Feeding a small army, or just really into meal prep?",       line2: "Your card isn't doing its job at the checkout." },
+    travel:        { emoji: '✈️', line1: "Passport full. Rewards empty.",                              line2: "All those flights and hotels — your card is just along for the ride." },
+    fuel:          { emoji: '⛽', line1: "You've single-handedly kept ENOC in business.",              line2: "Your car gets premium fuel. Your rewards? Running on empty." },
+    online:        { emoji: '📦', line1: "The delivery guy knows your name.",                          line2: "Your card has no idea how to reward that." },
+    international: { emoji: '🌍', line1: "Spending in currencies your card barely understands.",       line2: "Foreign transaction fees aren't the only thing draining you." },
+    entertainment: { emoji: '🎬', line1: "VOX, Reel, Global Village — you live for the experience.",  line2: "Your card is sitting in the dark with zero rewards." },
+    retail:        { emoji: '🛍️', line1: "Shopping is your cardio.",                                  line2: "Too bad your card skips rewards day." },
+    telecom:       { emoji: '📱', line1: "Always connected. Except to the right credit card.",         line2: "Etisalat and du love you. Your rewards? Dial tone." },
+    transport:     { emoji: '🚕', line1: "Careem rating: ⭐⭐⭐⭐⭐. Your card's reward rating: 😐",   line2: "All those rides, nothing to show for it." },
+    utility:       { emoji: '💡', line1: "Lights on, AC running, DEWA bill climbing.",                line2: "Your card treats it like it doesn't count." },
+    education:     { emoji: '📚', line1: "Investing in brains. Except the one choosing your card.",   line2: "Your tuition fees deserve better." },
+    miscellaneous: { emoji: '🎲', line1: "A little bit of everything.",                               line2: "Your card rewards? Also a little bit of nothing." },
   }
 
-  const msg = msgs[cat] || { emoji: '💸', line1: 'Your spending pattern is unique.', line2: `Your card, however, is uniquely bad at rewarding it.` }
+  const msg = msgs[cat] || { emoji: '💸', line1: 'Interesting spending pattern.', line2: "Your card has no idea how to reward it." }
   return msg
 }
 
