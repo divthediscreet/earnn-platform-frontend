@@ -192,10 +192,11 @@ function ParseDataDebug({ data }: { data: any }) {
 
 function ComparisonPopup({ data, onContinue }: {
   data: {
-    monthlyDiff:  number
-    annualDiff:   number
-    isWinning:    boolean
-    categoryGaps: { label: string; diff: number }[]
+    monthlyDiff:    number
+    annualDiff:     number
+    currentMonthly: number
+    isWinning:      boolean
+    categoryGaps:   { label: string; current: number; diff: number }[]
   }
   onContinue: () => void
 }) {
@@ -248,12 +249,30 @@ function ComparisonPopup({ data, onContinue }: {
             {/* Why breakdown */}
             {showWhy && data.categoryGaps.length > 0 && (
               <div style={{ animation: 'cmp-up 0.5s ease both', marginBottom: 32 }}>
-                <div style={{ fontSize: 15, fontWeight: 700, color: 'rgba(255,255,255,0.5)', marginBottom: 16 }}>Why?</div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginBottom: 16 }}>
+                  <span style={{ fontSize: 15, fontWeight: 700, color: 'rgba(255,255,255,0.5)' }}>Why?</span>
+                  <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.3)' }}>
+                    Your card earns <strong style={{ color: 'rgba(255,255,255,0.55)' }}>AED {Math.round(data.currentMonthly).toLocaleString('en-AE')}/month</strong> total
+                  </span>
+                </div>
+
+                {/* Column headers */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', gap: '6px 16px', marginBottom: 8 }}>
+                  <span style={{ fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.25)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Category</span>
+                  <span style={{ fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.25)', textTransform: 'uppercase', letterSpacing: '0.08em', textAlign: 'right' }}>You earn</span>
+                  <span style={{ fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.25)', textTransform: 'uppercase', letterSpacing: '0.08em', textAlign: 'right' }}>Gap</span>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   {data.categoryGaps.map(g => (
-                    <div key={g.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontSize: 15, color: 'rgba(255,255,255,0.65)' }}>{g.label}</span>
-                      <span style={{ fontSize: 15, fontWeight: 700, color: '#00C48C' }}>+AED {g.diff.toLocaleString('en-AE')}</span>
+                    <div key={g.label} style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', gap: '6px 16px', alignItems: 'center' }}>
+                      <span style={{ fontSize: 14, color: 'rgba(255,255,255,0.65)' }}>{g.label}</span>
+                      <span style={{ fontSize: 14, color: 'rgba(255,255,255,0.4)', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                        {g.current > 0 ? `AED ${g.current.toLocaleString('en-AE')}` : '—'}
+                      </span>
+                      <span style={{ fontSize: 14, fontWeight: 700, color: g.diff > 0 ? '#00C48C' : 'rgba(255,255,255,0.2)', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                        {g.diff > 0 ? `+AED ${g.diff.toLocaleString('en-AE')}` : '—'}
+                      </span>
                     </div>
                   ))}
                 </div>
@@ -481,8 +500,9 @@ function AnalyseContent() {
   const [comparisonData, setComparisonData] = useState<{
     monthlyDiff:    number
     annualDiff:     number
+    currentMonthly: number
     isWinning:      boolean
-    categoryGaps:   { label: string; diff: number }[]
+    categoryGaps:   { label: string; current: number; diff: number }[]
   } | null>(null)
 
   // Manual path
@@ -526,10 +546,11 @@ function AnalyseContent() {
 
           const categoryGaps = Object.entries(heroCatRewards)
             .map(([cat, heroAmt]) => ({
-              label: catLabelMap[cat] || cat,
-              diff:  Math.round((heroAmt ?? 0) - (currentCatRewards[cat] ?? 0)),
+              label:   catLabelMap[cat] || cat,
+              current: Math.round(currentCatRewards[cat] ?? 0),
+              diff:    Math.round((heroAmt ?? 0) - (currentCatRewards[cat] ?? 0)),
             }))
-            .filter(g => g.diff > 0)
+            .filter(g => g.diff > 0 || g.current > 0)
             .sort((a, b) => b.diff - a.diff)
 
           const heroMonthly    = heroCard.gross_monthly_rewards_aed    ?? 0
@@ -539,6 +560,7 @@ function AnalyseContent() {
           setComparisonData({
             monthlyDiff,
             annualDiff:   monthlyDiff * 12,
+            currentMonthly,
             isWinning:    monthlyDiff <= 0,
             categoryGaps,
           })
