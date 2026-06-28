@@ -568,12 +568,12 @@ function AnalyseContent() {
         const heroCard        = scoredCards[0]
         const currentInResults = scoredCards.find((c: any) => c.earnn_card_id === currentCardId)
 
-        // Use monthly reward: Expected_Annual_Return / 12, fallback NAV / 12
+        // API returns snake_case: expected_annual_return_aed / net_annual_value_aed
         const currentMonthly = currentInResults
-          ? ((currentInResults.Expected_Annual_Return ?? currentInResults.NAV ?? 0) / 12)
+          ? ((currentInResults.expected_annual_return_aed ?? currentInResults.net_annual_value_aed ?? 0) / 12)
           : 0
         const heroMonthly = heroCard
-          ? ((heroCard.Expected_Annual_Return ?? heroCard.NAV ?? 0) / 12)
+          ? ((heroCard.expected_annual_return_aed ?? heroCard.net_annual_value_aed ?? 0) / 12)
           : 0
 
         if (heroCard) {
