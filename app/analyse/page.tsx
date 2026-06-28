@@ -238,7 +238,7 @@ function ComparisonPopup({ data, onContinue }: {
   const currentEarns = Math.round(data.currentMonthly)
   const potential    = currentEarns + monthly
   const fillPct      = potential > 0 ? Math.round((currentEarns / potential) * 100) : 0
-  const isSmallGap   = monthly < 100
+  const isGoodCard   = data.isWinning || monthly < 100
 
   // Contextual annual-loss tagline based on AED value
   const annualTagline = (() => {
@@ -364,92 +364,84 @@ function ComparisonPopup({ data, onContinue }: {
         </div>
       </div>
 
-      {/* ── LOSING BOX — floats over hero ── */}
-      {isSmallGap ? (
-        <div style={{ margin: '-22px 16px 0', background: '#fff', borderRadius: 14, border: '1.5px solid #bbf7d0', padding: '20px', textAlign: 'center', position: 'relative', zIndex: 1 }}>
-          <div style={{ fontSize: 13, color: '#065f46', fontWeight: 600, marginBottom: 6 }}>You&apos;re already on a good card 👍</div>
-          <div style={{ fontSize: 13, color: '#6b7280', marginBottom: 4 }}>
-            You lost <strong style={{ color: '#ea580c' }}>AED {monthly}/month</strong> · AED {annual.toLocaleString('en-AE')}/year
+      {/* ── GOOD CARD: no numbers, no breakdown ── */}
+      {isGoodCard ? (
+        <div style={{ padding: '28px 24px 36px', textAlign: 'center' }}>
+          <div style={{ fontSize: 44, marginBottom: 14 }}>👏</div>
+          <div style={{ fontSize: 20, fontWeight: 700, color: '#0e7490', marginBottom: 10 }}>
+            You&apos;re already using a good card.
           </div>
-          <div style={{ fontSize: 12, color: '#9ca3af' }}>Here are a few alternative cards worth looking at.</div>
-        </div>
-      ) : (
-        <div style={{ margin: '-22px 16px 0', background: '#fff', borderRadius: 14, border: '1.5px solid #fcd34d', padding: '20px', textAlign: 'center', position: 'relative', zIndex: 1 }}>
-          <div style={{ fontSize: 11, letterSpacing: '.14em', color: '#b45309', marginBottom: 6, fontWeight: 600 }}>EVERY MONTH YOU LOSE</div>
-          <div style={{ fontSize: 'clamp(54px,14vw,84px)', fontWeight: 800, color: '#ea580c', lineHeight: 1, letterSpacing: '-3px', fontVariantNumeric: 'tabular-nums' }}>
-            {monthly.toLocaleString('en-AE')}
-          </div>
-          <div style={{ fontSize: 19, color: '#d97706', marginTop: 4, fontWeight: 700 }}>AED</div>
-          {annualTagline && (
-            <div style={{ fontSize: 13, color: '#6b7280', marginTop: 8, lineHeight: 1.5 }}>
-              AED {annual.toLocaleString('en-AE')}/year — {annualTagline}
-            </div>
-          )}
-          <div style={{ marginTop: 14 }}>
-            <div style={{ height: 7, background: '#fef3c7', borderRadius: 4, overflow: 'hidden' }}>
-              <div style={{ height: '100%', width: `${fillPct}%`, background: '#ea580c', borderRadius: 4 }}/>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 5 }}>
-              <span style={{ fontSize: 10, color: '#9ca3af' }}>Your card earns AED {currentEarns}/mo</span>
-              <span style={{ fontSize: 10, color: '#9ca3af' }}>Potential AED {potential}/mo</span>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── BREAKDOWN ── */}
-      {!isSmallGap && data.categoryGaps.filter(g => g.diff > 0 || g.current > 0).length > 0 && (
-        <div style={{ margin: '14px 16px 0', background: '#fffbf0', border: '0.5px solid #fcd34d', borderRadius: 12, padding: '14px 16px', animation: 'cmp-fadein .4s ease both' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 10 }}>
-            <span style={{ fontSize: 11, fontWeight: 600, color: '#b45309', letterSpacing: '.06em' }}>WHY? YOUR CARD EARNS:</span>
-            <span style={{ fontSize: 11, color: '#9ca3af' }}>vs what&apos;s possible</span>
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 62px 70px', borderTop: '0.5px solid #fcd34d' }}>
-            {['Category', 'You earn', 'Gap'].map((h, i) => (
-              <span key={h} style={{ fontSize: 10, color: '#9ca3af', padding: '7px 0 5px', borderBottom: '0.5px solid #fef3c7', textAlign: i > 0 ? 'right' : 'left', letterSpacing: '.04em' }}>{h}</span>
-            ))}
-            {data.categoryGaps.filter(g => g.diff > 0 || g.current > 0).map((g, i, arr) => (
-              <React.Fragment key={g.label}>
-                <span style={{ fontSize: 13, padding: '8px 0', borderBottom: i < arr.length - 1 ? '0.5px solid #fef3c7' : 'none', color: '#7c2d12' }}>{g.label}</span>
-                <span style={{ fontSize: 13, padding: '8px 0', borderBottom: i < arr.length - 1 ? '0.5px solid #fef3c7' : 'none', color: '#9ca3af', textAlign: 'right' }}>
-                  {g.current > 0 ? `AED ${g.current}` : '—'}
-                </span>
-                <span style={{ fontSize: 13, padding: '8px 0', borderBottom: i < arr.length - 1 ? '0.5px solid #fef3c7' : 'none', color: '#16a34a', fontWeight: 600, textAlign: 'right' }}>
-                  {g.diff > 0 ? `+${g.diff}` : '—'}
-                </span>
-              </React.Fragment>
-            ))}
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 10, marginTop: 4, borderTop: '0.5px solid #fcd34d' }}>
-            <span style={{ fontSize: 12, color: '#b45309', fontWeight: 600 }}>Total monthly loss</span>
-            <span style={{ fontSize: 14, fontWeight: 700, color: '#ea580c' }}>AED {monthly.toLocaleString('en-AE')} / mo</span>
-          </div>
-        </div>
-      )}
-
-      {/* ── CTA ── */}
-      <div style={{ padding: '20px 16px 36px', textAlign: 'center' }}>
-        {!isSmallGap && <div style={{ fontSize: 18, fontWeight: 700, color: '#7c2d12', marginBottom: 14 }}>Really? 😲</div>}
-        <button onClick={onContinue} style={{ width: '100%', padding: 15, background: '#ea580c', border: 'none', borderRadius: 10, color: '#fff', fontSize: 16, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
-          {isSmallGap ? 'Show me the alternatives →' : 'Show me how to fix this →'}
-        </button>
-        <div style={{ marginTop: 10, fontSize: 12, color: '#9ca3af' }}>Takes less than 30 seconds</div>
-      </div>
-
-      {/* ── Winning variant (replaces everything above) ── */}
-      {data.isWinning && (
-        <div style={{ padding: '32px 20px', textAlign: 'center', animation: 'cmp-fadein .5s ease both' }}>
-          <div style={{ fontSize: 48, marginBottom: 14 }}>👏</div>
-          <div style={{ fontSize: 'clamp(20px,4vw,26px)', fontWeight: 800, color: '#0e7490', lineHeight: 1.3, marginBottom: 10 }}>
-            You already have a very good card
-          </div>
-          <div style={{ fontSize: 14, color: '#5A6A85', marginBottom: 32, lineHeight: 1.6 }}>
-            See more options for your spend — there might be an even better fit 👀
+          <div style={{ fontSize: 14, color: '#5A6A85', lineHeight: 1.6, marginBottom: 28 }}>
+            You&apos;re not losing much — but there might be a card that fits your spending even better. See all your options below.
           </div>
           <button onClick={onContinue} style={{ width: '100%', padding: 15, background: '#0e7490', border: 'none', borderRadius: 10, color: '#fff', fontSize: 16, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
-            See all options for me →
+            Show me all options →
           </button>
         </div>
+      ) : (
+        <>
+          {/* ── LOSING BOX ── */}
+          <div style={{ margin: '-22px 16px 0', background: '#fff', borderRadius: 14, border: '1.5px solid #fcd34d', padding: '20px', textAlign: 'center', position: 'relative', zIndex: 1 }}>
+            <div style={{ fontSize: 11, letterSpacing: '.14em', color: '#b45309', marginBottom: 6, fontWeight: 600 }}>EVERY MONTH YOU LOSE</div>
+            <div style={{ fontSize: 'clamp(54px,14vw,84px)', fontWeight: 800, color: '#ea580c', lineHeight: 1, letterSpacing: '-3px', fontVariantNumeric: 'tabular-nums' }}>
+              {monthly.toLocaleString('en-AE')}
+            </div>
+            <div style={{ fontSize: 19, color: '#d97706', marginTop: 4, fontWeight: 700 }}>AED</div>
+            {annualTagline && (
+              <div style={{ fontSize: 13, color: '#6b7280', marginTop: 8, lineHeight: 1.5 }}>
+                AED {annual.toLocaleString('en-AE')}/year — {annualTagline}
+              </div>
+            )}
+            <div style={{ marginTop: 14 }}>
+              <div style={{ height: 7, background: '#fef3c7', borderRadius: 4, overflow: 'hidden' }}>
+                <div style={{ height: '100%', width: `${fillPct}%`, background: '#ea580c', borderRadius: 4 }}/>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 5 }}>
+                <span style={{ fontSize: 10, color: '#9ca3af' }}>Your card earns AED {currentEarns}/mo</span>
+                <span style={{ fontSize: 10, color: '#9ca3af' }}>Potential AED {potential}/mo</span>
+              </div>
+            </div>
+          </div>
+
+          {/* ── BREAKDOWN ── */}
+          {data.categoryGaps.filter(g => g.diff > 0 || g.current > 0).length > 0 && (
+            <div style={{ margin: '14px 16px 0', background: '#fffbf0', border: '0.5px solid #fcd34d', borderRadius: 12, padding: '14px 16px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 10 }}>
+                <span style={{ fontSize: 11, fontWeight: 600, color: '#b45309', letterSpacing: '.06em' }}>WHY? YOUR CARD EARNS:</span>
+                <span style={{ fontSize: 11, color: '#9ca3af' }}>vs what&apos;s possible</span>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 62px 70px', borderTop: '0.5px solid #fcd34d' }}>
+                {['Category', 'You earn', 'Gap'].map((h, i) => (
+                  <span key={h} style={{ fontSize: 10, color: '#9ca3af', padding: '7px 0 5px', borderBottom: '0.5px solid #fef3c7', textAlign: i > 0 ? 'right' : 'left', letterSpacing: '.04em' }}>{h}</span>
+                ))}
+                {data.categoryGaps.filter(g => g.diff > 0 || g.current > 0).map((g, i, arr) => (
+                  <React.Fragment key={g.label}>
+                    <span style={{ fontSize: 13, padding: '8px 0', borderBottom: i < arr.length - 1 ? '0.5px solid #fef3c7' : 'none', color: '#7c2d12' }}>{g.label}</span>
+                    <span style={{ fontSize: 13, padding: '8px 0', borderBottom: i < arr.length - 1 ? '0.5px solid #fef3c7' : 'none', color: '#9ca3af', textAlign: 'right' }}>
+                      {g.current > 0 ? `AED ${g.current}` : '—'}
+                    </span>
+                    <span style={{ fontSize: 13, padding: '8px 0', borderBottom: i < arr.length - 1 ? '0.5px solid #fef3c7' : 'none', color: '#16a34a', fontWeight: 600, textAlign: 'right' }}>
+                      {g.diff > 0 ? `+${g.diff}` : '—'}
+                    </span>
+                  </React.Fragment>
+                ))}
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 10, marginTop: 4, borderTop: '0.5px solid #fcd34d' }}>
+                <span style={{ fontSize: 12, color: '#b45309', fontWeight: 600 }}>Total monthly loss</span>
+                <span style={{ fontSize: 14, fontWeight: 700, color: '#ea580c' }}>AED {monthly.toLocaleString('en-AE')} / mo</span>
+              </div>
+            </div>
+          )}
+
+          {/* ── CTA ── */}
+          <div style={{ padding: '20px 16px 36px', textAlign: 'center' }}>
+            <div style={{ fontSize: 18, fontWeight: 700, color: '#7c2d12', marginBottom: 14 }}>Really? 😲</div>
+            <button onClick={onContinue} style={{ width: '100%', padding: 15, background: '#ea580c', border: 'none', borderRadius: 10, color: '#fff', fontSize: 16, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+              Show me how to fix this →
+            </button>
+            <div style={{ marginTop: 10, fontSize: 12, color: '#9ca3af' }}>Takes less than 30 seconds</div>
+          </div>
+        </>
       )}
       </div>
     </div>
