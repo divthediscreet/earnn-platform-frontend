@@ -4,6 +4,40 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { uploadStatement, scoreCards, getOptimalWallet, fetchCardDetail, fetchCards, searchCards, pingBackend, getCardImageUrl } from '@/lib/api'
 import { Suspense } from 'react'
 
+const BANK_ABBREV: Record<string, string> = {
+  'Emirates NBD':                        'ENBD',
+  'First Abu Dhabi Bank':                'FAB',
+  'Abu Dhabi Commercial Bank':           'ADCB',
+  'Abu Dhabi Islamic Bank':              'ADIB',
+  'Dubai Islamic Bank':                  'DIB',
+  'Commercial Bank of Dubai':            'CBD',
+  'National Bank of Fujairah':           'NBF',
+  'Union National Bank':                 'UNB',
+  'National Bank of Ras Al Khaimah':     'RAK',
+  'Standard Chartered':                  'SCB',
+  'Standard Chartered Bank':             'SCB',
+  'Commercial Bank International':       'CBI',
+  'Sharjah Islamic Bank':                'SIB',
+  'National Bank of Umm Al Qaiwain':     'NBQ',
+  'American Express':                    'AMEX',
+  'Noor Bank':                           'NOOR',
+  'Noor Islamic Bank':                   'NOOR',
+  'Invest Bank':                         'INVEST',
+  'Ajman Bank':                          'AJMAN',
+}
+
+const formatBankName = (name: string) => {
+  const abbrev = BANK_ABBREV[name]
+  if (abbrev) return `${name} (${abbrev})`
+  // Auto-abbreviate any bank name with 3+ words that isn't in the map
+  const words = name.trim().split(/\s+/)
+  if (words.length >= 3) {
+    const auto = words.map(w => w[0]).join('').toUpperCase()
+    return `${name} (${auto})`
+  }
+  return name
+}
+
 const MERCHANT_OPTIONS: Record<string, { key: string; label: string }[]> = {
   dining:  [{ key: 'noon', label: 'noon Food' }, { key: 'talabat', label: 'talabat' }, { key: 'deliveroo', label: 'Deliveroo' }, { key: 'careem', label: 'Careem' }, { key: 'smiles', label: 'Smiles' }],
   grocery: [{ key: 'noon', label: 'noon' }, { key: 'talabat', label: 'talabat' }, { key: 'amazon', label: 'Amazon' }, { key: 'carrefour', label: 'Carrefour' }, { key: 'lulu', label: 'LuLu' }],
@@ -689,7 +723,7 @@ function AnalyseContent() {
                   style={{ width: '100%', padding: '10px 14px', border: '1.5px solid #0E3785', borderRadius: 8, fontSize: 14, color: pickerSelectedBank ? '#0D1828' : '#9DAEC8', outline: 'none', background: 'white', cursor: 'pointer' }}
                 >
                   <option value="">Select bank…</option>
-                  {pickerBanks.map(b => <option key={b} value={b}>{b}</option>)}
+                  {pickerBanks.map(b => <option key={b} value={b}>{formatBankName(b)}</option>)}
                 </select>
               </div>
 
