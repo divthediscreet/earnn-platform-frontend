@@ -192,10 +192,10 @@ function ParseDataDebug({ data }: { data: any }) {
 
 function ComparisonPopup({ data, onContinue }: {
   data: {
-    currentCard: { earnn_card_id: string; card_name: string; bank_name?: string; nav: number }
-    heroCard:    { earnn_card_id: string; card_name: string; bank_name?: string; nav: number }
-    annualDiff:  number
+    currentCard: { earnn_card_id: string; card_name: string; bank_name?: string; monthlyReward: number }
+    heroCard:    { card_name: string; bank_name?: string; monthlyReward: number }
     monthlyDiff: number
+    annualDiff:  number
     isWinning:   boolean
   }
   onContinue: () => void
@@ -204,8 +204,8 @@ function ComparisonPopup({ data, onContinue }: {
   const [phase, setPhase] = useState<'count' | 'reveal' | 'cta'>('count')
 
   useEffect(() => {
-    if (data.isWinning) { setPhase('reveal'); return }
-    const target = Math.abs(data.annualDiff)
+    if (data.isWinning) { setPhase('cta'); return }
+    const target = Math.abs(data.monthlyDiff)
     const duration = 1800
     const fps = 60
     const steps = (duration / 1000) * fps
@@ -217,133 +217,132 @@ function ComparisonPopup({ data, onContinue }: {
         setCount(target)
         clearInterval(interval)
         setTimeout(() => setPhase('reveal'), 300)
-        setTimeout(() => setPhase('cta'), 1200)
+        setTimeout(() => setPhase('cta'),   1100)
       } else {
         setCount(cur)
       }
     }, 1000 / fps)
-    const revealTimer = setTimeout(() => setPhase('reveal'), duration + 300)
-    const ctaTimer    = setTimeout(() => setPhase('cta'),    duration + 1200)
-    return () => { clearInterval(interval); clearTimeout(revealTimer); clearTimeout(ctaTimer) }
+    return () => clearInterval(interval)
   }, [])
 
-  const diff = Math.abs(data.annualDiff)
-  const monthlyDiff = Math.abs(data.monthlyDiff)
+  const monthly = Math.round(Math.abs(data.monthlyDiff))
+  const annual  = Math.round(Math.abs(data.annualDiff))
 
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 2500, background: '#07112B', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+    <div style={{ position: 'fixed', inset: 0, zIndex: 2500, background: '#07112B', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px 16px', overflowY: 'auto' }}>
       <style>{`
-        @keyframes fadeUp   { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
-        @keyframes pulse    { 0%,100% { transform:scale(1); } 50% { transform:scale(1.04); } }
-        @keyframes shimmer  { 0% { background-position:-200% 0; } 100% { background-position:200% 0; } }
-        @keyframes countUp  { from { transform:scale(0.8); opacity:0.4; } to { transform:scale(1); opacity:1; } }
+        @keyframes fadeUp  { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
+        @keyframes pulse   { 0%,100% { transform:scale(1); } 50% { transform:scale(1.04); } }
+        @keyframes shimmer { 0% { background-position:-200% 0; } 100% { background-position:200% 0; } }
       `}</style>
 
       {/* Header */}
-      <div style={{ animation: 'fadeUp 0.6s ease both', textAlign: 'center', marginBottom: 40 }}>
-        <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: '0.12em', color: 'rgba(255,215,0,0.7)', textTransform: 'uppercase', marginBottom: 8 }}>
-          {data.isWinning ? '🏆 You already have the best card!' : '💸 Reward gap discovered'}
-        </div>
-        <div style={{ fontSize: 'clamp(22px,4vw,32px)', fontWeight: 800, color: 'white', lineHeight: 1.2 }}>
-          {data.isWinning ? 'You\'re maximising your rewards!' : 'Every month, your card is leaving'}
+      <div style={{ animation: 'fadeUp 0.5s ease both', textAlign: 'center', marginBottom: 32 }}>
+        <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.12em', color: 'rgba(255,215,0,0.7)', textTransform: 'uppercase', marginBottom: 10 }}>
+          {data.isWinning ? '🏆 Great news' : '💸 We found a reward gap'}
         </div>
         {!data.isWinning && (
-          <div style={{
-            marginTop: 16,
-            fontSize: 'clamp(52px,10vw,88px)', fontWeight: 900, lineHeight: 1,
-            background: 'linear-gradient(90deg, #FFD700, #FF8C00, #FFD700)',
-            backgroundSize: '200% 100%',
-            WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
-            animation: 'shimmer 2s linear infinite, countUp 0.1s ease',
-            fontVariantNumeric: 'tabular-nums',
-          }}>
-            AED {Math.round(count).toLocaleString('en-AE')}
-          </div>
+          <>
+            <div style={{ fontSize: 'clamp(16px,3vw,22px)', fontWeight: 600, color: 'rgba(255,255,255,0.6)', marginBottom: 8 }}>
+              Your card is leaving this much on the table every month
+            </div>
+            <div style={{
+              fontSize: 'clamp(56px,12vw,96px)', fontWeight: 900, lineHeight: 1,
+              background: 'linear-gradient(90deg,#FFD700,#FF8C00,#FFD700)',
+              backgroundSize: '200% 100%',
+              WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
+              animation: 'shimmer 2s linear infinite',
+              fontVariantNumeric: 'tabular-nums',
+            }}>
+              AED {Math.round(count).toLocaleString('en-AE')}
+            </div>
+            <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.4)', marginTop: 4 }}>per month · AED {annual.toLocaleString('en-AE')} per year</div>
+          </>
         )}
-        {!data.isWinning && (
-          <div style={{ fontSize: 18, color: 'rgba(255,255,255,0.55)', marginTop: 4 }}>
-            on the table every year
+        {data.isWinning && (
+          <div style={{ fontSize: 'clamp(18px,3vw,24px)', fontWeight: 700, color: 'white', lineHeight: 1.3 }}>
+            You already have a very good card —<br />see more options for your spend 👀
           </div>
         )}
       </div>
 
-      {/* Card comparison */}
-      <div style={{ display: 'flex', gap: 16, alignItems: 'stretch', width: '100%', maxWidth: 560, marginBottom: 36, animation: 'fadeUp 0.6s 0.2s ease both', opacity: 0, animationFillMode: 'forwards' }}>
+      {/* Card tiles */}
+      <div style={{ display: 'flex', gap: 12, width: '100%', maxWidth: 520, marginBottom: 28, animation: 'fadeUp 0.5s 0.15s ease both', opacity: 0, animationFillMode: 'forwards' }}>
+
         {/* Current card */}
-        <div style={{ flex: 1, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 16, padding: '20px 16px', textAlign: 'center' }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.4)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 12 }}>Your card</div>
-          <img src={getCardImageUrl(data.currentCard.earnn_card_id)} onError={e => { (e.target as HTMLImageElement).src = '/card-dummy.svg' }} alt=""
-            style={{ width: 100, height: 63, objectFit: 'cover', borderRadius: 8, marginBottom: 12, boxShadow: '0 4px 16px rgba(0,0,0,0.4)' }} />
-          <div style={{ fontSize: 13, fontWeight: 700, color: 'rgba(255,255,255,0.8)', marginBottom: 4, lineHeight: 1.3 }}>{data.currentCard.card_name}</div>
-          {data.currentCard.bank_name && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', marginBottom: 14 }}>{data.currentCard.bank_name}</div>}
-          <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', marginBottom: 4 }}>Est. annual rewards</div>
-          <div style={{ fontSize: 22, fontWeight: 800, color: data.currentCard.nav > 0 ? 'rgba(255,255,255,0.7)' : 'rgba(255,255,255,0.3)' }}>
-            {data.currentCard.nav > 0 ? `AED ${Math.round(data.currentCard.nav).toLocaleString('en-AE')}` : 'Unknown'}
+        <div style={{ flex: 1, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 16, padding: '18px 14px', textAlign: 'center' }}>
+          <div style={{ fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.35)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 10 }}>Your card</div>
+          <img
+            src={getCardImageUrl(data.currentCard.earnn_card_id)}
+            onError={e => { (e.target as HTMLImageElement).src = '/card-dummy.svg' }}
+            alt=""
+            style={{ width: 88, height: 55, objectFit: 'cover', borderRadius: 7, marginBottom: 10, boxShadow: '0 4px 16px rgba(0,0,0,0.4)' }}
+          />
+          <div style={{ fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.75)', marginBottom: 2, lineHeight: 1.3 }}>{data.currentCard.card_name}</div>
+          {data.currentCard.bank_name && <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)', marginBottom: 12 }}>{data.currentCard.bank_name}</div>}
+          <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)', marginBottom: 3 }}>Monthly reward</div>
+          <div style={{ fontSize: 20, fontWeight: 800, color: data.currentCard.monthlyReward > 0 ? 'rgba(255,255,255,0.65)' : 'rgba(255,255,255,0.25)' }}>
+            {data.currentCard.monthlyReward > 0 ? `AED ${Math.round(data.currentCard.monthlyReward).toLocaleString('en-AE')}` : '—'}
           </div>
         </div>
 
-        {/* VS */}
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, flexShrink: 0 }}>
-          <div style={{ fontSize: 13, fontWeight: 800, color: 'rgba(255,255,255,0.3)' }}>VS</div>
-          {!data.isWinning && (
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-              <div style={{ fontSize: 18, animation: 'pulse 1.5s ease infinite' }}>⬆️</div>
-              <div style={{ fontSize: 11, color: '#FFD700', fontWeight: 700, textAlign: 'center', whiteSpace: 'nowrap' }}>
-                +AED {Math.round(monthlyDiff).toLocaleString('en-AE')}/mo
+        {/* VS divider */}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, flexShrink: 0, paddingBottom: 8 }}>
+          <div style={{ fontSize: 11, fontWeight: 800, color: 'rgba(255,255,255,0.2)' }}>VS</div>
+          {!data.isWinning && phase !== 'count' && (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, animation: 'fadeUp 0.4s ease both' }}>
+              <div style={{ fontSize: 16, animation: 'pulse 1.2s ease infinite' }}>⬆️</div>
+              <div style={{ fontSize: 10, color: '#FFD700', fontWeight: 700, textAlign: 'center', whiteSpace: 'nowrap' }}>
+                +AED {monthly.toLocaleString('en-AE')}/mo
               </div>
             </div>
           )}
         </div>
 
-        {/* Hero card */}
-        <div style={{ flex: 1, background: 'rgba(14,55,133,0.4)', border: '1.5px solid rgba(74,142,255,0.4)', borderRadius: 16, padding: '20px 16px', textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
-          <div style={{ position: 'absolute', top: 10, right: 10, background: '#FFD700', color: '#07112B', fontSize: 10, fontWeight: 800, borderRadius: 20, padding: '2px 8px', letterSpacing: '0.05em' }}>
+        {/* Best card — dummy image, no specific card image */}
+        <div style={{ flex: 1, background: 'rgba(14,55,133,0.45)', border: '1.5px solid rgba(74,142,255,0.35)', borderRadius: 16, padding: '18px 14px', textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
+          <div style={{ position: 'absolute', top: 8, right: 8, background: '#FFD700', color: '#07112B', fontSize: 9, fontWeight: 800, borderRadius: 20, padding: '2px 7px', letterSpacing: '0.05em' }}>
             #1 BEST
           </div>
-          <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(74,142,255,0.8)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 12 }}>Best card for you</div>
-          <img src={getCardImageUrl(data.heroCard.earnn_card_id)} onError={e => { (e.target as HTMLImageElement).src = '/card-dummy.svg' }} alt=""
-            style={{ width: 100, height: 63, objectFit: 'cover', borderRadius: 8, marginBottom: 12, boxShadow: '0 4px 24px rgba(74,142,255,0.3)' }} />
-          <div style={{ fontSize: 13, fontWeight: 700, color: 'white', marginBottom: 4, lineHeight: 1.3 }}>{data.heroCard.card_name}</div>
-          {data.heroCard.bank_name && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginBottom: 14 }}>{data.heroCard.bank_name}</div>}
-          <div style={{ fontSize: 11, color: 'rgba(74,142,255,0.6)', marginBottom: 4 }}>Est. annual rewards</div>
-          <div style={{ fontSize: 22, fontWeight: 800, color: '#4A8EFF' }}>
-            AED {Math.round(data.heroCard.nav).toLocaleString('en-AE')}
+          <div style={{ fontSize: 10, fontWeight: 700, color: 'rgba(74,142,255,0.8)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 10 }}>Best for you</div>
+          {/* Dummy card placeholder */}
+          <div style={{ width: 88, height: 55, borderRadius: 7, margin: '0 auto 10px', background: 'linear-gradient(135deg,#1a3a7a,#0E3785)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 24px rgba(74,142,255,0.25)' }}>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: 14, marginBottom: 2 }}>⭐</div>
+              <div style={{ fontSize: 8, fontWeight: 700, color: 'rgba(255,255,255,0.6)', letterSpacing: '0.05em' }}>BEST CARD</div>
+            </div>
+          </div>
+          <div style={{ fontSize: 12, fontWeight: 700, color: 'white', marginBottom: 2, lineHeight: 1.3 }}>{data.heroCard.card_name}</div>
+          {data.heroCard.bank_name && <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', marginBottom: 12 }}>{data.heroCard.bank_name}</div>}
+          <div style={{ fontSize: 10, color: 'rgba(74,142,255,0.6)', marginBottom: 3 }}>Monthly reward</div>
+          <div style={{ fontSize: 20, fontWeight: 800, color: '#4A8EFF' }}>
+            AED {Math.round(data.heroCard.monthlyReward).toLocaleString('en-AE')}
           </div>
         </div>
       </div>
 
-      {/* Reveal message */}
-      {phase !== 'count' && (
-        <div style={{ textAlign: 'center', marginBottom: 32, animation: 'fadeUp 0.5s ease both' }}>
-          {data.isWinning ? (
-            <div style={{ fontSize: 20, color: '#00A67E', fontWeight: 700 }}>You already have a very good card — see more options for your spend 👀</div>
-          ) : (
-            <>
-              <div style={{ fontSize: 'clamp(15px,2.5vw,20px)', color: 'rgba(255,255,255,0.6)', lineHeight: 1.6, marginBottom: 10 }}>
-                That&apos;s <strong style={{ color: 'white' }}>AED {Math.round(monthlyDiff).toLocaleString('en-AE')} every month</strong> in missed rewards.
-              </div>
-              <div style={{ fontSize: 'clamp(16px,2.5vw,22px)', color: 'white', fontWeight: 700 }}>
-                Really? 😲
-              </div>
-            </>
-          )}
+      {/* Reveal text */}
+      {(phase === 'reveal' || phase === 'cta') && !data.isWinning && (
+        <div style={{ textAlign: 'center', marginBottom: 24, animation: 'fadeUp 0.4s ease both' }}>
+          <div style={{ fontSize: 'clamp(14px,2.5vw,18px)', color: 'rgba(255,255,255,0.55)', lineHeight: 1.6, marginBottom: 8 }}>
+            That&apos;s <strong style={{ color: 'white' }}>AED {monthly.toLocaleString('en-AE')} every month</strong> in missed rewards.
+          </div>
+          <div style={{ fontSize: 'clamp(18px,3vw,24px)', color: 'white', fontWeight: 800 }}>Really? 😲</div>
         </div>
       )}
 
-      {/* CTA */}
-      {phase === 'cta' || data.isWinning ? (
+      {/* CTA button */}
+      {(phase === 'cta' || data.isWinning) && (
         <button onClick={onContinue} style={{
-          padding: '16px 48px', fontSize: 16, fontWeight: 800, border: 'none', borderRadius: 50,
-          background: 'linear-gradient(135deg, #4A8EFF 0%, #0E3785 100%)',
+          padding: '15px 44px', fontSize: 15, fontWeight: 800, border: 'none', borderRadius: 50,
+          background: 'linear-gradient(135deg,#4A8EFF 0%,#0E3785 100%)',
           color: 'white', cursor: 'pointer',
-          boxShadow: '0 8px 32px rgba(74,142,255,0.4)',
-          animation: 'fadeUp 0.5s ease both, pulse 2s 0.5s ease infinite',
+          boxShadow: '0 8px 32px rgba(74,142,255,0.35)',
+          animation: 'fadeUp 0.4s ease both, pulse 2s 0.4s ease infinite',
           letterSpacing: '-0.2px',
         }}>
           {data.isWinning ? 'See all options for me →' : 'Show me how to fix this →'}
         </button>
-      ) : (
-        <div style={{ height: 52 }} />
       )}
     </div>
   )
@@ -522,10 +521,10 @@ function AnalyseContent() {
 
   // Comparison popup state (shown after scoring, before navigating to results)
   const [comparisonData, setComparisonData] = useState<{
-    currentCard: { earnn_card_id: string; card_name: string; bank_name?: string; nav: number }
-    heroCard:    { earnn_card_id: string; card_name: string; bank_name?: string; nav: number }
-    annualDiff:  number
+    currentCard: { earnn_card_id: string; card_name: string; bank_name?: string; monthlyReward: number }
+    heroCard:    { card_name: string; bank_name?: string; monthlyReward: number }
     monthlyDiff: number
+    annualDiff:  number
     isWinning:   boolean
   } | null>(null)
 
@@ -560,19 +559,25 @@ function AnalyseContent() {
       // Build comparison popup if we know the user's current card
       if (currentCardId && currentCardInfo) {
         const scoredCards: any[] = result.scored_cards || []
-        const heroCard = scoredCards[0]
+        const heroCard        = scoredCards[0]
         const currentInResults = scoredCards.find((c: any) => c.earnn_card_id === currentCardId)
-        const currentNav  = currentInResults?.NAV ?? currentInResults?.earnn_Score ?? 0
-        const heroNav     = heroCard?.NAV ?? heroCard?.earnn_Score ?? 0
 
-        if (heroCard && heroCard.earnn_card_id !== currentCardId) {
-          const annualDiff = heroNav - currentNav
+        // Use monthly reward: Expected_Annual_Return / 12, fallback NAV / 12
+        const currentMonthly = currentInResults
+          ? ((currentInResults.Expected_Annual_Return ?? currentInResults.NAV ?? 0) / 12)
+          : 0
+        const heroMonthly = heroCard
+          ? ((heroCard.Expected_Annual_Return ?? heroCard.NAV ?? 0) / 12)
+          : 0
+
+        if (heroCard) {
+          const monthlyDiff = heroMonthly - currentMonthly
           setComparisonData({
-            currentCard: { earnn_card_id: currentCardId, card_name: currentCardInfo.card_name, bank_name: currentCardInfo.bank_name, nav: currentNav },
-            heroCard:    { earnn_card_id: heroCard.earnn_card_id, card_name: heroCard.card_name, bank_name: heroCard.bank_name, nav: heroNav },
-            annualDiff,
-            monthlyDiff: annualDiff / 12,
-            isWinning: annualDiff <= 0,
+            currentCard: { earnn_card_id: currentCardId, card_name: currentCardInfo.card_name, bank_name: currentCardInfo.bank_name, monthlyReward: currentMonthly },
+            heroCard:    { card_name: heroCard.card_name, bank_name: heroCard.bank_name, monthlyReward: heroMonthly },
+            monthlyDiff,
+            annualDiff: monthlyDiff * 12,
+            isWinning: monthlyDiff <= 0,
           })
           setLoading(false)
           return   // wait for user to click "Show me how" before navigating
