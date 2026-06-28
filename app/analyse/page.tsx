@@ -355,10 +355,10 @@ function ComparisonPopup({ data, onContinue }: {
           <div style={{ display: 'inline-block', background: 'rgba(255,255,255,.15)', borderRadius: 20, padding: '3px 10px', fontSize: 11, color: 'rgba(255,255,255,.75)', letterSpacing: '.08em', marginBottom: 10 }}>
             💸 reward gap
           </div>
-          <div style={{ fontSize: 'clamp(14px,3.5vw,19px)', fontWeight: 700, color: '#fff', lineHeight: 1.4, marginBottom: 6, animation: 'cmp-fadein .4s ease both' }}>
+          <div style={{ fontSize: 'clamp(17px,4vw,22px)', fontWeight: 700, color: '#fff', lineHeight: 1.35, marginBottom: 8, animation: 'cmp-fadein .4s ease both' }}>
             {witty.line1}
           </div>
-          <div style={{ fontSize: 12, color: 'rgba(255,255,255,.62)', lineHeight: 1.5, animation: 'cmp-fadein .4s .1s ease both' }}>
+          <div style={{ fontSize: 14, color: 'rgba(255,255,255,.65)', lineHeight: 1.5, animation: 'cmp-fadein .4s .1s ease both' }}>
             {witty.line2}
           </div>
         </div>
