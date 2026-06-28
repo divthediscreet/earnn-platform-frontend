@@ -187,6 +187,169 @@ function ParseDataDebug({ data }: { data: any }) {
 }
 
 // =============================================================================
+// COMPARISON POPUP — shown after scoring, before results page
+// =============================================================================
+
+function ComparisonPopup({ data, onContinue }: {
+  data: {
+    currentCard: { earnn_card_id: string; card_name: string; bank_name?: string; nav: number }
+    heroCard:    { earnn_card_id: string; card_name: string; bank_name?: string; nav: number }
+    annualDiff:  number
+    monthlyDiff: number
+    isWinning:   boolean
+  }
+  onContinue: () => void
+}) {
+  const [count, setCount] = useState(0)
+  const [phase, setPhase] = useState<'count' | 'reveal' | 'cta'>('count')
+
+  useEffect(() => {
+    if (data.isWinning) { setPhase('reveal'); return }
+    const target = Math.abs(data.annualDiff)
+    const duration = 1800
+    const fps = 60
+    const steps = (duration / 1000) * fps
+    const step = target / steps
+    let cur = 0
+    const interval = setInterval(() => {
+      cur += step
+      if (cur >= target) {
+        setCount(target)
+        clearInterval(interval)
+        setTimeout(() => setPhase('reveal'), 300)
+        setTimeout(() => setPhase('cta'), 1200)
+      } else {
+        setCount(cur)
+      }
+    }, 1000 / fps)
+    const revealTimer = setTimeout(() => setPhase('reveal'), duration + 300)
+    const ctaTimer    = setTimeout(() => setPhase('cta'),    duration + 1200)
+    return () => { clearInterval(interval); clearTimeout(revealTimer); clearTimeout(ctaTimer) }
+  }, [])
+
+  const diff = Math.abs(data.annualDiff)
+  const monthlyDiff = Math.abs(data.monthlyDiff)
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 2500, background: '#07112B', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+      <style>{`
+        @keyframes fadeUp   { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
+        @keyframes pulse    { 0%,100% { transform:scale(1); } 50% { transform:scale(1.04); } }
+        @keyframes shimmer  { 0% { background-position:-200% 0; } 100% { background-position:200% 0; } }
+        @keyframes countUp  { from { transform:scale(0.8); opacity:0.4; } to { transform:scale(1); opacity:1; } }
+      `}</style>
+
+      {/* Header */}
+      <div style={{ animation: 'fadeUp 0.6s ease both', textAlign: 'center', marginBottom: 40 }}>
+        <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: '0.12em', color: 'rgba(255,215,0,0.7)', textTransform: 'uppercase', marginBottom: 8 }}>
+          {data.isWinning ? '🏆 You already have the best card!' : '💸 Reward gap discovered'}
+        </div>
+        <div style={{ fontSize: 'clamp(22px,4vw,32px)', fontWeight: 800, color: 'white', lineHeight: 1.2 }}>
+          {data.isWinning ? 'You\'re maximising your rewards!' : 'Every month, your card is leaving'}
+        </div>
+        {!data.isWinning && (
+          <div style={{
+            marginTop: 16,
+            fontSize: 'clamp(52px,10vw,88px)', fontWeight: 900, lineHeight: 1,
+            background: 'linear-gradient(90deg, #FFD700, #FF8C00, #FFD700)',
+            backgroundSize: '200% 100%',
+            WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
+            animation: 'shimmer 2s linear infinite, countUp 0.1s ease',
+            fontVariantNumeric: 'tabular-nums',
+          }}>
+            AED {Math.round(count).toLocaleString('en-AE')}
+          </div>
+        )}
+        {!data.isWinning && (
+          <div style={{ fontSize: 18, color: 'rgba(255,255,255,0.55)', marginTop: 4 }}>
+            on the table every year
+          </div>
+        )}
+      </div>
+
+      {/* Card comparison */}
+      <div style={{ display: 'flex', gap: 16, alignItems: 'stretch', width: '100%', maxWidth: 560, marginBottom: 36, animation: 'fadeUp 0.6s 0.2s ease both', opacity: 0, animationFillMode: 'forwards' }}>
+        {/* Current card */}
+        <div style={{ flex: 1, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 16, padding: '20px 16px', textAlign: 'center' }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.4)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 12 }}>Your card</div>
+          <img src={getCardImageUrl(data.currentCard.earnn_card_id)} onError={e => { (e.target as HTMLImageElement).src = '/card-dummy.svg' }} alt=""
+            style={{ width: 100, height: 63, objectFit: 'cover', borderRadius: 8, marginBottom: 12, boxShadow: '0 4px 16px rgba(0,0,0,0.4)' }} />
+          <div style={{ fontSize: 13, fontWeight: 700, color: 'rgba(255,255,255,0.8)', marginBottom: 4, lineHeight: 1.3 }}>{data.currentCard.card_name}</div>
+          {data.currentCard.bank_name && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', marginBottom: 14 }}>{data.currentCard.bank_name}</div>}
+          <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', marginBottom: 4 }}>Est. annual rewards</div>
+          <div style={{ fontSize: 22, fontWeight: 800, color: data.currentCard.nav > 0 ? 'rgba(255,255,255,0.7)' : 'rgba(255,255,255,0.3)' }}>
+            {data.currentCard.nav > 0 ? `AED ${Math.round(data.currentCard.nav).toLocaleString('en-AE')}` : 'Unknown'}
+          </div>
+        </div>
+
+        {/* VS */}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, flexShrink: 0 }}>
+          <div style={{ fontSize: 13, fontWeight: 800, color: 'rgba(255,255,255,0.3)' }}>VS</div>
+          {!data.isWinning && (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+              <div style={{ fontSize: 18, animation: 'pulse 1.5s ease infinite' }}>⬆️</div>
+              <div style={{ fontSize: 11, color: '#FFD700', fontWeight: 700, textAlign: 'center', whiteSpace: 'nowrap' }}>
+                +AED {Math.round(monthlyDiff).toLocaleString('en-AE')}/mo
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Hero card */}
+        <div style={{ flex: 1, background: 'rgba(14,55,133,0.4)', border: '1.5px solid rgba(74,142,255,0.4)', borderRadius: 16, padding: '20px 16px', textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
+          <div style={{ position: 'absolute', top: 10, right: 10, background: '#FFD700', color: '#07112B', fontSize: 10, fontWeight: 800, borderRadius: 20, padding: '2px 8px', letterSpacing: '0.05em' }}>
+            #1 BEST
+          </div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(74,142,255,0.8)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 12 }}>Best card for you</div>
+          <img src={getCardImageUrl(data.heroCard.earnn_card_id)} onError={e => { (e.target as HTMLImageElement).src = '/card-dummy.svg' }} alt=""
+            style={{ width: 100, height: 63, objectFit: 'cover', borderRadius: 8, marginBottom: 12, boxShadow: '0 4px 24px rgba(74,142,255,0.3)' }} />
+          <div style={{ fontSize: 13, fontWeight: 700, color: 'white', marginBottom: 4, lineHeight: 1.3 }}>{data.heroCard.card_name}</div>
+          {data.heroCard.bank_name && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginBottom: 14 }}>{data.heroCard.bank_name}</div>}
+          <div style={{ fontSize: 11, color: 'rgba(74,142,255,0.6)', marginBottom: 4 }}>Est. annual rewards</div>
+          <div style={{ fontSize: 22, fontWeight: 800, color: '#4A8EFF' }}>
+            AED {Math.round(data.heroCard.nav).toLocaleString('en-AE')}
+          </div>
+        </div>
+      </div>
+
+      {/* Reveal message */}
+      {phase !== 'count' && (
+        <div style={{ textAlign: 'center', marginBottom: 32, animation: 'fadeUp 0.5s ease both' }}>
+          {data.isWinning ? (
+            <div style={{ fontSize: 20, color: '#00A67E', fontWeight: 700 }}>You&apos;re already on the right card 🎉</div>
+          ) : (
+            <>
+              <div style={{ fontSize: 'clamp(15px,2.5vw,20px)', color: 'rgba(255,255,255,0.6)', lineHeight: 1.6, marginBottom: 10 }}>
+                That&apos;s <strong style={{ color: 'white' }}>AED {Math.round(monthlyDiff).toLocaleString('en-AE')} every month</strong> in missed rewards.
+              </div>
+              <div style={{ fontSize: 'clamp(16px,2.5vw,22px)', color: 'white', fontWeight: 700 }}>
+                Really? 😲
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* CTA */}
+      {phase === 'cta' || data.isWinning ? (
+        <button onClick={onContinue} style={{
+          padding: '16px 48px', fontSize: 16, fontWeight: 800, border: 'none', borderRadius: 50,
+          background: 'linear-gradient(135deg, #4A8EFF 0%, #0E3785 100%)',
+          color: 'white', cursor: 'pointer',
+          boxShadow: '0 8px 32px rgba(74,142,255,0.4)',
+          animation: 'fadeUp 0.5s ease both, pulse 2s 0.5s ease infinite',
+          letterSpacing: '-0.2px',
+        }}>
+          {data.isWinning ? 'See full rankings →' : 'Show me how to fix this →'}
+        </button>
+      ) : (
+        <div style={{ height: 52 }} />
+      )}
+    </div>
+  )
+}
+
+// =============================================================================
 
 function AnalyseContent() {
   const router = useRouter()
@@ -335,6 +498,11 @@ function AnalyseContent() {
 
   // From Statement Review → pre-fill manual form with parsed category spend
   const proceedToManual = () => {
+    if (!currentCardId) {
+      setError('Please identify your current card before proceeding — click "+ Add card manually" above.')
+      return
+    }
+    setError('')
     setProceedLoading(true)
     setTimeout(() => {
       if (reviewData?.spend_dict) {
@@ -351,6 +519,15 @@ function AnalyseContent() {
       setError('')
     }, 3000)
   }
+
+  // Comparison popup state (shown after scoring, before navigating to results)
+  const [comparisonData, setComparisonData] = useState<{
+    currentCard: { earnn_card_id: string; card_name: string; bank_name?: string; nav: number }
+    heroCard:    { earnn_card_id: string; card_name: string; bank_name?: string; nav: number }
+    annualDiff:  number
+    monthlyDiff: number
+    isWinning:   boolean
+  } | null>(null)
 
   // Manual path
   const handleManual = async () => {
@@ -379,6 +556,28 @@ function AnalyseContent() {
       const topIds: string[] = (result.scored_cards || [])
         .slice(0, 20).map((c: any) => c.earnn_card_id).filter(Boolean)
       topIds.forEach(id => { const img = new Image(); img.src = getCardImageUrl(id) })
+
+      // Build comparison popup if we know the user's current card
+      if (currentCardId && currentCardInfo) {
+        const scoredCards: any[] = result.scored_cards || []
+        const heroCard = scoredCards[0]
+        const currentInResults = scoredCards.find((c: any) => c.earnn_card_id === currentCardId)
+        const currentNav  = currentInResults?.NAV ?? currentInResults?.earnn_Score ?? 0
+        const heroNav     = heroCard?.NAV ?? heroCard?.earnn_Score ?? 0
+
+        if (heroCard && heroCard.earnn_card_id !== currentCardId) {
+          const annualDiff = heroNav - currentNav
+          setComparisonData({
+            currentCard: { earnn_card_id: currentCardId, card_name: currentCardInfo.card_name, bank_name: currentCardInfo.bank_name, nav: currentNav },
+            heroCard:    { earnn_card_id: heroCard.earnn_card_id, card_name: heroCard.card_name, bank_name: heroCard.bank_name, nav: heroNav },
+            annualDiff,
+            monthlyDiff: annualDiff / 12,
+            isWinning: annualDiff <= 0,
+          })
+          setLoading(false)
+          return   // wait for user to click "Show me how" before navigating
+        }
+      }
 
       router.push('/results')
       // Don't setLoading(false) — keep animation visible until navigation unmounts the page
@@ -1246,6 +1445,14 @@ function AnalyseContent() {
       </>
       )}
     </div>
+
+    {/* Comparison popup */}
+    {comparisonData && (
+      <ComparisonPopup
+        data={comparisonData}
+        onContinue={() => { setComparisonData(null); router.push('/results') }}
+      />
+    )}
 
     {/* Salary required popup */}
     {salaryPopup && (
