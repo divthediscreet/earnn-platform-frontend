@@ -232,29 +232,29 @@ function ComparisonPopup({ data, onContinue }: {
   }
   onContinue: () => void
 }) {
-  const [showBox,       setShowBox]       = useState(false)
-  const [showBreakdown, setShowBreakdown] = useState(false)
-  const [showCta,       setShowCta]       = useState(false)
-
   const monthly = Math.round(Math.abs(data.monthlyDiff))
   const annual  = Math.round(Math.abs(data.annualDiff))
   const witty   = getWittyMessage(data.spendNumbers, annual)
   const currentEarns = Math.round(data.currentMonthly)
   const potential    = currentEarns + monthly
   const fillPct      = potential > 0 ? Math.round((currentEarns / potential) * 100) : 0
+  const isSmallGap   = monthly < 100
 
-  useEffect(() => {
-    if (data.isWinning) { setShowBox(true); setShowBreakdown(true); setShowCta(true); return }
-    const t0 = setTimeout(() => setShowBox(true),       700)
-    const t1 = setTimeout(() => setShowBreakdown(true), 1300)
-    const t2 = setTimeout(() => setShowCta(true),       1900)
-    return () => { clearTimeout(t0); clearTimeout(t1); clearTimeout(t2) }
-  }, [])
+  // Contextual annual-loss tagline based on AED value
+  const annualTagline = (() => {
+    if (annual < 1200)  return null  // handled separately
+    if (annual < 2400)  return "That's a new outfit you keep scrolling past every month."
+    if (annual < 4800)  return "That's an iPhone you could be holding right now."
+    if (annual < 7200)  return "That's a flight back home to see your parents. Every year."
+    if (annual < 10000) return "That's a proper holiday — flights, hotel, a few good meals."
+    if (annual < 15000) return "That's a business class seat going to waste."
+    return "That's a car down payment. Walking out the door annually."
+  })()
 
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 2500, background: 'rgba(7,17,43,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}
       onClick={onContinue}>
-      <div style={{ width: '100%', maxWidth: 440, maxHeight: '88vh', overflowY: 'auto', borderRadius: 20, background: '#f0f9fa', position: 'relative' }}
+      <div style={{ width: '100%', maxWidth: 440, maxHeight: '88vh', overflowY: 'auto', borderRadius: 20, background: '#f0f9fa', position: 'relative', animation: 'cmp-fadein 0.5s 2s ease both', opacity: 0, animationFillMode: 'forwards' }}
         onClick={e => e.stopPropagation()}>
       <style>{`
         @keyframes cmp-worry { 0%,100%{transform:rotate(0) translateX(0)} 15%{transform:rotate(-1.5deg) translateX(-2px)} 40%{transform:rotate(1deg) translateX(1px)} 60%{transform:rotate(-2deg) translateX(-1px)} 80%{transform:rotate(1.5deg) translateX(2px)} }
@@ -365,20 +365,29 @@ function ComparisonPopup({ data, onContinue }: {
       </div>
 
       {/* ── LOSING BOX — floats over hero ── */}
-      {showBox && (
-        <div style={{ margin: '-22px 16px 0', background: '#fff', borderRadius: 14, border: '1.5px solid #fcd34d', padding: '20px', textAlign: 'center', animation: 'cmp-boxin .45s ease both', position: 'relative', zIndex: 1 }}>
+      {isSmallGap ? (
+        <div style={{ margin: '-22px 16px 0', background: '#fff', borderRadius: 14, border: '1.5px solid #bbf7d0', padding: '20px', textAlign: 'center', position: 'relative', zIndex: 1 }}>
+          <div style={{ fontSize: 13, color: '#065f46', fontWeight: 600, marginBottom: 6 }}>You&apos;re already on a good card 👍</div>
+          <div style={{ fontSize: 13, color: '#6b7280', marginBottom: 4 }}>
+            You lost <strong style={{ color: '#ea580c' }}>AED {monthly}/month</strong> · AED {annual.toLocaleString('en-AE')}/year
+          </div>
+          <div style={{ fontSize: 12, color: '#9ca3af' }}>Here are a few alternative cards worth looking at.</div>
+        </div>
+      ) : (
+        <div style={{ margin: '-22px 16px 0', background: '#fff', borderRadius: 14, border: '1.5px solid #fcd34d', padding: '20px', textAlign: 'center', position: 'relative', zIndex: 1 }}>
           <div style={{ fontSize: 11, letterSpacing: '.14em', color: '#b45309', marginBottom: 6, fontWeight: 600 }}>EVERY MONTH YOU LOSE</div>
           <div style={{ fontSize: 'clamp(54px,14vw,84px)', fontWeight: 800, color: '#ea580c', lineHeight: 1, letterSpacing: '-3px', fontVariantNumeric: 'tabular-nums' }}>
             {monthly.toLocaleString('en-AE')}
           </div>
           <div style={{ fontSize: 19, color: '#d97706', marginTop: 4, fontWeight: 700 }}>AED</div>
-          <div style={{ fontSize: 12, color: '#9ca3af', marginTop: 6 }}>
-            AED {annual.toLocaleString('en-AE')} every year — that&apos;s a holiday you&apos;re not taking
-          </div>
-          {/* Progress bar: what you earn vs full potential */}
+          {annualTagline && (
+            <div style={{ fontSize: 13, color: '#6b7280', marginTop: 8, lineHeight: 1.5 }}>
+              AED {annual.toLocaleString('en-AE')}/year — {annualTagline}
+            </div>
+          )}
           <div style={{ marginTop: 14 }}>
             <div style={{ height: 7, background: '#fef3c7', borderRadius: 4, overflow: 'hidden' }}>
-              <div style={{ height: '100%', width: `${fillPct}%`, background: '#ea580c', borderRadius: 4, transition: 'width 1s ease' }}/>
+              <div style={{ height: '100%', width: `${fillPct}%`, background: '#ea580c', borderRadius: 4 }}/>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 5 }}>
               <span style={{ fontSize: 10, color: '#9ca3af' }}>Your card earns AED {currentEarns}/mo</span>
@@ -389,7 +398,7 @@ function ComparisonPopup({ data, onContinue }: {
       )}
 
       {/* ── BREAKDOWN ── */}
-      {showBreakdown && data.categoryGaps.filter(g => g.diff > 0 || g.current > 0).length > 0 && (
+      {!isSmallGap && data.categoryGaps.filter(g => g.diff > 0 || g.current > 0).length > 0 && (
         <div style={{ margin: '14px 16px 0', background: '#fffbf0', border: '0.5px solid #fcd34d', borderRadius: 12, padding: '14px 16px', animation: 'cmp-fadein .4s ease both' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 10 }}>
             <span style={{ fontSize: 11, fontWeight: 600, color: '#b45309', letterSpacing: '.06em' }}>WHY? YOUR CARD EARNS:</span>
@@ -419,15 +428,13 @@ function ComparisonPopup({ data, onContinue }: {
       )}
 
       {/* ── CTA ── */}
-      {showCta && (
-        <div style={{ padding: '20px 16px 36px', textAlign: 'center', animation: 'cmp-fadein .4s ease both' }}>
-          <div style={{ fontSize: 18, fontWeight: 700, color: '#7c2d12', marginBottom: 14 }}>Really? 😲</div>
-          <button onClick={onContinue} style={{ width: '100%', padding: 15, background: '#ea580c', border: 'none', borderRadius: 10, color: '#fff', fontSize: 16, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
-            Show me how to fix this →
-          </button>
-          <div style={{ marginTop: 10, fontSize: 12, color: '#9ca3af' }}>Takes less than 30 seconds</div>
-        </div>
-      )}
+      <div style={{ padding: '20px 16px 36px', textAlign: 'center' }}>
+        {!isSmallGap && <div style={{ fontSize: 18, fontWeight: 700, color: '#7c2d12', marginBottom: 14 }}>Really? 😲</div>}
+        <button onClick={onContinue} style={{ width: '100%', padding: 15, background: '#ea580c', border: 'none', borderRadius: 10, color: '#fff', fontSize: 16, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+          {isSmallGap ? 'Show me the alternatives →' : 'Show me how to fix this →'}
+        </button>
+        <div style={{ marginTop: 10, fontSize: 12, color: '#9ca3af' }}>Takes less than 30 seconds</div>
+      </div>
 
       {/* ── Winning variant (replaces everything above) ── */}
       {data.isWinning && (
