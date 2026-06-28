@@ -658,11 +658,12 @@ function AnalyseContent() {
       if (currentCardId) {
         const scoredCards: any[] = result.scored_cards || []
         const heroCard         = scoredCards[0]
-        const currentInResults = scoredCards.find((c: any) => c.earnn_card_id === currentCardId)
+        // Card may be filtered out by salary — still show comparison with 0 current earnings
+        const currentInResults = scoredCards.find((c: any) => c.earnn_card_id === currentCardId) ?? null
 
-        if (heroCard && currentInResults) {
-          const heroCatRewards:    Record<string, number> = heroCard.category_monthly_rewards    || {}
-          const currentCatRewards: Record<string, number> = currentInResults.category_monthly_rewards || {}
+        if (heroCard) {
+          const heroCatRewards:    Record<string, number> = heroCard.category_monthly_rewards || {}
+          const currentCatRewards: Record<string, number> = currentInResults?.category_monthly_rewards || {}
           const catLabelMap: Record<string, string> = Object.fromEntries(CATEGORIES.map(c => [c.key, c.label]))
 
           const categoryGaps = Object.entries(heroCatRewards)
@@ -674,8 +675,8 @@ function AnalyseContent() {
             .filter(g => g.diff > 0 || g.current > 0)
             .sort((a, b) => b.diff - a.diff)
 
-          const heroMonthly    = heroCard.gross_monthly_rewards_aed    ?? 0
-          const currentMonthly = currentInResults.gross_monthly_rewards_aed ?? 0
+          const heroMonthly    = heroCard.gross_monthly_rewards_aed ?? 0
+          const currentMonthly = currentInResults?.gross_monthly_rewards_aed ?? 0
           const monthlyDiff    = heroMonthly - currentMonthly
 
           setComparisonData({
