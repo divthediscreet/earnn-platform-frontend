@@ -23,8 +23,11 @@ export function pingBackend() {
 export async function scoreCards(
   spend: Record<string, number>,
   merchantPrefs?: Record<string, string[]>,
+  userSalary?: number,
 ) {
-  const body = merchantPrefs ? { ...spend, merchant_prefs: merchantPrefs } : spend
+  const body: Record<string, any> = { ...spend }
+  if (merchantPrefs) body.merchant_prefs = merchantPrefs
+  if (userSalary && userSalary > 0) body.user_salary = userSalary
   const res = await fetch(`${API_BASE}/api/rewards/score`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -34,11 +37,13 @@ export async function scoreCards(
   return res.json()
 }
 
-export async function getOptimalWallet(spend: Record<string, number>) {
+export async function getOptimalWallet(spend: Record<string, number>, userSalary?: number) {
+  const body: Record<string, any> = { ...spend }
+  if (userSalary && userSalary > 0) body.user_salary = userSalary
   const res = await fetch(`${API_BASE}/api/rewards/wallet`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(spend),
+    body: JSON.stringify(body),
   })
   if (!res.ok) throw new Error(`Wallet failed: ${res.statusText}`)
   return res.json()

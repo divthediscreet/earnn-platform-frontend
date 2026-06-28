@@ -218,6 +218,7 @@ function AnalyseContent() {
   })
   const [merchantPrefs, setMerchantPrefs] = useState<Record<string, string[]>>({})
   const [salary, setSalary] = useState('')
+  const [salaryPopup, setSalaryPopup] = useState(false)
   const [preference, setPreference] = useState<'cashback' | 'miles'>('cashback')
   const fileRef = useRef<HTMLInputElement>(null)
 
@@ -354,6 +355,8 @@ function AnalyseContent() {
   // Manual path
   const handleManual = async () => {
     if (totalMonthly <= 0) return setError('Enter at least one spend category')
+    const salaryNum = parseFloat(salary) || 0
+    if (salaryNum <= 0) { setSalaryPopup(true); return }
     setLoadingType('score'); setLoading(true); setError('')
     try {
       const spendNumbers = Object.fromEntries(Object.entries(spend).map(([k, v]) => [k, parseFloat(v) || 0]))
@@ -361,8 +364,8 @@ function AnalyseContent() {
         Object.entries(merchantPrefs).filter(([, v]) => v.length > 0)
       )
       const [result, walletData] = await Promise.all([
-        scoreCards(spendNumbers, Object.keys(activeMerchantPrefs).length > 0 ? activeMerchantPrefs : undefined),
-        getOptimalWallet(spendNumbers),
+        scoreCards(spendNumbers, Object.keys(activeMerchantPrefs).length > 0 ? activeMerchantPrefs : undefined, salaryNum),
+        getOptimalWallet(spendNumbers, salaryNum),
         new Promise(res => setTimeout(res, 7000)),  // minimum 7s hold
       ])
       sessionStorage.setItem('earnn_result', JSON.stringify({
@@ -1031,13 +1034,20 @@ function AnalyseContent() {
 
           {/* Salary + Preference quick row */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
-            <div style={{ background: 'white', border: '0.5px solid #D6E0F5', borderRadius: 12, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div
+              onClick={() => { if (!salary) setSalaryPopup(true) }}
+              style={{ background: 'white', border: `0.5px solid ${salary ? '#00A67E' : '#F0A500'}`, borderRadius: 12, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12, cursor: salary ? 'default' : 'pointer' }}>
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 12, color: '#9DAEC8', marginBottom: 4 }}>Monthly salary (optional)</div>
+                <div style={{ fontSize: 12, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ color: salary ? '#00A67E' : '#F0A500', fontWeight: 600 }}>Monthly salary</span>
+                  {!salary && <span style={{ fontSize: 10, background: '#FFF3CD', color: '#856404', borderRadius: 4, padding: '1px 6px', fontWeight: 600 }}>REQUIRED</span>}
+                </div>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
                   <span style={{ fontSize: 12, color: '#9DAEC8' }}>AED</span>
-                  <input type="number" min="0" placeholder="e.g. 15000" value={salary}
+                  <input
+                    type="number" min="0" placeholder="e.g. 15000" value={salary}
                     onChange={e => setSalary(e.target.value)}
+                    onClick={e => e.stopPropagation()}
                     style={{ border: 'none', outline: 'none', fontSize: 16, fontWeight: 500, color: '#0D1828', width: '100%', background: 'transparent' }}
                   />
                 </div>
@@ -1236,6 +1246,34 @@ function AnalyseContent() {
       </>
       )}
     </div>
+
+    {/* Salary required popup */}
+    {salaryPopup && (
+      <div style={{ position: 'fixed', inset: 0, zIndex: 1300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}
+        onClick={() => setSalaryPopup(false)}>
+        <div style={{ position: 'absolute', inset: 0, background: 'rgba(7,17,43,0.5)', backdropFilter: 'blur(4px)' }} />
+        <div style={{ position: 'relative', background: 'white', borderRadius: 16, padding: '32px 28px', maxWidth: 380, width: '100%', textAlign: 'center', boxShadow: '0 24px 64px rgba(0,0,0,0.25)' }}
+          onClick={e => e.stopPropagation()}>
+          <div style={{ fontSize: 36, marginBottom: 12 }}>💰</div>
+          <div style={{ fontSize: 18, fontWeight: 800, color: '#0D1828', marginBottom: 8 }}>Monthly salary required</div>
+          <div style={{ fontSize: 14, color: '#5A6A85', lineHeight: 1.6, marginBottom: 24 }}>
+            We need your monthly salary to filter out cards you don&apos;t qualify for, so results are accurate for you.
+          </div>
+          <input
+            type="number" min="0" placeholder="Enter monthly salary (AED)"
+            value={salary}
+            onChange={e => setSalary(e.target.value)}
+            autoFocus
+            style={{ width: '100%', padding: '12px 16px', border: '2px solid #0E3785', borderRadius: 10, fontSize: 16, outline: 'none', color: '#0D1828', marginBottom: 16, boxSizing: 'border-box', textAlign: 'center' }}
+          />
+          <button
+            onClick={() => { if (parseFloat(salary) > 0) setSalaryPopup(false) }}
+            style={{ width: '100%', padding: '13px', background: parseFloat(salary) > 0 ? '#0E3785' : '#D6E0F5', color: parseFloat(salary) > 0 ? 'white' : '#9DAEC8', border: 'none', borderRadius: 10, fontSize: 15, fontWeight: 700, cursor: parseFloat(salary) > 0 ? 'pointer' : 'not-allowed' }}>
+            Confirm salary
+          </button>
+        </div>
+      </div>
+    )}
     </div>
   )
 }
