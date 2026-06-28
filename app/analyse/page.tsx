@@ -316,7 +316,7 @@ function ComparisonPopup({ data, onContinue }: {
       {phase !== 'count' && (
         <div style={{ textAlign: 'center', marginBottom: 32, animation: 'fadeUp 0.5s ease both' }}>
           {data.isWinning ? (
-            <div style={{ fontSize: 20, color: '#00A67E', fontWeight: 700 }}>You&apos;re already on the right card 🎉</div>
+            <div style={{ fontSize: 20, color: '#00A67E', fontWeight: 700 }}>You already have a very good card — see more options for your spend 👀</div>
           ) : (
             <>
               <div style={{ fontSize: 'clamp(15px,2.5vw,20px)', color: 'rgba(255,255,255,0.6)', lineHeight: 1.6, marginBottom: 10 }}>
@@ -340,7 +340,7 @@ function ComparisonPopup({ data, onContinue }: {
           animation: 'fadeUp 0.5s ease both, pulse 2s 0.5s ease infinite',
           letterSpacing: '-0.2px',
         }}>
-          {data.isWinning ? 'See full rankings →' : 'Show me how to fix this →'}
+          {data.isWinning ? 'See all options for me →' : 'Show me how to fix this →'}
         </button>
       ) : (
         <div style={{ height: 52 }} />
