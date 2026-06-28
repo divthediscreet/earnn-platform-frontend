@@ -579,7 +579,7 @@ function Screen1Hero({ scoredCards, walletData, onNext, onExplore }: {
               <div>
                 <div className="text-sm text-primary-foreground/70">Monthly Money Back</div>
                 <div className="mt-1 flex items-baseline gap-2 tabular">
-                  <span className="font-display text-5xl font-bold sm:text-6xl" style={{ color: '#F5D76E' }}>AED {fmt(Math.round(rec.net_annual_value_aed / 12))}</span>
+                  <span className="font-display text-5xl font-bold sm:text-6xl" style={{ color: '#F5D76E' }}>AED {fmt(Math.round(rec.gross_annual_aed / 12))}</span>
                   <span className="text-base" style={{ color: 'rgba(245,215,110,0.75)' }}>/ month</span>
                 </div>
                 <div className="mt-2 inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium" style={{ background: 'rgba(255,255,255,0.10)', border: '1px solid rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.70)' }}>
