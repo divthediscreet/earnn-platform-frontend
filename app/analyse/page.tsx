@@ -207,6 +207,7 @@ function AnalyseContent() {
   const [pickerSelectedBank, setPickerSelectedBank] = useState('')
   const [pickerBankCards, setPickerBankCards] = useState<any[]>([])
   const [pickerBankCardsLoading, setPickerBankCardsLoading] = useState(false)
+  const [pickerCardSearch, setPickerCardSearch] = useState('')
 
   // Upload button is enabled only when: file selected AND password choice made
   const uploadReady = !!file && (passwordMode === 'none' || (passwordMode === 'has_password' && password.trim().length > 0))
@@ -293,7 +294,8 @@ function AnalyseContent() {
 
   // Load cards for selected bank
   useEffect(() => {
-    if (!pickerSelectedBank) { setPickerBankCards([]); return }
+    if (!pickerSelectedBank) { setPickerBankCards([]); setPickerCardSearch(''); return }
+    setPickerCardSearch('')
     setPickerBankCardsLoading(true)
     fetchCards({ bank: pickerSelectedBank, limit: 100 })
       .then(d => setPickerBankCards(d.cards || []))
@@ -693,13 +695,28 @@ function AnalyseContent() {
 
               {/* Card list with images — appears when bank is selected */}
               {pickerSelectedBank && (
-                <div style={{ maxHeight: 320, overflowY: 'auto' }}>
+                <>
+                  {/* Search box */}
+                  <div style={{ padding: '10px 16px', borderBottom: '1px solid #D6E0F5', background: 'white' }}>
+                    <input
+                      type="text"
+                      placeholder="Search card name…"
+                      value={pickerCardSearch}
+                      onChange={e => setPickerCardSearch(e.target.value)}
+                      autoFocus
+                      style={{ width: '100%', padding: '8px 12px', border: '1.5px solid #D6E0F5', borderRadius: 8, fontSize: 13, outline: 'none', color: '#0D1828', boxSizing: 'border-box' }}
+                    />
+                  </div>
+                  <div style={{ maxHeight: 280, overflowY: 'auto' }}>
                   {pickerBankCardsLoading ? (
                     <div style={{ padding: '20px 16px', textAlign: 'center', fontSize: 13, color: '#9DAEC8' }}>Loading cards…</div>
                   ) : pickerBankCards.length === 0 ? (
                     <div style={{ padding: '20px 16px', textAlign: 'center', fontSize: 13, color: '#9DAEC8' }}>No cards found for this bank</div>
-                  ) : (
-                    pickerBankCards.map((card, i) => (
+                  ) : (() => {
+                    const filtered = pickerBankCards.filter(c => !pickerCardSearch || c.card_name?.toLowerCase().includes(pickerCardSearch.toLowerCase()))
+                    return filtered.length === 0
+                      ? <div style={{ padding: '20px 16px', textAlign: 'center', fontSize: 13, color: '#9DAEC8' }}>No cards match &ldquo;{pickerCardSearch}&rdquo;</div>
+                      : filtered.map((card, i) => (
                       <div
                         key={card.earnn_card_id}
                         onClick={() => {
@@ -707,11 +724,12 @@ function AnalyseContent() {
                           setCurrentCardInfo({ card_name: card.card_name, bank_name: card.bank_name })
                           setCardPickerOpen(false)
                           setPickerSelectedBank('')
+                          setPickerCardSearch('')
                         }}
                         style={{
                           display: 'flex', alignItems: 'center', gap: 14,
                           padding: '10px 16px', cursor: 'pointer',
-                          borderBottom: i < pickerBankCards.length - 1 ? '1px solid #EEF3FF' : 'none',
+                          borderBottom: i < filtered.length - 1 ? '1px solid #EEF3FF' : 'none',
                           background: 'white', transition: 'background 0.15s',
                         }}
                         onMouseEnter={e => (e.currentTarget.style.background = '#EEF3FF')}
@@ -729,8 +747,9 @@ function AnalyseContent() {
                         </div>
                       </div>
                     ))
-                  )}
+                  })()}
                 </div>
+                </>
               )}
             </div>
           )}
