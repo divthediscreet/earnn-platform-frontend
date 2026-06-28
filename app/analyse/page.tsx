@@ -10,31 +10,24 @@ const BANK_ABBREV: Record<string, string> = {
   'Abu Dhabi Commercial Bank':           'ADCB',
   'Abu Dhabi Islamic Bank':              'ADIB',
   'Dubai Islamic Bank':                  'DIB',
+  'Emirates Islamic Bank':               'EIB',
   'Commercial Bank of Dubai':            'CBD',
-  'National Bank of Fujairah':           'NBF',
-  'Union National Bank':                 'UNB',
-  'National Bank of Ras Al Khaimah':     'RAK',
-  'Standard Chartered':                  'SCB',
-  'Standard Chartered Bank':             'SCB',
-  'Commercial Bank International':       'CBI',
   'Sharjah Islamic Bank':                'SIB',
-  'National Bank of Umm Al Qaiwain':     'NBQ',
-  'American Express':                    'AMEX',
-  'Noor Bank':                           'NOOR',
-  'Noor Islamic Bank':                   'NOOR',
-  'Invest Bank':                         'INVEST',
-  'Ajman Bank':                          'AJMAN',
+  'Standard Chartered Bank':             'SCB',
+  'Citibank Bank UAE':                   'CITI',
+  'The National Bank of Ras Al Khaimah': 'RAK',
 }
 
+const BANK_NO_ABBREV = new Set([
+  'First Abu Dhabi Bank PJSC',
+  'Ajman Bank',
+  'HSBC Middle East Limited',
+])
+
 const formatBankName = (name: string) => {
+  if (BANK_NO_ABBREV.has(name)) return name
   const abbrev = BANK_ABBREV[name]
   if (abbrev) return `${name} (${abbrev})`
-  // Auto-abbreviate any bank name with 3+ words that isn't in the map
-  const words = name.trim().split(/\s+/)
-  if (words.length >= 3) {
-    const auto = words.map(w => w[0]).join('').toUpperCase()
-    return `${name} (${auto})`
-  }
   return name
 }
 
