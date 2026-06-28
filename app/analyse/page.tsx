@@ -633,6 +633,16 @@ function AnalyseContent() {
       {showReview && reviewData && !proceedLoading && (
         <div style={{ background: 'white', borderRadius: 20, border: '1px solid #D6E0F5', padding: 40, boxShadow: '0 4px 24px rgba(14,55,133,0.08)' }}>
 
+          {/* Back to upload */}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
+            <button
+              onClick={() => { setShowReview(false); setReviewData(null); setFile(null); setPasswordMode(null); setPassword(''); setError(''); setMode('upload') }}
+              style={{ background: 'none', border: '1px solid #D6E0F5', borderRadius: 8, padding: '7px 16px', fontSize: 13, fontWeight: 600, color: '#5A6A85', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
+            >
+              ← Upload another statement
+            </button>
+          </div>
+
           {/* Card detection banner */}
           <div style={{
             display: 'flex', alignItems: 'center', gap: 16, marginBottom: 28,
