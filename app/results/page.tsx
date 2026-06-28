@@ -149,10 +149,7 @@ function calcCoverage(cardIds: string[], scoredCards: ScoredCard[], userSpend: R
   for (const cat of SPEND_CATS) {
     const spend = userSpend[cat] ?? 0
     if (spend <= 0) continue
-    const anyCardCovers = cards.some(c =>
-      (c.category_effective_rates[cat] ?? 0) > 0 ||
-      (c.category_effective_rates['all_spend'] ?? 0) > 0
-    )
+    const anyCardCovers = cards.some(c => (c.category_effective_rates[cat] ?? 0) > 0)
     if (anyCardCovers) covered += spend
   }
   return Math.round((covered / total) * 100)
