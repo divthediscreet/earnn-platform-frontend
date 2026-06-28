@@ -190,6 +190,37 @@ function ParseDataDebug({ data }: { data: any }) {
 // COMPARISON POPUP — shown after scoring, before results page
 // =============================================================================
 
+function getWittyMessage(spend: Record<string, number>, annualLoss: number): { emoji: string; line1: string; line2: string } {
+  const total = Object.values(spend).reduce((s, v) => s + v, 0)
+  if (total === 0) return { emoji: '💸', line1: 'Your wallet has been busy.', line2: `And silently losing AED ${Math.round(annualLoss).toLocaleString('en-AE')} a year.` }
+
+  const top = Object.entries(spend)
+    .filter(([, v]) => v > 0)
+    .sort(([, a], [, b]) => b - a)[0]
+
+  const pct = top ? (top[1] / total) * 100 : 0
+  const cat = top?.[0] || ''
+
+  const msgs: Record<string, { emoji: string; line1: string; line2: string }> = {
+    dining:        { emoji: '🍕', line1: 'Seems like you hate cooking... totally valid.', line2: `But your card? It's been eating your rewards for free.` },
+    grocery:       { emoji: '🛒', line1: 'Feeding a small army, or just really into meal prep?', line2: `Either way, your card is not doing its job at the checkout.` },
+    travel:        { emoji: '✈️', line1: 'Passport full, rewards empty.', line2: `All those flights and hotels — and your card's just along for the ride.` },
+    fuel:          { emoji: '⛽', line1: 'You've basically funded ENOC single-handedly.', line2: `Your car gets premium fuel. Your rewards? Running on empty.` },
+    online:        { emoji: '📦', line1: 'The delivery guy knows your name by now.', line2: `But your card doesn't know how to reward online shopping properly.` },
+    international: { emoji: '🌍', line1: 'Living the global life — spending in currencies your card barely understands.', line2: `Those foreign transaction fees aren't the only thing draining you.` },
+    entertainment: { emoji: '🎬', line1: 'VOX, Reel, Global Village — you live for the experience.', line2: `But your card is sitting in the dark with zero rewards.` },
+    retail:        { emoji: '🛍️', line1: 'The malls of Dubai thank you personally.', line2: `Your card, though? Not quite keeping up with your lifestyle.` },
+    telecom:       { emoji: '📱', line1: 'Always connected. Except to the right credit card.', line2: `Etisalat and du love you. Your rewards? Dial tone.` },
+    transport:     { emoji: '🚕', line1: 'Careem's ride rating: ⭐⭐⭐⭐⭐. Your card's reward rating: 😐', line2: `All those rides, and nothing to show for it.` },
+    utility:       { emoji: '💡', line1: 'Keeping the lights on, the AC running, the DEWA bill climbing.', line2: `Essential spending — but your card's treating it like it doesn't count.` },
+    education:     { emoji: '📚', line1: 'Investing in brains. Except the one choosing your card.', line2: `Your tuition fees deserve better reward treatment.` },
+    miscellaneous: { emoji: '🎲', line1: 'A little bit of everything — and your card rewards? Also a little bit of nothing.', line2: `Turns out "misc" doesn't have to mean missed rewards.` },
+  }
+
+  const msg = msgs[cat] || { emoji: '💸', line1: 'Your spending pattern is unique.', line2: `Your card, however, is uniquely bad at rewarding it.` }
+  return msg
+}
+
 function ComparisonPopup({ data, onContinue }: {
   data: {
     monthlyDiff:    number
@@ -197,20 +228,24 @@ function ComparisonPopup({ data, onContinue }: {
     currentMonthly: number
     isWinning:      boolean
     categoryGaps:   { label: string; current: number; diff: number }[]
+    spendNumbers:   Record<string, number>
   }
   onContinue: () => void
 }) {
-  const [showWhy, setShowWhy] = useState(false)
-  const [showCta, setShowCta] = useState(false)
+  const [showLoss, setShowLoss] = useState(false)
+  const [showWhy,  setShowWhy]  = useState(false)
+  const [showCta,  setShowCta]  = useState(false)
 
   const monthly = Math.round(Math.abs(data.monthlyDiff))
   const annual  = Math.round(Math.abs(data.annualDiff))
+  const witty   = getWittyMessage(data.spendNumbers, annual)
 
   useEffect(() => {
-    if (data.isWinning) { setShowWhy(true); setShowCta(true); return }
-    const t1 = setTimeout(() => setShowWhy(true), 600)
-    const t2 = setTimeout(() => setShowCta(true), 1000)
-    return () => { clearTimeout(t1); clearTimeout(t2) }
+    if (data.isWinning) { setShowLoss(true); setShowWhy(true); setShowCta(true); return }
+    const t0 = setTimeout(() => setShowLoss(true), 1400)
+    const t1 = setTimeout(() => setShowWhy(true),  2200)
+    const t2 = setTimeout(() => setShowCta(true),  2800)
+    return () => { clearTimeout(t0); clearTimeout(t1); clearTimeout(t2) }
   }, [])
 
   return (
@@ -229,22 +264,36 @@ function ComparisonPopup({ data, onContinue }: {
 
         {!data.isWinning ? (
           <>
-            {/* Main loss statement */}
-            <div style={{ animation: 'cmp-up 0.5s ease both', marginBottom: 8 }}>
-              <div style={{ fontSize: 'clamp(22px,5vw,32px)', fontWeight: 800, color: 'white', lineHeight: 1.3 }}>
-                💸 You&apos;re losing{' '}
-                <span style={{ color: '#FFD700' }}>AED {monthly.toLocaleString('en-AE')}</span>{' '}
-                every month
+            {/* Witty personalised intro */}
+            <div style={{ marginBottom: 28, animation: 'cmp-up 0.5s ease both' }}>
+              <div style={{ fontSize: 40, marginBottom: 14 }}>{witty.emoji}</div>
+              <div style={{ fontSize: 'clamp(18px,4vw,24px)', fontWeight: 700, color: 'white', lineHeight: 1.4, marginBottom: 8 }}>
+                {witty.line1}
+              </div>
+              <div style={{ fontSize: 'clamp(14px,3vw,17px)', color: 'rgba(255,255,255,0.5)', lineHeight: 1.5 }}>
+                {witty.line2}
               </div>
             </div>
 
-            {/* Annual */}
-            <div style={{ fontSize: 16, color: 'rgba(255,255,255,0.4)', marginBottom: 32, animation: 'cmp-up 0.5s 0.1s ease both', opacity: 0, animationFillMode: 'forwards' }}>
-              AED {annual.toLocaleString('en-AE')}/year
-            </div>
+            {/* Divider */}
+            <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', marginBottom: 24 }} />
+
+            {/* Main loss statement */}
+            {showLoss && (
+              <div style={{ animation: 'cmp-up 0.5s ease both', marginBottom: 8 }}>
+                <div style={{ fontSize: 'clamp(22px,5vw,30px)', fontWeight: 800, color: 'white', lineHeight: 1.3 }}>
+                  💸 You&apos;re losing{' '}
+                  <span style={{ color: '#FFD700' }}>AED {monthly.toLocaleString('en-AE')}</span>{' '}
+                  every month
+                </div>
+                <div style={{ fontSize: 15, color: 'rgba(255,255,255,0.4)', marginTop: 6 }}>
+                  AED {annual.toLocaleString('en-AE')}/year
+                </div>
+              </div>
+            )}
 
             {/* Divider */}
-            <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', marginBottom: 24 }} />
+            {showWhy && <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', margin: '20px 0' }} />}
 
             {/* Why breakdown */}
             {showWhy && data.categoryGaps.length > 0 && (
@@ -279,7 +328,7 @@ function ComparisonPopup({ data, onContinue }: {
               </div>
             )}
 
-            {/* Divider */}
+            {/* Divider before CTA */}
             {showCta && <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', marginBottom: 28 }} />}
 
             {/* CTA */}
@@ -503,6 +552,7 @@ function AnalyseContent() {
     currentMonthly: number
     isWinning:      boolean
     categoryGaps:   { label: string; current: number; diff: number }[]
+    spendNumbers:   Record<string, number>
   } | null>(null)
 
   // Manual path
@@ -563,6 +613,7 @@ function AnalyseContent() {
             currentMonthly,
             isWinning:    monthlyDiff <= 0,
             categoryGaps,
+            spendNumbers,
           })
           setLoading(false)
           return
