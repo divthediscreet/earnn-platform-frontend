@@ -1580,7 +1580,7 @@ function AnalyseContent() {
           <div style={{ fontSize: 36, marginBottom: 12 }}>🎯</div>
           <div style={{ fontSize: 18, fontWeight: 800, color: '#0D1828', marginBottom: 8 }}>One quick thing</div>
           <div style={{ fontSize: 14, color: '#5A6A85', lineHeight: 1.6, marginBottom: 24 }}>
-            Your salary helps us personalise the best cards for you — so you only see options that are actually available to you.
+            Your salary helps us personalise the best cards for you. Help earnn to serve you best.
           </div>
           <input
             type="number" min="0" placeholder="Monthly salary (AED)"
