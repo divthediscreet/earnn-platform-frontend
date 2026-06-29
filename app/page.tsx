@@ -86,7 +86,7 @@ export default function HomePage() {
             Stop Using the<br />Wrong Credit Card.
           </h1>
           <p style={{ fontSize: 'clamp(17px, 2vw, 20px)', color: 'rgba(255,255,255,0.75)', lineHeight: 1.7, marginBottom: 44, maxWidth: 660, margin: '0 auto 44px' }}>
-            Earnn shows which cards maximise rewards for your actual spending habits.
+            Earnn shows which cards maximise rewards for your actual spending habits. Upload a PDF. Get your results. That&apos;s it.
           </p>
           <div style={{ display: 'flex', gap: 16, justifyContent: 'center', flexWrap: 'wrap' }}>
             <Link href="/analyse" style={{ background: 'linear-gradient(90deg, #F5C842, #D4A017)', color: '#0E3785', padding: '16px 36px', borderRadius: 10, fontSize: 16, fontWeight: 700, textDecoration: 'none', boxShadow: '0 10px 30px rgba(212,160,23,0.4)' }}>
@@ -167,7 +167,7 @@ export default function HomePage() {
               </p>
             </div>
             <p style={{ fontSize: 15, color: '#5A6A85', lineHeight: 1.7, maxWidth: 560, margin: '0 auto' }}>
-              Upload a PDF. Get your results. That&apos;s it. No account linking, no credentials, no risk.
+              No account linking, no credentials, no risk.
             </p>
           </div>
 
