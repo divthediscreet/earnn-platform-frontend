@@ -690,7 +690,7 @@ function AnalyseContent() {
             categoryGaps,
             spendNumbers,
           })
-          setLoading(false)
+          // Keep loading animation running — popup appears on top, navigation happens on CTA click
           return
         }
       }
