@@ -24,10 +24,12 @@ const HOW_IT_WORKS = [
 ]
 
 const SECURITY_POINTS = [
-  { icon: '🕵️', title: 'Redacted before upload', desc: 'Card & personal details stripped before analysis.' },
-  { icon: '🗑️', title: 'Nothing stored', desc: 'Your statement is deleted right after your results.' },
-  { icon: '🇦🇪', title: 'UAE-based & compliant', desc: 'Processed within UAE, aligned with CBUAE guidelines.' },
-  { icon: '🚫', title: 'Zero bank access', desc: 'No linking, no account — just a PDF and your answer.' },
+  { icon: '✅', title: 'Processed on UAE servers', desc: 'Your data never leaves the UAE. All analysis runs on UAE-based infrastructure.' },
+  { icon: '✅', title: 'Card numbers automatically redacted', desc: 'We strip card and personal details before any analysis begins.' },
+  { icon: '✅', title: 'No bank credentials required', desc: 'We never ask for your online banking password. Ever.' },
+  { icon: '✅', title: 'Statement deleted after analysis', desc: 'Your PDF is permanently deleted the moment your results are ready.' },
+  { icon: '✅', title: 'No selling of personal data', desc: 'We do not sell, share, or monetise your financial data. Full stop.' },
+  { icon: '✅', title: 'Read-only analysis', desc: 'earnn can only read your statement. We cannot move money or access your account.' },
 ]
 
 function DataGridBackdrop() {
@@ -151,28 +153,32 @@ export default function HomePage() {
       </section>
 
       {/* SECURITY */}
-      <section style={{ padding: '112px 24px', background: 'white' }}>
-        <div style={{ maxWidth: 1152, margin: '0 auto', display: 'grid', gridTemplateColumns: '1fr 1.3fr', gap: 48, alignItems: 'center' }}>
-          <div>
-            <div style={{ fontSize: 13, fontWeight: 700, color: '#3D6FD6', letterSpacing: '0.08em', marginBottom: 12 }}>SECURITY</div>
+      <section style={{ padding: '112px 24px', background: '#F8FAFF', borderTop: '1px solid #E7ECF5', borderBottom: '1px solid #E7ECF5' }}>
+        <div style={{ maxWidth: 860, margin: '0 auto' }}>
+          <div style={{ textAlign: 'center', marginBottom: 48 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: '#3D6FD6', letterSpacing: '0.08em', marginBottom: 12 }}>SECURITY &amp; PRIVACY</div>
             <h2 style={{ fontSize: 'clamp(30px, 4vw, 44px)', fontWeight: 600, color: '#0A1A33', marginBottom: 16, lineHeight: 1.2 }}>
-              Bank-level security.<br /><span style={{ background: 'linear-gradient(90deg,#0E3785,#4E83E0)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>Privacy first.</span>
+              Your statement. Your control.
             </h2>
-            <p style={{ fontSize: 15, color: '#5A6A85', lineHeight: 1.7, marginBottom: 24 }}>
-              Earnn is built on the same security primitives that protect global financial infrastructure. Your data stays yours — encrypted, isolated, and visible only to you.
-            </p>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
-              {['CBUAE-aligned', 'No data stored', 'No bank linking', 'UAE servers only'].map(t => (
-                <span key={t} style={{ fontSize: 12, fontWeight: 600, color: '#5A6A85', border: '1px solid #E7ECF5', borderRadius: 100, padding: '6px 14px' }}>{t}</span>
-              ))}
+            {/* The single most trust-building sentence */}
+            <div style={{ display: 'inline-block', background: '#0E3785', borderRadius: 10, padding: '14px 28px', marginBottom: 20 }}>
+              <p style={{ fontSize: 16, fontWeight: 700, color: '#FFD700', margin: 0 }}>
+                We never ask for your online banking password.
+              </p>
             </div>
+            <p style={{ fontSize: 15, color: '#5A6A85', lineHeight: 1.7, maxWidth: 560, margin: '0 auto' }}>
+              Upload a PDF. Get your results. That&apos;s it. No account linking, no credentials, no risk.
+            </p>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16 }}>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 14 }}>
             {SECURITY_POINTS.map((s, i) => (
-              <div key={i} style={{ background: '#F8FAFF', border: '1px solid #E7ECF5', borderRadius: 14, padding: 24 }}>
-                <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#EEF3FF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, marginBottom: 14 }}>{s.icon}</div>
-                <div style={{ fontSize: 15, fontWeight: 700, color: '#0A1A33', marginBottom: 6 }}>{s.title}</div>
-                <div style={{ fontSize: 13, color: '#5A6A85', lineHeight: 1.6 }}>{s.desc}</div>
+              <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 14, background: 'white', border: '1px solid #E7ECF5', borderRadius: 12, padding: '18px 20px' }}>
+                <span style={{ fontSize: 18, flexShrink: 0, marginTop: 1 }}>{s.icon}</span>
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: '#0A1A33', marginBottom: 4 }}>{s.title}</div>
+                  <div style={{ fontSize: 13, color: '#5A6A85', lineHeight: 1.6 }}>{s.desc}</div>
+                </div>
               </div>
             ))}
           </div>
