@@ -956,20 +956,6 @@ function AnalyseContent() {
 
         </div>
 
-        {/* Trust tiles — outside the constrained div, full hero width */}
-        <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'nowrap', marginTop: 24, position: 'relative' }}>
-          {[
-            { icon: '🛡️', label: 'No bank login required' },
-            { icon: '✂️', label: 'Card details automatically redacted' },
-            { icon: '🇦🇪', label: 'UAE-hosted & encrypted' },
-            { icon: '🗑️', label: 'Statement deleted after analysis' },
-          ].map((t, i) => (
-            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 8, padding: '8px 16px' }}>
-              <span style={{ fontSize: 16, flexShrink: 0 }}>{t.icon}</span>
-              <span style={{ fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,0.85)', whiteSpace: 'nowrap' }}>{t.label}</span>
-            </div>
-          ))}
-        </div>
       </section>
 
     <div style={{ maxWidth: 860, margin: '0 auto', padding: '24px 24px' }}>
@@ -978,9 +964,20 @@ function AnalyseContent() {
         <h1 style={{ fontSize: 'clamp(28px, 4vw, 40px)', fontWeight: 800, color: '#0E3785', marginBottom: 12 }}>
           Analyse Your Spending
         </h1>
-        <p style={{ fontSize: 17, color: '#5A6A85' }}>
-          Choose how you want to get started — upload takes 60 seconds, manual takes 2 minutes.
-        </p>
+        {/* Trust tiles */}
+        <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'nowrap', marginTop: 12 }}>
+          {[
+            { icon: '🛡️', label: 'No bank login required' },
+            { icon: '✂️', label: 'Card details automatically redacted' },
+            { icon: '🇦🇪', label: 'UAE-hosted & encrypted' },
+            { icon: '🗑️', label: 'Statement deleted after analysis' },
+          ].map((t, i) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#EEF3FF', border: '1px solid #D6E0F5', borderRadius: 8, padding: '7px 14px' }}>
+              <span style={{ fontSize: 15, flexShrink: 0 }}>{t.icon}</span>
+              <span style={{ fontSize: 12, fontWeight: 600, color: '#0E3785', whiteSpace: 'nowrap' }}>{t.label}</span>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* PROCEED LOADING SCREEN */}
