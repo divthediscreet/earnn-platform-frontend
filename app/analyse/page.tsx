@@ -948,7 +948,7 @@ function AnalyseContent() {
             UAE's smartest credit card rewards engine
           </div>
           <h1 style={{ fontSize: 'clamp(36px, 6vw, 64px)', fontWeight: 800, lineHeight: 1.1, marginBottom: 14, color: 'white' }}>
-            Discover how much reward you&apos;re <span style={{ color: '#FFD700' }}>missing.</span>
+            Discover how much reward<br /><span style={{ color: '#FFD700' }}>you&apos;re missing.</span>
           </h1>
           <p style={{ fontSize: 'clamp(15px, 2vw, 17px)', color: 'rgba(255,255,255,0.8)', lineHeight: 1.6, marginBottom: 0, maxWidth: 780, margin: '0 auto' }}>
             Upload your UAE credit card statement, we show you exactly which card earns you the most rewards based on your actual spending.
