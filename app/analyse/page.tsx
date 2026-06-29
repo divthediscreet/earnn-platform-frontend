@@ -1238,6 +1238,7 @@ function AnalyseContent() {
 
       {/* UPLOAD PATH */}
       {mode === 'upload' && (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, alignItems: 'start' }}>
         <div style={{ background: 'white', borderRadius: 16, border: '0.5px solid #D6E0F5', padding: '20px 24px', boxShadow: '0 2px 12px rgba(14,55,133,0.06)' }}>
 
           {/* File row */}
@@ -1315,12 +1316,6 @@ function AnalyseContent() {
             )}
           </div>
 
-          {/* Privacy note */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 16 }}>
-            <span style={{ fontSize: 12, flexShrink: 0 }}>🔒</span>
-            <span style={{ fontSize: 11, color: '#9DAEC8' }}>Bank-grade encryption · we never store your statement or personal information</span>
-          </div>
-
           {error && <div style={{ background: '#FFF3F0', border: '1px solid #FFD0C8', borderRadius: 8, padding: '10px 14px', color: '#C0392B', fontSize: 13, marginBottom: 14 }}>⚠️ {error}</div>}
 
           <button onClick={handleUpload} disabled={!uploadReady || loading} style={{
@@ -1331,6 +1326,24 @@ function AnalyseContent() {
           }}>
             {loading ? 'Analysing your statement…' : uploadReady ? 'Analyze my statement →' : 'Select a file to continue'}
           </button>
+        </div>
+
+        {/* RIGHT: 2×2 trust tiles */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          {[
+            { icon: '🛡️', title: 'No bank login required',           desc: 'Just upload a PDF. No credentials, no account linking.' },
+            { icon: '✂️', title: 'Card details redacted',             desc: 'Card numbers stripped automatically before analysis.' },
+            { icon: '🇦🇪', title: 'UAE-hosted & encrypted',          desc: 'All processing stays on UAE servers. Fully encrypted.' },
+            { icon: '🗑️', title: 'Statement deleted after analysis', desc: 'Your PDF is permanently deleted the moment results are ready.' },
+          ].map((t, i) => (
+            <div key={i} style={{ background: '#0E3785', borderRadius: 14, padding: '20px 18px' }}>
+              <div style={{ fontSize: 22, marginBottom: 10 }}>{t.icon}</div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: '#fff', marginBottom: 6, lineHeight: 1.3 }}>{t.title}</div>
+              <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', lineHeight: 1.6 }}>{t.desc}</div>
+            </div>
+          ))}
+        </div>
+
         </div>
       )}
 
