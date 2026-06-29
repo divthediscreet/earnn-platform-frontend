@@ -254,7 +254,7 @@ function ComparisonPopup({ data, onContinue }: {
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 2500, background: 'rgba(7,17,43,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}
       onClick={onContinue}>
-      <div style={{ width: '100%', maxWidth: 440, maxHeight: '88vh', overflowY: 'auto', borderRadius: 20, background: '#f0f9fa', position: 'relative', animation: 'cmp-fadein 0.5s 2s ease both', opacity: 0, animationFillMode: 'forwards' }}
+      <div style={{ width: '100%', maxWidth: 560, maxHeight: '95vh', overflow: 'hidden', borderRadius: 20, background: '#f0f9fa', position: 'relative', animation: 'cmp-fadein 0.5s 2s ease both', opacity: 0, animationFillMode: 'forwards', display: 'flex', flexDirection: 'column' }}
         onClick={e => e.stopPropagation()}>
       <style>{`
         @keyframes cmp-worry { 0%,100%{transform:rotate(0) translateX(0)} 15%{transform:rotate(-1.5deg) translateX(-2px)} 40%{transform:rotate(1deg) translateX(1px)} 60%{transform:rotate(-2deg) translateX(-1px)} 80%{transform:rotate(1.5deg) translateX(2px)} }
@@ -274,11 +274,11 @@ function ComparisonPopup({ data, onContinue }: {
       `}</style>
 
       {/* ── HERO: teal + animated worried man ── */}
-      <div style={{ background: '#0e7490', padding: '28px 20px 46px', display: 'flex', alignItems: 'center', gap: 14 }}>
+      <div style={{ background: '#0e7490', padding: '18px 18px 36px', display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
 
         {/* Cartoon man */}
-        <div style={{ flexShrink: 0, width: 118, height: 138 }}>
-          <svg width="118" height="138" viewBox="0 0 118 138" overflow="visible">
+        <div style={{ flexShrink: 0, width: 96, height: 112 }}>
+          <svg width="96" height="112" viewBox="0 0 118 138" overflow="visible">
             {/* AED banknotes flying left */}
             <g style={{ animation: 'cmp-note1 1.6s ease-out infinite' }}>
               <rect x="54" y="42" width="30" height="17" rx="3" fill="#4ade80" opacity=".9"/>
@@ -366,80 +366,80 @@ function ComparisonPopup({ data, onContinue }: {
 
       {/* ── GOOD CARD: no numbers, no breakdown ── */}
       {isGoodCard ? (
-        <div style={{ padding: '28px 24px 36px', textAlign: 'center' }}>
-          <div style={{ fontSize: 44, marginBottom: 14 }}>👏</div>
-          <div style={{ fontSize: 20, fontWeight: 700, color: '#0e7490', marginBottom: 10 }}>
+        <div style={{ padding: '24px 20px 28px', textAlign: 'center' }}>
+          <div style={{ fontSize: 40, marginBottom: 12 }}>👏</div>
+          <div style={{ fontSize: 19, fontWeight: 700, color: '#0e7490', marginBottom: 8 }}>
             You&apos;re already using a good card.
           </div>
-          <div style={{ fontSize: 14, color: '#5A6A85', lineHeight: 1.6, marginBottom: 28 }}>
+          <div style={{ fontSize: 13, color: '#5A6A85', lineHeight: 1.6, marginBottom: 24 }}>
             You&apos;re not losing much — but there might be a card that fits your spending even better. See all your options below.
           </div>
-          <button onClick={onContinue} style={{ width: '100%', padding: 15, background: '#0e7490', border: 'none', borderRadius: 10, color: '#fff', fontSize: 16, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+          <button onClick={onContinue} style={{ width: '100%', padding: '13px', background: '#0e7490', border: 'none', borderRadius: 10, color: '#fff', fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
             Show me all options →
           </button>
         </div>
       ) : (
         <>
           {/* ── LOSING BOX ── */}
-          <div style={{ margin: '-22px 16px 0', background: '#fff', borderRadius: 14, border: '1.5px solid #fcd34d', padding: '20px', textAlign: 'center', position: 'relative', zIndex: 1 }}>
-            <div style={{ fontSize: 11, letterSpacing: '.14em', color: '#b45309', marginBottom: 6, fontWeight: 600 }}>EVERY MONTH YOU LOSE</div>
-            <div style={{ fontSize: 'clamp(54px,14vw,84px)', fontWeight: 800, color: '#ea580c', lineHeight: 1, letterSpacing: '-3px', fontVariantNumeric: 'tabular-nums' }}>
+          <div style={{ margin: '-18px 14px 0', background: '#fff', borderRadius: 12, border: '1.5px solid #fcd34d', padding: '14px 16px', textAlign: 'center', position: 'relative', zIndex: 1, flexShrink: 0 }}>
+            <div style={{ fontSize: 10, letterSpacing: '.14em', color: '#b45309', marginBottom: 4, fontWeight: 600 }}>EVERY MONTH YOU LOSE</div>
+            <div style={{ fontSize: 'clamp(44px,11vw,68px)', fontWeight: 800, color: '#ea580c', lineHeight: 1, letterSpacing: '-2px', fontVariantNumeric: 'tabular-nums' }}>
               {monthly.toLocaleString('en-AE')}
             </div>
-            <div style={{ fontSize: 19, color: '#d97706', marginTop: 4, fontWeight: 700 }}>AED</div>
+            <div style={{ fontSize: 16, color: '#d97706', marginTop: 2, fontWeight: 700 }}>AED</div>
             {annualTagline && (
-              <div style={{ fontSize: 13, color: '#6b7280', marginTop: 8, lineHeight: 1.5 }}>
+              <div style={{ fontSize: 12, color: '#6b7280', marginTop: 6, lineHeight: 1.4 }}>
                 AED {annual.toLocaleString('en-AE')}/year — {annualTagline}
               </div>
             )}
-            <div style={{ marginTop: 14 }}>
-              <div style={{ height: 7, background: '#fef3c7', borderRadius: 4, overflow: 'hidden' }}>
-                <div style={{ height: '100%', width: `${fillPct}%`, background: '#ea580c', borderRadius: 4 }}/>
+            <div style={{ marginTop: 10 }}>
+              <div style={{ height: 6, background: '#fef3c7', borderRadius: 3, overflow: 'hidden' }}>
+                <div style={{ height: '100%', width: `${fillPct}%`, background: '#ea580c', borderRadius: 3 }}/>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 5 }}>
-                <span style={{ fontSize: 10, color: '#9ca3af' }}>Your card earns AED {currentEarns}/mo</span>
-                <span style={{ fontSize: 10, color: '#9ca3af' }}>Potential AED {potential}/mo</span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
+                <span style={{ fontSize: 10, color: '#9ca3af' }}>Your card: AED {currentEarns}/mo</span>
+                <span style={{ fontSize: 10, color: '#9ca3af' }}>Potential: AED {potential}/mo</span>
               </div>
             </div>
           </div>
 
           {/* ── BREAKDOWN ── */}
           {data.categoryGaps.filter(g => g.diff > 0 || g.current > 0).length > 0 && (
-            <div style={{ margin: '14px 16px 0', background: '#fffbf0', border: '0.5px solid #fcd34d', borderRadius: 12, padding: '14px 16px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 10 }}>
-                <span style={{ fontSize: 11, fontWeight: 600, color: '#b45309', letterSpacing: '.06em' }}>WHY? YOUR CARD EARNS:</span>
-                <span style={{ fontSize: 11, color: '#9ca3af' }}>vs what&apos;s possible</span>
+            <div style={{ margin: '10px 14px 0', background: '#fffbf0', border: '0.5px solid #fcd34d', borderRadius: 10, padding: '10px 14px', flexShrink: 0 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 8 }}>
+                <span style={{ fontSize: 10, fontWeight: 600, color: '#b45309', letterSpacing: '.06em' }}>WHY? YOUR CARD EARNS:</span>
+                <span style={{ fontSize: 10, color: '#9ca3af' }}>vs what&apos;s possible</span>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 62px 70px', borderTop: '0.5px solid #fcd34d' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 58px 64px', borderTop: '0.5px solid #fcd34d' }}>
                 {['Category', 'You earn', 'Gap'].map((h, i) => (
-                  <span key={h} style={{ fontSize: 10, color: '#9ca3af', padding: '7px 0 5px', borderBottom: '0.5px solid #fef3c7', textAlign: i > 0 ? 'right' : 'left', letterSpacing: '.04em' }}>{h}</span>
+                  <span key={h} style={{ fontSize: 10, color: '#9ca3af', padding: '5px 0 4px', borderBottom: '0.5px solid #fef3c7', textAlign: i > 0 ? 'right' : 'left' }}>{h}</span>
                 ))}
                 {data.categoryGaps.filter(g => g.diff > 0 || g.current > 0).map((g, i, arr) => (
                   <React.Fragment key={g.label}>
-                    <span style={{ fontSize: 13, padding: '8px 0', borderBottom: i < arr.length - 1 ? '0.5px solid #fef3c7' : 'none', color: '#7c2d12' }}>{g.label}</span>
-                    <span style={{ fontSize: 13, padding: '8px 0', borderBottom: i < arr.length - 1 ? '0.5px solid #fef3c7' : 'none', color: '#9ca3af', textAlign: 'right' }}>
+                    <span style={{ fontSize: 12, padding: '6px 0', borderBottom: i < arr.length - 1 ? '0.5px solid #fef3c7' : 'none', color: '#7c2d12' }}>{g.label}</span>
+                    <span style={{ fontSize: 12, padding: '6px 0', borderBottom: i < arr.length - 1 ? '0.5px solid #fef3c7' : 'none', color: '#9ca3af', textAlign: 'right' }}>
                       {g.current > 0 ? `AED ${g.current}` : '—'}
                     </span>
-                    <span style={{ fontSize: 13, padding: '8px 0', borderBottom: i < arr.length - 1 ? '0.5px solid #fef3c7' : 'none', color: '#16a34a', fontWeight: 600, textAlign: 'right' }}>
+                    <span style={{ fontSize: 12, padding: '6px 0', borderBottom: i < arr.length - 1 ? '0.5px solid #fef3c7' : 'none', color: '#16a34a', fontWeight: 600, textAlign: 'right' }}>
                       {g.diff > 0 ? `+${g.diff}` : '—'}
                     </span>
                   </React.Fragment>
                 ))}
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 10, marginTop: 4, borderTop: '0.5px solid #fcd34d' }}>
-                <span style={{ fontSize: 12, color: '#b45309', fontWeight: 600 }}>Total monthly loss</span>
-                <span style={{ fontSize: 14, fontWeight: 700, color: '#ea580c' }}>AED {monthly.toLocaleString('en-AE')} / mo</span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 8, marginTop: 4, borderTop: '0.5px solid #fcd34d' }}>
+                <span style={{ fontSize: 11, color: '#b45309', fontWeight: 600 }}>Total monthly loss</span>
+                <span style={{ fontSize: 13, fontWeight: 700, color: '#ea580c' }}>AED {monthly.toLocaleString('en-AE')} / mo</span>
               </div>
             </div>
           )}
 
           {/* ── CTA ── */}
-          <div style={{ padding: '20px 16px 36px', textAlign: 'center' }}>
-            <div style={{ fontSize: 18, fontWeight: 700, color: '#7c2d12', marginBottom: 14 }}>Really? 😲</div>
-            <button onClick={onContinue} style={{ width: '100%', padding: 15, background: '#ea580c', border: 'none', borderRadius: 10, color: '#fff', fontSize: 16, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+          <div style={{ padding: '12px 14px 18px', textAlign: 'center', flexShrink: 0 }}>
+            <div style={{ fontSize: 16, fontWeight: 700, color: '#7c2d12', marginBottom: 10 }}>Really? 😲</div>
+            <button onClick={onContinue} style={{ width: '100%', padding: '13px', background: '#ea580c', border: 'none', borderRadius: 10, color: '#fff', fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
               Show me how to fix this →
             </button>
-            <div style={{ marginTop: 10, fontSize: 12, color: '#9ca3af' }}>Takes less than 30 seconds</div>
+            <div style={{ marginTop: 8, fontSize: 11, color: '#9ca3af' }}>Takes less than 30 seconds</div>
           </div>
         </>
       )}
