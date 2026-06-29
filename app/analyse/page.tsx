@@ -945,7 +945,7 @@ function AnalyseContent() {
         <div style={{ position: 'absolute', inset: 0, opacity: 0.04, backgroundImage: 'linear-gradient(white 1px, transparent 1px), linear-gradient(90deg, white 1px, transparent 1px)', backgroundSize: '48px 48px' }} />
         <div style={{ maxWidth: 800, margin: '0 auto', position: 'relative' }}>
           <div style={{ display: 'inline-block', background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: 100, padding: '5px 16px', fontSize: 12, fontWeight: 600, letterSpacing: '0.05em', marginBottom: 14 }}>
-            🇦🇪 BUILT EXCLUSIVELY FOR UAE RESIDENTS
+            UAE&apos;s smartest credit card rewards engine
           </div>
           <h1 style={{ fontSize: 'clamp(36px, 6vw, 64px)', fontWeight: 800, lineHeight: 1.1, marginBottom: 14, color: 'white' }}>
             Are you leaving<br /><span style={{ color: '#FFD700' }}>AED on the table</span><br />every month?
