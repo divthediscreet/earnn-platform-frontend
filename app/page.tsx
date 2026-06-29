@@ -10,17 +10,17 @@ const PROBLEM_STATS = [
 ]
 
 const PROBLEM_POINTS = [
-  { icon: '💳', title: 'Wrong card used', desc: 'Default to one card, miss multipliers on every category.' },
-  { icon: '🔁', title: 'Missed cashback', desc: 'Bonus tiers, rotating categories, capped offers — all forgotten.' },
-  { icon: '🎁', title: 'Forgotten rewards', desc: 'Points expire, miles lapse, vouchers go unredeemed.' },
-  { icon: '🚫', title: 'Hidden fees', desc: 'FX markups, annual fees, late charges that quietly compound.' },
-  { icon: '📉', title: 'Poor decisions', desc: 'No insight into which spend actually moves your goals.' },
+  { icon: '💳', title: 'Using Skywards for groceries?', desc: 'Earn 0.5 miles instead of 5% cashback. That\'s AED 900 lost every year on grocery spend alone.' },
+  { icon: '🔁', title: 'Cashback cap hit and forgotten', desc: 'FAB and ENBD cards cap rewards monthly. Most users hit the limit by week 3 and earn nothing after.' },
+  { icon: '🎁', title: 'Miles expiring unused', desc: 'UAE Skywards members lose an average AED 600/year to expired miles and unredeemed vouchers.' },
+  { icon: '✈️', title: 'FX fees on every trip abroad', desc: 'Using the wrong card internationally costs 2.99% per transaction — AED 1,200/year for a regular traveller.' },
+  { icon: '📉', title: 'No card earns on everything', desc: 'Every card has blind spots. The right wallet of 2–3 cards covers every category at maximum rate.' },
 ]
 
 const HOW_IT_WORKS = [
-  { step: '01', icon: '🔗', title: 'Connect', desc: 'Upload statements or securely share your spending in seconds.' },
-  { step: '02', icon: '🧠', title: 'Analyse', desc: 'Our AI understands spending patterns, card benefits, and reward structures.' },
-  { step: '03', icon: '⚡', title: 'Optimise', desc: 'Receive personalised recommendations instantly — and act on them.' },
+  { step: '01', icon: '🔗', title: 'Connect', desc: 'Upload your statement securely. No bank login, no credentials — just a PDF.' },
+  { step: '02', icon: '🧠', title: 'Analyse', desc: 'We identify every merchant, category, and reward opportunity across your spending.' },
+  { step: '03', icon: '⚡', title: 'Optimise', desc: 'See exactly which cards maximise your rewards — and how much you\'ve been leaving behind.' },
 ]
 
 const SECURITY_POINTS = [
@@ -81,12 +81,10 @@ export default function HomePage() {
             ✨ AI Financial Intelligence · Now in Early Access
           </div>
           <h1 style={{ fontSize: 'clamp(36px, 6vw, 64px)', fontWeight: 800, lineHeight: 1.1, marginBottom: 24, color: 'white' }}>
-            Stop Guessing.<br />
-            Start Optimising<br />
-            Every Dirham.
+            Stop Using the<br />Wrong Credit Card.
           </h1>
           <p style={{ fontSize: 'clamp(17px, 2vw, 20px)', color: 'rgba(255,255,255,0.75)', lineHeight: 1.7, marginBottom: 44, maxWidth: 660, margin: '0 auto 44px' }}>
-            Earnn analyses your spending, rewards, credit cards, and financial habits to help you make smarter decisions — automatically.
+            Earnn shows which cards maximise rewards for your actual spending habits.
           </p>
           <div style={{ display: 'flex', gap: 16, justifyContent: 'center', flexWrap: 'wrap' }}>
             <Link href="/analyse" style={{ background: 'linear-gradient(90deg, #F5C842, #D4A017)', color: '#0E3785', padding: '16px 36px', borderRadius: 10, fontSize: 16, fontWeight: 700, textDecoration: 'none', boxShadow: '0 10px 30px rgba(212,160,23,0.4)' }}>
