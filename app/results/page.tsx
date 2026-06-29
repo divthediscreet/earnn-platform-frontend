@@ -1560,6 +1560,34 @@ function Screen5Final({ scoredCards, walletData, wallet, onBack }: {
   const avgBaseline = walletData.total_monthly * 12 * 0.01
   const multiplier = avgBaseline > 0 ? (net / avgBaseline).toFixed(1) : '–'
 
+  const [pdfLoading, setPdfLoading] = useState(false)
+
+  const handleDownloadPdf = async () => {
+    setPdfLoading(true)
+    try {
+      const { downloadEarnnReport } = await import('@/lib/earnn-report')
+      await downloadEarnnReport({
+        cards,
+        wallet: walletData.wallets.find(w => w.card_ids.join() === wallet.join()) ?? null,
+        userSpend: walletData.user_spend,
+        totalMonthly: walletData.total_monthly,
+        categoryRouting: pgScore?.category_routing ?? {},
+        generatedDate: new Date().toLocaleDateString('en-AE', { day: 'numeric', month: 'long', year: 'numeric' }),
+        net, gross, fees,
+      })
+    } catch (e) { console.error(e) }
+    finally { setPdfLoading(false) }
+  }
+
+  const handleEmail = () => {
+    const subject = encodeURIComponent('My earnn Wallet Report')
+    const cardNames = cards.map(c => `• ${c.card_name}`).join('%0A')
+    const body = encodeURIComponent(
+      `Here's my earnn.money recommended wallet:\n\n${cards.map(c => `• ${c.card_name} — AED ${Math.round(c.expected_annual_return_aed)}/yr`).join('\n')}\n\nEstimated annual rewards: AED ${Math.round(gross)}\nNet after fees: AED ${Math.round(net)}\n\nGenerated at earnn.money`
+    )
+    window.open(`mailto:?subject=${subject}&body=${body}`)
+  }
+
   return (
     <section className="space-y-6">
       <div className="space-y-3 text-center">
@@ -1669,11 +1697,11 @@ function Screen5Final({ scoredCards, walletData, wallet, onBack }: {
           className="inline-flex items-center justify-center gap-2 rounded-full bg-emerald px-5 py-3.5 text-sm font-semibold text-primary shadow-soft transition hover:opacity-90 sm:col-span-3">
           Apply for selected cards →
         </button>
-        <button onClick={() => alert('Coming soon')}
-          className="inline-flex items-center justify-center gap-2 rounded-full border border-border bg-card px-5 py-3 text-sm font-semibold text-primary transition hover:bg-surface-2">
-          ⬇ Download PDF report
+        <button onClick={handleDownloadPdf} disabled={pdfLoading}
+          className="inline-flex items-center justify-center gap-2 rounded-full border border-border bg-card px-5 py-3 text-sm font-semibold text-primary transition hover:bg-surface-2 disabled:opacity-50">
+          {pdfLoading ? '⏳ Generating…' : '⬇ Download PDF report'}
         </button>
-        <button onClick={() => alert('Coming soon')}
+        <button onClick={handleEmail}
           className="inline-flex items-center justify-center gap-2 rounded-full border border-border bg-card px-5 py-3 text-sm font-semibold text-primary transition hover:bg-surface-2">
           ✉ Email me this plan
         </button>
