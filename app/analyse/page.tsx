@@ -950,9 +950,28 @@ function AnalyseContent() {
           <h1 style={{ fontSize: 'clamp(36px, 6vw, 64px)', fontWeight: 800, lineHeight: 1.1, marginBottom: 14, color: 'white' }}>
             Are you leaving<br /><span style={{ color: '#FFD700' }}>AED on the table</span><br />every month?
           </h1>
-          <p style={{ fontSize: 'clamp(15px, 2vw, 17px)', color: 'rgba(255,255,255,0.8)', lineHeight: 1.6, marginBottom: 0, maxWidth: 780, margin: '0 auto' }}>
+          <p style={{ fontSize: 'clamp(15px, 2vw, 17px)', color: 'rgba(255,255,255,0.8)', lineHeight: 1.6, maxWidth: 780, margin: '0 auto 32px' }}>
             Upload your UAE credit card statement, we show you exactly which card earns you the most rewards based on your actual spending.
           </p>
+
+          {/* Trust tiles */}
+          <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap', maxWidth: 860, margin: '0 auto' }}>
+            {[
+              { icon: '🛡️', label: 'No bank login required' },
+              { icon: '✂️', label: 'Card details automatically redacted' },
+              { icon: '🇦🇪', label: 'UAE-hosted & encrypted' },
+              { icon: '🗑️', label: 'Statement deleted after analysis' },
+            ].map((t, i) => (
+              <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.14)', borderRadius: 12, overflow: 'hidden', minWidth: 160, flex: '1 1 160px', maxWidth: 200 }}>
+                <div style={{ width: '100%', background: 'linear-gradient(135deg, #0E3785, #1a4db5)', padding: '14px 0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22 }}>
+                  {t.icon}
+                </div>
+                <div style={{ padding: '10px 12px', fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,0.85)', textAlign: 'center', lineHeight: 1.4 }}>
+                  {t.label}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
