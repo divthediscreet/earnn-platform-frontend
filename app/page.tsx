@@ -89,7 +89,7 @@ export default function HomePage() {
             Earnn analyses your spending, rewards, credit cards, and financial habits to help you make smarter decisions — automatically.
           </p>
           <div style={{ display: 'flex', gap: 16, justifyContent: 'center', flexWrap: 'wrap' }}>
-            <Link href="/analyse" style={{ background: 'linear-gradient(90deg, #4E9BFF, #0E3785)', color: 'white', padding: '16px 36px', borderRadius: 10, fontSize: 16, fontWeight: 700, textDecoration: 'none', boxShadow: '0 10px 30px rgba(0,0,0,0.35)' }}>
+            <Link href="/analyse" style={{ background: 'linear-gradient(90deg, #F5C842, #D4A017)', color: '#0E3785', padding: '16px 36px', borderRadius: 10, fontSize: 16, fontWeight: 700, textDecoration: 'none', boxShadow: '0 10px 30px rgba(212,160,23,0.4)' }}>
               Analyse If You Are Losing Money →
             </Link>
           </div>
