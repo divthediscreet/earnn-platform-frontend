@@ -10,26 +10,24 @@ const PROBLEM_STATS = [
 ]
 
 const PROBLEM_POINTS = [
-  { icon: '💳', title: 'Using Skywards for groceries?', desc: 'Earn 0.5 miles instead of 5% cashback. That\'s AED 900 lost every year on grocery spend alone.' },
-  { icon: '🔁', title: 'Cashback cap hit and forgotten', desc: 'Banks cap rewards monthly. Most users hit the limit by week 3 and earn nothing after.' },
-  { icon: '🎁', title: 'Minimum spend threshold missed', desc: 'Most cashback cards require a minimum spend. Miss it and you earn zero, even on eligible purchases.' },
-  { icon: '✈️', title: 'FX fees on every trip abroad', desc: 'Using the wrong card internationally costs 2.99% per transaction — AED 1,200/year for a regular traveller.' },
-  { icon: '📉', title: 'No card earns on everything', desc: 'Every card has blind spots. The right wallet of 2–3 cards covers every category at maximum rate.' },
+  { icon: '💳', title: 'Wrong card used', desc: 'Default to one card, miss multipliers on every category.' },
+  { icon: '🔁', title: 'Missed cashback', desc: 'Bonus tiers, rotating categories, capped offers — all forgotten.' },
+  { icon: '🎁', title: 'Forgotten rewards', desc: 'Points expire, miles lapse, vouchers go unredeemed.' },
+  { icon: '🚫', title: 'Hidden fees', desc: 'FX markups, annual fees, late charges that quietly compound.' },
+  { icon: '📉', title: 'Poor decisions', desc: 'No insight into which spend actually moves your goals.' },
 ]
 
 const HOW_IT_WORKS = [
-  { step: '01', icon: '🔗', title: 'Connect', desc: 'Upload your statement securely. No bank login, no credentials — just a PDF.' },
-  { step: '02', icon: '🧠', title: 'Analyse', desc: 'We identify every merchant, category, and reward opportunity across your spending.' },
-  { step: '03', icon: '⚡', title: 'Optimise', desc: 'See exactly which cards maximise your rewards — and how much you\'ve been leaving behind.' },
+  { step: '01', icon: '🔗', title: 'Connect', desc: 'Upload statements or securely share your spending in seconds.' },
+  { step: '02', icon: '🧠', title: 'Analyse', desc: 'Our AI understands spending patterns, card benefits, and reward structures.' },
+  { step: '03', icon: '⚡', title: 'Optimise', desc: 'Receive personalised recommendations instantly — and act on them.' },
 ]
 
 const SECURITY_POINTS = [
-  { icon: '✅', title: 'Processed on UAE servers', desc: 'Your data never leaves the UAE. All analysis runs on UAE-based infrastructure.' },
-  { icon: '✅', title: 'Card numbers automatically redacted', desc: 'We strip card and personal details before any analysis begins.' },
-  { icon: '✅', title: 'No bank credentials required', desc: 'We never ask for your online banking password. Ever.' },
-  { icon: '✅', title: 'Statement deleted after analysis', desc: 'Your PDF is permanently deleted the moment your results are ready.' },
-  { icon: '✅', title: 'No selling of personal data', desc: 'We do not sell, share, or monetise your financial data. Full stop.' },
-  { icon: '✅', title: 'Read-only analysis', desc: 'earnn can only read your statement. We cannot move money or access your account.' },
+  { icon: '🕵️', title: 'Redacted before upload', desc: 'Card & personal details stripped before analysis.' },
+  { icon: '🗑️', title: 'Nothing stored', desc: 'Your statement is deleted right after your results.' },
+  { icon: '🇦🇪', title: 'UAE-based & compliant', desc: 'Processed within UAE, aligned with CBUAE guidelines.' },
+  { icon: '🚫', title: 'Zero bank access', desc: 'No linking, no account — just a PDF and your answer.' },
 ]
 
 function DataGridBackdrop() {
@@ -83,10 +81,12 @@ export default function HomePage() {
             ✨ AI Financial Intelligence · Now in Early Access
           </div>
           <h1 style={{ fontSize: 'clamp(36px, 6vw, 64px)', fontWeight: 800, lineHeight: 1.1, marginBottom: 24, color: 'white' }}>
-            Stop Using the<br />Wrong Credit Card.
+            Stop Guessing.<br />
+            Start Optimising<br />
+            Every Dirham.
           </h1>
           <p style={{ fontSize: 'clamp(17px, 2vw, 20px)', color: 'rgba(255,255,255,0.75)', lineHeight: 1.7, marginBottom: 44, maxWidth: 660, margin: '0 auto 44px' }}>
-            Earnn shows which cards maximise rewards for your actual spending habits. Upload a PDF. Get your results. That&apos;s it.
+            Earnn analyses your spending, rewards, credit cards, and financial habits to help you make smarter decisions — automatically.
           </p>
           <div style={{ display: 'flex', gap: 16, justifyContent: 'center', flexWrap: 'wrap' }}>
             <Link href="/analyse" style={{ background: 'linear-gradient(90deg, #F5C842, #D4A017)', color: '#0E3785', padding: '16px 36px', borderRadius: 10, fontSize: 16, fontWeight: 700, textDecoration: 'none', boxShadow: '0 10px 30px rgba(212,160,23,0.4)' }}>
@@ -153,32 +153,28 @@ export default function HomePage() {
       </section>
 
       {/* SECURITY */}
-      <section style={{ padding: '112px 24px', background: '#F8FAFF', borderTop: '1px solid #E7ECF5', borderBottom: '1px solid #E7ECF5' }}>
-        <div style={{ maxWidth: 860, margin: '0 auto' }}>
-          <div style={{ textAlign: 'center', marginBottom: 48 }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: '#3D6FD6', letterSpacing: '0.08em', marginBottom: 12 }}>SECURITY &amp; PRIVACY</div>
+      <section style={{ padding: '112px 24px', background: 'white' }}>
+        <div style={{ maxWidth: 1152, margin: '0 auto', display: 'grid', gridTemplateColumns: '1fr 1.3fr', gap: 48, alignItems: 'center' }}>
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: '#3D6FD6', letterSpacing: '0.08em', marginBottom: 12 }}>SECURITY</div>
             <h2 style={{ fontSize: 'clamp(30px, 4vw, 44px)', fontWeight: 600, color: '#0A1A33', marginBottom: 16, lineHeight: 1.2 }}>
-              Your statement. Your control.
+              Bank-level security.<br /><span style={{ background: 'linear-gradient(90deg,#0E3785,#4E83E0)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>Privacy first.</span>
             </h2>
-            {/* The single most trust-building sentence */}
-            <div style={{ display: 'inline-block', background: '#0E3785', borderRadius: 10, padding: '14px 28px', marginBottom: 20 }}>
-              <p style={{ fontSize: 16, fontWeight: 700, color: '#FFD700', margin: 0 }}>
-                We never ask for your online banking password.
-              </p>
-            </div>
-            <p style={{ fontSize: 15, color: '#5A6A85', lineHeight: 1.7, maxWidth: 560, margin: '0 auto' }}>
-              No account linking, no credentials, no risk.
+            <p style={{ fontSize: 15, color: '#5A6A85', lineHeight: 1.7, marginBottom: 24 }}>
+              Earnn is built on the same security primitives that protect global financial infrastructure. Your data stays yours — encrypted, isolated, and visible only to you.
             </p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+              {['CBUAE-aligned', 'No data stored', 'No bank linking', 'UAE servers only'].map(t => (
+                <span key={t} style={{ fontSize: 12, fontWeight: 600, color: '#5A6A85', border: '1px solid #E7ECF5', borderRadius: 100, padding: '6px 14px' }}>{t}</span>
+              ))}
+            </div>
           </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 14 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16 }}>
             {SECURITY_POINTS.map((s, i) => (
-              <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 14, background: 'white', border: '1px solid #E7ECF5', borderRadius: 12, padding: '18px 20px' }}>
-                <span style={{ fontSize: 18, flexShrink: 0, marginTop: 1 }}>{s.icon}</span>
-                <div>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: '#0A1A33', marginBottom: 4 }}>{s.title}</div>
-                  <div style={{ fontSize: 13, color: '#5A6A85', lineHeight: 1.6 }}>{s.desc}</div>
-                </div>
+              <div key={i} style={{ background: '#F8FAFF', border: '1px solid #E7ECF5', borderRadius: 14, padding: 24 }}>
+                <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#EEF3FF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, marginBottom: 14 }}>{s.icon}</div>
+                <div style={{ fontSize: 15, fontWeight: 700, color: '#0A1A33', marginBottom: 6 }}>{s.title}</div>
+                <div style={{ fontSize: 13, color: '#5A6A85', lineHeight: 1.6 }}>{s.desc}</div>
               </div>
             ))}
           </div>
