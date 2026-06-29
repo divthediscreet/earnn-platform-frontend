@@ -955,20 +955,16 @@ function AnalyseContent() {
           </p>
 
           {/* Trust tiles */}
-          <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap', maxWidth: 860, margin: '0 auto' }}>
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap', maxWidth: 860, margin: '0 auto' }}>
             {[
               { icon: '🛡️', label: 'No bank login required' },
               { icon: '✂️', label: 'Card details automatically redacted' },
               { icon: '🇦🇪', label: 'UAE-hosted & encrypted' },
               { icon: '🗑️', label: 'Statement deleted after analysis' },
             ].map((t, i) => (
-              <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.14)', borderRadius: 12, overflow: 'hidden', minWidth: 160, flex: '1 1 160px', maxWidth: 200 }}>
-                <div style={{ width: '100%', background: 'linear-gradient(135deg, #0E3785, #1a4db5)', padding: '14px 0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22 }}>
-                  {t.icon}
-                </div>
-                <div style={{ padding: '10px 12px', fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,0.85)', textAlign: 'center', lineHeight: 1.4 }}>
-                  {t.label}
-                </div>
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 8, padding: '8px 14px' }}>
+                <span style={{ fontSize: 16, flexShrink: 0 }}>{t.icon}</span>
+                <span style={{ fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,0.85)', whiteSpace: 'nowrap' }}>{t.label}</span>
               </div>
             ))}
           </div>
