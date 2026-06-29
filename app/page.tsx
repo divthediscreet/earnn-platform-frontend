@@ -11,8 +11,8 @@ const PROBLEM_STATS = [
 
 const PROBLEM_POINTS = [
   { icon: '💳', title: 'Using Skywards for groceries?', desc: 'Earn 0.5 miles instead of 5% cashback. That\'s AED 900 lost every year on grocery spend alone.' },
-  { icon: '🔁', title: 'Cashback cap hit and forgotten', desc: 'FAB and ENBD cards cap rewards monthly. Most users hit the limit by week 3 and earn nothing after.' },
-  { icon: '🎁', title: 'Miles expiring unused', desc: 'UAE Skywards members lose an average AED 600/year to expired miles and unredeemed vouchers.' },
+  { icon: '🔁', title: 'Cashback cap hit and forgotten', desc: 'Banks cap rewards monthly. Most users hit the limit by week 3 and earn nothing after.' },
+  { icon: '🎁', title: 'Minimum spend threshold missed', desc: 'Most cashback cards require AED 1,500–3,000/month minimum spend. Miss it and you earn zero — even on eligible purchases.' },
   { icon: '✈️', title: 'FX fees on every trip abroad', desc: 'Using the wrong card internationally costs 2.99% per transaction — AED 1,200/year for a regular traveller.' },
   { icon: '📉', title: 'No card earns on everything', desc: 'Every card has blind spots. The right wallet of 2–3 cards covers every category at maximum rate.' },
 ]
