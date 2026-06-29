@@ -677,6 +677,7 @@ function AnalyseContent() {
             }))
             .filter(g => g.diff > 0 || g.current > 0)
             .sort((a, b) => b.diff - a.diff)
+            .slice(0, 4)
 
           const heroMonthly    = heroCard.gross_monthly_rewards_aed ?? 0
           const currentMonthly = currentInResults?.gross_monthly_rewards_aed ?? 0

@@ -1237,7 +1237,11 @@ function Screen4Wallet({ scoredCards, walletData, wallet, setWallet, onBack, onN
           </div>
 
           <ul className="mt-4 grid flex-1 min-h-0 gap-2 overflow-y-auto pr-1">
-            {filtered.map(c => {
+            {[...filtered].sort((a, b) => {
+              const aIn = wallet.includes(a.earnn_card_id) ? 0 : 1
+              const bIn = wallet.includes(b.earnn_card_id) ? 0 : 1
+              return aIn - bIn
+            }).map(c => {
               const inW = wallet.includes(c.earnn_card_id)
               const limit = !inW && wallet.length >= 4
               // For personalized view use catTopCards; for category filter derive from activeFilter
@@ -1249,7 +1253,7 @@ function Screen4Wallet({ scoredCards, walletData, wallet, setWallet, onBack, onN
                   <div className="flex items-start gap-2.5 pr-10">
                     <CardImg id={c.earnn_card_id} size="sm" className="flex-shrink-0 mt-0.5" />
                     <div className="min-w-0 flex-1">
-                      <div className="truncate font-semibold text-sm text-primary max-w-[240px]">{c.card_name}</div>
+                      <button onClick={() => setDetailCardId(c.earnn_card_id)} className="truncate font-semibold text-sm text-primary max-w-[240px] text-left hover:underline underline-offset-2 bg-transparent border-none p-0 cursor-pointer">{c.card_name}</button>
                       <div className="mt-1 flex items-center gap-1 text-[10px]">
                         <span className="text-muted-foreground">Fee {fmt(c.true_annual_fee_aed)}</span>
                         <span className="text-muted-foreground/40">·</span>
