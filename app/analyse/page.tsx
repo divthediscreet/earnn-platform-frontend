@@ -955,7 +955,7 @@ function AnalyseContent() {
           </p>
 
           {/* Trust tiles */}
-          <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap', maxWidth: 860, margin: '0 auto' }}>
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'nowrap', maxWidth: 900, margin: '0 auto', overflowX: 'auto' }}>
             {[
               { icon: '🛡️', label: 'No bank login required' },
               { icon: '✂️', label: 'Card details automatically redacted' },
