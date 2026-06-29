@@ -940,7 +940,7 @@ function AnalyseContent() {
       <section style={{
         background: 'linear-gradient(135deg, rgba(14,55,133,0.92) 0%, rgba(10,40,96,0.93) 60%, rgba(7,24,64,0.95) 100%), url(/cover-page.png)',
         backgroundSize: 'cover', backgroundPosition: 'center',
-        color: 'white', padding: '28px 24px 24px', textAlign: 'center', position: 'relative', overflow: 'hidden'
+        color: 'white', padding: '22px 24px 18px', textAlign: 'center', position: 'relative', overflow: 'hidden'
       }}>
         <div style={{ position: 'absolute', inset: 0, opacity: 0.04, backgroundImage: 'linear-gradient(white 1px, transparent 1px), linear-gradient(90deg, white 1px, transparent 1px)', backgroundSize: '48px 48px' }} />
         <div style={{ maxWidth: 800, margin: '0 auto', position: 'relative' }}>
@@ -950,7 +950,7 @@ function AnalyseContent() {
           <h1 style={{ fontSize: 'clamp(36px, 6vw, 64px)', fontWeight: 800, lineHeight: 1.1, marginBottom: 14, color: 'white' }}>
             How Much Reward Are You<br /><span style={{ color: '#FFD700' }}>Missing Every Year?</span>
           </h1>
-          <p style={{ fontSize: 'clamp(15px, 2vw, 17px)', color: 'rgba(255,255,255,0.8)', lineHeight: 1.6, maxWidth: 780, margin: '0 auto 32px' }}>
+          <p style={{ fontSize: 'clamp(15px, 2vw, 17px)', color: 'rgba(255,255,255,0.8)', lineHeight: 1.6, maxWidth: 780, margin: '0 auto' }}>
             Upload your UAE credit card statement, we show you exactly which card earns you the most rewards based on your actual spending.
           </p>
 
@@ -972,9 +972,9 @@ function AnalyseContent() {
             { icon: '🇦🇪', label: 'UAE-hosted & encrypted' },
             { icon: '🗑️', label: 'Statement deleted after analysis' },
           ].map((t, i) => (
-            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#EEF3FF', border: '1px solid #D6E0F5', borderRadius: 8, padding: '7px 14px' }}>
-              <span style={{ fontSize: 15, flexShrink: 0 }}>{t.icon}</span>
-              <span style={{ fontSize: 12, fontWeight: 600, color: '#0E3785', whiteSpace: 'nowrap' }}>{t.label}</span>
+            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#EEF3FF', border: '1px solid #D6E0F5', borderRadius: 6, padding: '5px 12px' }}>
+              <span style={{ fontSize: 13, flexShrink: 0 }}>{t.icon}</span>
+              <span style={{ fontSize: 11, fontWeight: 600, color: '#0E3785', whiteSpace: 'nowrap' }}>{t.label}</span>
             </div>
           ))}
         </div>
