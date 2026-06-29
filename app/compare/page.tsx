@@ -27,6 +27,7 @@ interface ApiCard {
   earnn_score: number
   rating_band: string
   card_ranking: number
+  card_family: string | null
   effective_reward_rate: number
   expected_annual_return_aed: number
   true_annual_fee_aed: number
@@ -86,6 +87,23 @@ const PAGE_SIZE = 10
 // ─────────────────────────────────────────────────────────────────────────────
 // HELPERS
 // ─────────────────────────────────────────────────────────────────────────────
+// Best card per family first, duplicates pushed to end (cards already sorted by card_ranking asc)
+function promoteOneFamilyMember(cards: ApiCard[]): ApiCard[] {
+  const seen = new Set<string>()
+  const primaries: ApiCard[] = []
+  const secondaries: ApiCard[] = []
+  for (const card of cards) {
+    const fk = card.card_family || card.earnn_card_id
+    if (seen.has(fk)) {
+      secondaries.push(card)
+    } else {
+      seen.add(fk)
+      primaries.push(card)
+    }
+  }
+  return [...primaries, ...secondaries]
+}
+
 function fmtRate(r: number): string {
   if (!r) return '0%'
   return `${(r * 100).toFixed(1)}%`
@@ -104,8 +122,11 @@ function fmtScore(score: number): string {
 // PAGE
 // ─────────────────────────────────────────────────────────────────────────────
 export default function ComparePage() {
+  const [fromResults, setFromResults] = useState(false)
+
   const [cards, setCards]           = useState<ApiCard[]>([])
   const [loading, setLoading]       = useState(true)
+
   const [error, setError]           = useState<string | null>(null)
   const [details, setDetails]       = useState<Record<string, CardDetail>>({})
   const [detailLoading, setDetailLoading] = useState<string | null>(null)
@@ -114,6 +135,7 @@ export default function ComparePage() {
   const [network, setNetwork]       = useState('All Networks')
   const [bank, setBank]             = useState('All Banks')
   const [freeOnly, setFreeOnly]     = useState(false)
+  const [sortCat, setSortCat]       = useState('')
   const [page, setPage]             = useState(1)
 
   // App preferences — multi-select sets (UI-only, backend wiring coming soon)
@@ -136,12 +158,28 @@ export default function ComparePage() {
   const [expanded, setExpanded]     = useState<string | null>(null)
   const [comingSoon, setComingSoon] = useState(false)
 
-  // ── Fetch all cards on mount ────────────────────────────────────────────
+  // ── Read URL params on mount (avoids useSearchParams + Suspense requirement)
   useEffect(() => {
-    fetchCards({ sort_by: 'card_ranking' })
-      .then(d => setCards(d.cards || []))
-      .catch(e => setError(e.message))
-      .finally(() => setLoading(false))
+    if (typeof window === 'undefined') return
+    const params = new URLSearchParams(window.location.search)
+    const isFromResults = params.get('from_results') === '1'
+    const salary = parseFloat(params.get('salary') || '0') || 0
+    setFromResults(isFromResults)
+    if (salary > 0) {
+      const bands = [20000, 15000, 8000, 5000, 0]
+      setSalaryMin(bands.find(b => salary >= b) ?? 0)
+    }
+  }, [])
+
+  // ── Fetch all cards on mount (min 2s display so heading is readable) ───
+  useEffect(() => {
+    const minDelay = new Promise<void>(res => setTimeout(res, 2000))
+    Promise.all([
+      fetchCards({ sort_by: 'card_ranking' })
+        .then(d => setCards(promoteOneFamilyMember(d.cards || [])))
+        .catch(e => setError(e.message)),
+      minDelay,
+    ]).finally(() => setLoading(false))
   }, [])
 
   // ── Fetch card detail lazily on expand ──────────────────────────────────
@@ -181,14 +219,19 @@ export default function ComparePage() {
     return ['All Banks', ...names]
   }, [cards])
 
-  // ── Client-side filtering ───────────────────────────────────────────────
-  const filtered = useMemo(() => cards.filter(c => {
-    if (salaryMin > 0 && c.min_salary_aed && c.min_salary_aed > salaryMin) return false
-    if (network !== 'All Networks' && c.network?.toLowerCase() !== network.toLowerCase()) return false
-    if (bank !== 'All Banks' && c.bank_name !== bank) return false
-    if (freeOnly && !c.free_for_life) return false
-    return true
-  }), [cards, salaryMin, network, bank, freeOnly])
+  // ── Client-side filtering + sorting ────────────────────────────────────
+  const filtered = useMemo(() => {
+    const base = cards.filter(c => {
+      if (salaryMin > 0 && c.min_salary_aed && c.min_salary_aed > salaryMin) return false
+      if (network !== 'All Networks' && c.network?.toLowerCase() !== network.toLowerCase()) return false
+      if (bank !== 'All Banks' && c.bank_name !== bank) return false
+      if (freeOnly && !c.free_for_life) return false
+      return true
+    })
+    if (!sortCat) return base
+    const col = `effective_reward_rate_${sortCat}` as keyof ApiCard
+    return [...base].sort((a, b) => ((b[col] as number) ?? 0) - ((a[col] as number) ?? 0))
+  }, [cards, salaryMin, network, bank, freeOnly, sortCat])
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
   const pageCards  = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
@@ -206,10 +249,22 @@ export default function ComparePage() {
 
   // ── Loading / error states ──────────────────────────────────────────────
   if (loading) return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', flexDirection: 'column', gap: 16 }}>
-      <div style={{ width: 40, height: 40, border: '3px solid #EEF3FF', borderTopColor: '#0E3785', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
-      <p style={{ color: '#5A6A85', fontSize: 14 }}>Loading 155 UAE credit cards…</p>
-      <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
+    <div style={{ minHeight: '60vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 20 }}>
+      <style>{`
+        @keyframes cmpCardSpin { 0% { transform: rotateY(0deg); } 50% { transform: rotateY(180deg); } 100% { transform: rotateY(360deg); } }
+        .cmp-spin0 { animation: cmpCardSpin 1.4s ease-in-out infinite 0s; }
+        .cmp-spin1 { animation: cmpCardSpin 1.4s ease-in-out infinite .28s; }
+        .cmp-spin2 { animation: cmpCardSpin 1.4s ease-in-out infinite .56s; }
+      `}</style>
+      <div style={{ display: 'flex', gap: 14, perspective: 400 }}>
+        {[['#0E3785','cmp-spin0'],['#059669','cmp-spin1'],['#1D4ED8','cmp-spin2']].map(([bg, cls], i) => (
+          <div key={i} className={cls} style={{ width: 56, height: 36, borderRadius: 8, background: bg, boxShadow: '0 4px 16px rgba(0,0,0,0.18)' }} />
+        ))}
+      </div>
+      <div style={{ textAlign: 'center' }}>
+        <div style={{ fontSize: 20, fontWeight: 800, color: '#0E3785', marginBottom: 6 }}>Fetching all UAE cards</div>
+        <div style={{ fontSize: 13, color: '#5A6A85' }}>Customised as per average UAE resident spending</div>
+      </div>
     </div>
   )
 
@@ -225,7 +280,7 @@ export default function ComparePage() {
     <div style={{ maxWidth: 1100, margin: '0 auto', padding: '48px 24px 100px' }}>
 
       {/* ── HERO ─────────────────────────────────────────────────────────── */}
-      <div style={{
+      {!fromResults && <div style={{
         position: 'relative', overflow: 'hidden', borderRadius: 24,
         background: 'linear-gradient(120deg, #0A2860 0%, #0E3785 60%, #163E8C 100%)',
         padding: '40px 40px', marginBottom: 28, color: 'white',
@@ -234,7 +289,7 @@ export default function ComparePage() {
         <div style={{ position: 'absolute', inset: 0, opacity: 0.05, backgroundImage: 'linear-gradient(white 1px, transparent 1px), linear-gradient(90deg, white 1px, transparent 1px)', backgroundSize: '44px 44px' }} />
         <div style={{ position: 'relative', maxWidth: 760 }}>
           <div style={{ display: 'inline-block', fontSize: 11, fontWeight: 700, letterSpacing: '0.14em', color: '#C9A84C', textTransform: 'uppercase', marginBottom: 12 }}>
-            Compare UAE Credit Cards
+            All UAE Credit Cards
           </div>
           <h1 style={{ fontSize: 'clamp(24px, 3.4vw, 32px)', fontWeight: 800, lineHeight: 1.25, marginBottom: 10, color: 'white' }}>
             Credit card rewards are highly personal.
@@ -251,19 +306,19 @@ export default function ComparePage() {
             🎯 Calculate My Personal Rewards →
           </Link>
         </div>
-      </div>
+      </div>}
 
       {/* ── FILTER BAR ───────────────────────────────────────────────────── */}
       <div style={{
         background: 'white', borderRadius: 16, border: '1px solid #D6E0F5',
         marginBottom: 20, boxShadow: '0 2px 14px rgba(14,55,133,0.05)', overflow: 'hidden'
       }}>
-        {/* Row 1 — dropdowns + toggles */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', padding: '10px 14px', borderBottom: '1px solid #EEF3FF' }}>
+        {/* Filter row */}
+        <div style={{ display: 'flex', alignItems: 'stretch', gap: 0, padding: '10px 14px' }}>
 
           {/* Salary */}
-          <div style={filterGroupStyle}>
-            <span style={filterLabelStyle}>💼 Salary</span>
+          <div style={{ ...filterGroupStyle, flex: 1 }}>
+            <span style={filterLabelStyle}>Salary</span>
             <select value={salaryMin} onChange={e => { setSalaryMin(Number(e.target.value)); setPage(1) }} style={filterSelectStyle}>
               {SALARY_BANDS.map(b => <option key={b.label} value={b.min}>{b.label}</option>)}
             </select>
@@ -272,8 +327,8 @@ export default function ComparePage() {
           <div style={dividerStyle} />
 
           {/* Bank */}
-          <div style={filterGroupStyle}>
-            <span style={filterLabelStyle}>🏦 Bank</span>
+          <div style={{ ...filterGroupStyle, flex: 1.6 }}>
+            <span style={filterLabelStyle}>Bank</span>
             <select value={bank} onChange={e => { setBank(e.target.value); setPage(1) }} style={filterSelectStyle}>
               {bankOptions.map(b => <option key={b}>{b}</option>)}
             </select>
@@ -282,8 +337,8 @@ export default function ComparePage() {
           <div style={dividerStyle} />
 
           {/* Network */}
-          <div style={filterGroupStyle}>
-            <span style={filterLabelStyle}>🌐 Network</span>
+          <div style={{ ...filterGroupStyle, flex: 1 }}>
+            <span style={filterLabelStyle}>Network</span>
             <select value={network} onChange={e => { setNetwork(e.target.value); setPage(1) }} style={filterSelectStyle}>
               {NETWORK_OPTIONS.map(n => <option key={n}>{n}</option>)}
             </select>
@@ -293,16 +348,30 @@ export default function ComparePage() {
 
           {/* Free for life */}
           <button onClick={() => { setFreeOnly(f => !f); setPage(1) }} style={{
-            display: 'flex', alignItems: 'center', gap: 5, padding: '5px 11px', borderRadius: 7,
-            border: freeOnly ? '1.5px solid #00A67E' : '1.5px solid #D6E0F5',
-            background: freeOnly ? '#EAFBF5' : '#F8FAFF',
-            color: freeOnly ? '#00785C' : '#5A6A85', fontSize: 12, fontWeight: 700, cursor: 'pointer'
+            flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-start',
+            gap: 2, padding: '3px 11px 4px', borderRadius: 0, border: 'none',
+            borderLeft: freeOnly ? '1.5px solid #00A67E' : 'none',
+            borderRight: freeOnly ? '1.5px solid #00A67E' : 'none',
+            background: freeOnly ? '#EAFBF5' : '#F4F6FB',
+            color: freeOnly ? '#00785C' : '#5A6A85', cursor: 'pointer'
           }}>
-            🆓 Free for life{freeOnly ? ' ✓' : ''}
+            <span style={{ fontSize: 9, fontWeight: 700, color: freeOnly ? '#00785C' : '#9DAEC8', textTransform: 'uppercase', letterSpacing: '0.06em', lineHeight: 1.4 }}>🆓 Fee</span>
+            <span style={{ fontSize: 12, fontWeight: 700 }}>Free for life{freeOnly ? ' ✓' : ''}</span>
           </button>
 
+          <div style={dividerStyle} />
+
+          {/* Sort by category */}
+          <div style={{ ...filterGroupStyle, flex: 1.4 }}>
+            <span style={filterLabelStyle}>Sort by</span>
+            <select value={sortCat} onChange={e => { setSortCat(e.target.value); setPage(1) }} style={filterSelectStyle}>
+              <option value="">Default (earnn rank)</option>
+              {RATE_PILLS.map(c => <option key={c.key} value={c.key.replace('effective_reward_rate_', '')}>{c.name} rate</option>)}
+            </select>
+          </div>
+
           {/* Result count */}
-          <span style={{ marginLeft: 'auto', fontSize: 12, color: '#5A6A85', whiteSpace: 'nowrap' }}>
+          <span style={{ marginLeft: 12, fontSize: 12, color: '#5A6A85', whiteSpace: 'nowrap', alignSelf: 'center' }}>
             <strong style={{ color: '#0D1828' }}>{filtered.length}</strong> cards · pg {page}/{totalPages}
           </span>
         </div>
@@ -486,15 +555,6 @@ function CardTile({ card, detail, detailLoading, inCompare, compareFull, onToggl
         padding: '12px 16px', borderBottom: '1px solid #EEF3FF',
         background: inCompare ? '#F0F4FF' : 'white'
       }}>
-        {/* Rank */}
-        <span style={{
-          flexShrink: 0, width: 32, height: 32, borderRadius: '50%',
-          background: card.card_ranking === 1 ? '#C9A84C' : card.card_ranking <= 3 ? '#0E3785' : '#EEF3FF',
-          color: card.card_ranking <= 3 ? 'white' : '#5A6A85',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 12, fontWeight: 800
-        }}>#{card.card_ranking}</span>
-
         {/* Name + bank */}
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 15.5, fontWeight: 800, color: '#0D1828', lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -534,11 +594,24 @@ function CardTile({ card, detail, detailLoading, inCompare, compareFull, onToggl
       {/* ── BODY ROW: image | rate bars | earn up to | fee ── */}
       <div style={{ display: 'flex', alignItems: 'stretch', gap: 0 }}>
 
-        {/* Card image */}
-        <div style={{ flexShrink: 0, padding: '16px 12px 16px 16px', display: 'flex', alignItems: 'center' }}>
+        {/* Card image + effective rate */}
+        <div style={{ flexShrink: 0, padding: '12px 12px 12px 16px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
           <img src={getCardImageUrl(card.earnn_card_id)} alt={card.card_name} width={108} height={66} loading="lazy"
             onError={(e) => { (e.target as HTMLImageElement).src = '/card-dummy.svg' }}
             style={{ borderRadius: 8, objectFit: 'cover', boxShadow: '0 4px 16px rgba(14,55,133,0.2)', display: 'block' }} />
+          {card.effective_reward_rate > 0 && (() => {
+            const rate = card.effective_reward_rate * 100
+            const hue = Math.round((rate / 10) * 142)
+            const bg = `hsl(${hue}, 72%, 32%)`
+            return (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
+                <div style={{ width: 46, height: 46, borderRadius: '50%', background: bg, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: `0 2px 8px ${bg}66` }}>
+                  <span style={{ fontSize: 11, fontWeight: 800, color: 'white', lineHeight: 1 }}>{rate.toFixed(1)}%</span>
+                </div>
+                <div style={{ fontSize: 8, fontWeight: 600, color: '#7A8BA8', textAlign: 'center', lineHeight: 1.3, maxWidth: 60 }}>Overall Effective Rate</div>
+              </div>
+            )
+          })()}
         </div>
 
         {/* Divider */}
@@ -969,18 +1042,17 @@ const selectStyle: React.CSSProperties = {
 
 // Compact filter group — label sits flush above/beside the select
 const filterGroupStyle: React.CSSProperties = {
-  display: 'flex', alignItems: 'center', gap: 0,
-  background: '#F4F6FB', borderRadius: 8, border: '1px solid #E4EAF5',
-  overflow: 'hidden'
+  display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-start',
+  background: '#F4F6FB', border: 'none', paddingTop: 3, paddingBottom: 4
 }
 const filterLabelStyle: React.CSSProperties = {
-  padding: '0 8px', fontSize: 11.5, fontWeight: 700, color: '#5A6A85',
-  whiteSpace: 'nowrap', borderRight: '1px solid #E4EAF5', lineHeight: '32px', height: 32,
-  display: 'flex', alignItems: 'center'
+  fontSize: 9, fontWeight: 700, color: '#9DAEC8',
+  textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap',
+  lineHeight: 1.4, textAlign: 'center'
 }
 const filterSelectStyle: React.CSSProperties = {
-  padding: '0 8px', height: 32, border: 'none', background: 'transparent',
-  color: '#0D1828', fontSize: 12, fontWeight: 600, cursor: 'pointer', outline: 'none'
+  width: '100%', padding: '0 8px', height: 24, border: 'none', background: 'transparent',
+  color: '#0D1828', fontSize: 12, fontWeight: 600, cursor: 'pointer', outline: 'none', textAlign: 'center'
 }
 const dividerStyle: React.CSSProperties = {
   width: 1, height: 20, background: '#E4EAF5', flexShrink: 0
