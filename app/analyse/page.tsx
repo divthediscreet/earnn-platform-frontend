@@ -945,10 +945,10 @@ function AnalyseContent() {
         <div style={{ position: 'absolute', inset: 0, opacity: 0.04, backgroundImage: 'linear-gradient(white 1px, transparent 1px), linear-gradient(90deg, white 1px, transparent 1px)', backgroundSize: '48px 48px' }} />
         <div style={{ maxWidth: 800, margin: '0 auto', position: 'relative' }}>
           <div style={{ display: 'inline-block', background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: 100, padding: '5px 16px', fontSize: 12, fontWeight: 600, letterSpacing: '0.05em', marginBottom: 14 }}>
-            🇦🇪 BUILT EXCLUSIVELY FOR UAE RESIDENTS
+            UAE's smartest credit card rewards engine
           </div>
           <h1 style={{ fontSize: 'clamp(36px, 6vw, 64px)', fontWeight: 800, lineHeight: 1.1, marginBottom: 14, color: 'white' }}>
-            Are you leaving<br /><span style={{ color: '#FFD700' }}>AED on the table</span><br />every month?
+            Discover how much reward<br /><span style={{ color: '#FFD700' }}>you&apos;re missing.</span>
           </h1>
           <p style={{ fontSize: 'clamp(15px, 2vw, 17px)', color: 'rgba(255,255,255,0.8)', lineHeight: 1.6, marginBottom: 0, maxWidth: 780, margin: '0 auto' }}>
             Upload your UAE credit card statement, we show you exactly which card earns you the most rewards based on your actual spending.
