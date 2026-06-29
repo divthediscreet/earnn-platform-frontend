@@ -1577,22 +1577,23 @@ function AnalyseContent() {
         <div style={{ position: 'absolute', inset: 0, background: 'rgba(7,17,43,0.5)', backdropFilter: 'blur(4px)' }} />
         <div style={{ position: 'relative', background: 'white', borderRadius: 16, padding: '32px 28px', maxWidth: 380, width: '100%', textAlign: 'center', boxShadow: '0 24px 64px rgba(0,0,0,0.25)' }}
           onClick={e => e.stopPropagation()}>
-          <div style={{ fontSize: 36, marginBottom: 12 }}>💰</div>
-          <div style={{ fontSize: 18, fontWeight: 800, color: '#0D1828', marginBottom: 8 }}>Monthly salary required</div>
+          <div style={{ fontSize: 36, marginBottom: 12 }}>🎯</div>
+          <div style={{ fontSize: 18, fontWeight: 800, color: '#0D1828', marginBottom: 8 }}>One quick thing</div>
           <div style={{ fontSize: 14, color: '#5A6A85', lineHeight: 1.6, marginBottom: 24 }}>
-            We need your monthly salary to filter out cards you don&apos;t qualify for, so results are accurate for you.
+            Your salary helps us personalise the best cards for you — so you only see options that are actually available to you.
           </div>
           <input
-            type="number" min="0" placeholder="Enter monthly salary (AED)"
+            type="number" min="0" placeholder="Monthly salary (AED)"
             value={salary}
             onChange={e => setSalary(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter' && parseFloat(salary) > 0) { setSalaryPopup(false); handleManual() } }}
             autoFocus
             style={{ width: '100%', padding: '12px 16px', border: '2px solid #0E3785', borderRadius: 10, fontSize: 16, outline: 'none', color: '#0D1828', marginBottom: 16, boxSizing: 'border-box', textAlign: 'center' }}
           />
           <button
-            onClick={() => { if (parseFloat(salary) > 0) setSalaryPopup(false) }}
+            onClick={() => { if (parseFloat(salary) > 0) { setSalaryPopup(false); handleManual() } }}
             style={{ width: '100%', padding: '13px', background: parseFloat(salary) > 0 ? '#0E3785' : '#D6E0F5', color: parseFloat(salary) > 0 ? 'white' : '#9DAEC8', border: 'none', borderRadius: 10, fontSize: 15, fontWeight: 700, cursor: parseFloat(salary) > 0 ? 'pointer' : 'not-allowed' }}>
-            Confirm salary
+            Find my best cards →
           </button>
         </div>
       </div>
