@@ -216,7 +216,25 @@ export default function ChatPage() {
               )}
               {msg.role === 'assistant' ? (
                 <div className="mony-md">
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    components={{
+                      a: ({ href, children }) => {
+                        const isInternal = href && href.startsWith('/')
+                        return isInternal ? (
+                          <a
+                            href={href}
+                            onClick={e => { e.preventDefault(); router.push(href) }}
+                            style={{ color: '#0E3785', fontWeight: 600, textDecoration: 'underline', cursor: 'pointer' }}
+                          >{children}</a>
+                        ) : (
+                          <a href={href} target="_blank" rel="noopener noreferrer"
+                            style={{ color: '#0E3785', fontWeight: 600, textDecoration: 'underline' }}
+                          >{children}</a>
+                        )
+                      }
+                    }}
+                  >
                     {msg.text}
                   </ReactMarkdown>
                 </div>
