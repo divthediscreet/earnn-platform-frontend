@@ -166,3 +166,21 @@ input[type=range].spend-slider { -webkit-appearance: none; appearance: none; hei
 input[type=range].spend-slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 16px; height: 16px; border-radius: 50%; background: #0E3785; cursor: pointer; box-shadow: 0 1px 4px rgba(14,55,133,0.35); }
 input[type=range].spend-slider::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%; background: #0E3785; cursor: pointer; border: none; box-shadow: 0 1px 4px rgba(14,55,133,0.35); }
 input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+
+/* ── Earnie chat markdown ── */
+.mony-md { line-height: 1.7; }
+.mony-md p   { margin: 0 0 6px; }
+.mony-md ul  { margin: 4px 0 8px 16px; padding: 0; }
+.mony-md li  { margin-bottom: 3px; }
+.mony-md h3  { font-size: 15px; font-weight: 700; color: #0E3785; margin: 12px 0 6px; }
+
+/* Bold text inside chat = key card facts (rate · fee · cap, summary tag) — render in earnn blue */
+.mony-md strong {
+  color: #0E3785;
+  font-weight: 600;
+}
+
+/* Tables */
+.mony-md table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 8px 0; }
+.mony-md th    { background: #EEF3FF; color: #0E3785; font-weight: 600; padding: 6px 10px; text-align: left; }
+.mony-md td    { padding: 5px 10px; border-bottom: 1px solid #D6E0F5; }
