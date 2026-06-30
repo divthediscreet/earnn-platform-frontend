@@ -12,6 +12,9 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
+      <head>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css" />
+      </head>
       <body style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
         <Navbar />
         <main style={{ flex: 1 }}>

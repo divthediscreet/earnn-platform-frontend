@@ -738,7 +738,7 @@ function Screen1Hero({ scoredCards, walletData, onNext, onExplore }: {
   )
 }
 
-// ─── Why These Cards — reusable panel (used inline on hero + in Build Your Wallet) ─
+// ─── Why These Cards — card-first layout matching earnn wallet UI ─────────────
 
 function WhyTheseCards({ scoredCards, walletData, forcedRec, subMsg, heroIdx }: { scoredCards: ScoredCard[]; walletData: WalletResponse; forcedRec?: WalletEntry; subMsg?: string; heroIdx?: number }) {
   const rec = forcedRec ?? (() => {
@@ -751,86 +751,155 @@ function WhyTheseCards({ scoredCards, walletData, forcedRec, subMsg, heroIdx }: 
     return best
   })()
   const userSpend = walletData.user_spend
+  const totalMonthlyRewards = Math.round(rec.gross_annual_aed / 12)
 
-  // All categories with user spend > 0, sorted by annual rewards descending
-  type CatItem = { key: string; label: string; emoji: string; monthly: number; routes: RouteEntry[]; totalAnnual: number; totalMonthly: number }
-  const items: CatItem[] = SPEND_CATS
-    .map(key => {
-      const monthly = userSpend[key] ?? 0
-      const routes = (rec.category_routing[key] ?? []).filter(r => r.annual_aed > 0)
-      const totalAnnual = routes.reduce((s, r) => s + r.annual_aed, 0)
-      const totalMonthly = Math.round(totalAnnual / 12)
-      return { key, label: CAT_LABELS[key], emoji: CAT_EMOJI[key], monthly, routes, totalAnnual, totalMonthly }
-    })
-    .filter(c => c.monthly > 0)
-    .sort((a, b) => b.totalAnnual - a.totalAnnual)
+  // Build per-card view: invert routing from category→cards to card→categories
+  const cardData = rec.card_ids.map(cardId => {
+    const sc = scoredCards.find(c => c.earnn_card_id === cardId)
+    type CatEntry = { key: string; route: RouteEntry; isCapped: boolean }
+    const catEntries: CatEntry[] = []
+    for (const [catKey, routes] of Object.entries(rec.category_routing)) {
+      const idx = routes.findIndex(r => r.card_id === cardId)
+      if (idx === -1) continue
+      const route = routes[idx]
+      if (route.annual_aed <= 0) continue
+      // capped = this card is first in a multi-card route (hit its cap, spend spilled over)
+      const isCapped = routes.length > 1 && idx === 0
+      catEntries.push({ key: catKey, route, isCapped })
+    }
+    catEntries.sort((a, b) => b.route.annual_aed - a.route.annual_aed)
+    const totalMonthly = Math.round(catEntries.reduce((s, e) => s + e.route.annual_aed, 0) / 12)
+    const totalSpendOnCard = Math.round(catEntries.reduce((s, e) => s + e.route.monthly_spend_chunk, 0))
+    const topCats = catEntries.slice(0, 2).map(e => CAT_LABELS[e.key]).join(' & ')
+    const sharePct = totalMonthlyRewards > 0 ? Math.round((totalMonthly / totalMonthlyRewards) * 100) : 0
+    return { cardId, sc, catEntries, totalMonthly, totalSpendOnCard, topCats, sharePct }
+  })
 
   return (
-    <div className="space-y-3">
-      {/* Header row */}
-      <div className="grid grid-cols-[160px_minmax(0,1fr)_140px_130px] gap-2 px-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-        <div>Category</div>
-        <div className="pl-8">Recommended Card(s)</div>
-        <div>Monthly Spend</div>
-        <div className="text-right">Monthly Rewards</div>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+
+      {/* Summary strip */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+        {[
+          { label: 'Your Monthly Spend',   value: `AED ${fmt(walletData.total_monthly)}`,        valueColor: '#0D1828', bg: '#F8FAFF', border: '#D6E0F5' },
+          { label: 'Your Monthly Rewards', value: `AED ${fmt(totalMonthlyRewards)}`,              valueColor: '#00A67E', bg: '#F8FAFF', border: '#D6E0F5' },
+          { label: 'You earn',             value: `AED ${fmt(rec.net_annual_value_aed)} / year`,  valueColor: '#0E3785', bg: '#EEF9F4', border: '#B3E8D4' },
+        ].map((s, i) => (
+          <div key={i} style={{ background: s.bg, border: `1px solid ${s.border}`, borderRadius: 12, padding: '12px 16px' }}>
+            <div style={{ fontSize: 11, color: '#5A6A85', fontWeight: 600, marginBottom: 4 }}>{s.label}</div>
+            <div style={{ fontSize: i === 2 ? 17 : 19, fontWeight: 700, color: s.valueColor, lineHeight: 1.2 }}>{s.value}</div>
+          </div>
+        ))}
       </div>
 
-      {items.map(c => (
-        <div key={c.key} className="rounded-xl border border-border/60 bg-card px-3 py-3 shadow-soft">
-          {/* Main row: Category | Card Earning | Monthly Spend | Monthly Rewards */}
-          <div className="grid grid-cols-[160px_minmax(0,1fr)_140px_130px] items-center gap-2">
-            <div className="flex items-center gap-2 min-w-0">
-              <span className="text-lg">{c.emoji}</span>
-              <span className="font-semibold text-sm text-primary truncate">{c.label}</span>
-            </div>
-            <div className="min-w-0 pl-8">
-              {c.routes.length === 1 ? (
-                <span className="inline-flex items-center rounded-full bg-[#EEF3FF] px-2.5 py-0.5 text-[11px] font-medium text-[#0E3785] truncate max-w-full">
-                  {c.routes[0].card_name.split(' ').slice(0, 4).join(' ')}
-                </span>
-              ) : c.routes.length === 0 ? (
-                <span className="text-[11px] text-muted-foreground/40 italic">No reward</span>
-              ) : (
-                <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-0.5 text-[11px] font-medium text-amber-700">
-                  <span>↔</span> {c.routes.length} cards earning
-                </span>
-              )}
-            </div>
-            <div className="text-left text-[13px] tabular-nums text-muted-foreground">AED {fmt(c.monthly)}</div>
-            <div className="text-right">
-              {c.totalMonthly > 0 ? (
-                <span className="font-display font-bold text-emerald tabular-nums text-[15px]">AED {fmt(c.totalMonthly)}<span className="text-[10px] font-normal text-muted-foreground"> /mo</span></span>
-              ) : (
-                <span className="text-sm text-muted-foreground/40">—</span>
-              )}
+      {/* n-cards label */}
+      <div style={{ fontSize: 13, color: '#5A6A85', fontWeight: 500 }}>
+        {rec.n_cards} card{rec.n_cards > 1 ? 's' : ''} in your optimal wallet
+      </div>
+
+      {/* Per-card blocks */}
+      {cardData.map(({ cardId, sc, catEntries, totalMonthly, totalSpendOnCard, topCats, sharePct }) => (
+        <div key={cardId} style={{ border: '1px solid #D6E0F5', borderRadius: 16, overflow: 'hidden', background: 'white', display: 'grid', gridTemplateColumns: '180px 220px 1fr' }}>
+
+          {/* Col 1: card image */}
+          <div style={{ background: '#F4F7FF', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px 16px' }}>
+            <img
+              src={getCardImageUrl(cardId)}
+              alt=""
+              style={{ width: 148, height: 93, objectFit: 'cover', borderRadius: 8, boxShadow: '0 4px 16px rgba(0,0,0,0.22)', display: 'block' }}
+              onError={e => { (e.target as HTMLImageElement).src = '/card-dummy.svg' }}
+            />
+          </div>
+
+          {/* Col 2: card meta */}
+          <div style={{ padding: '20px 18px', borderLeft: '1px solid #EEF3FF', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 6 }}>
+            <div style={{ fontSize: 15, fontWeight: 700, color: '#0D1828', lineHeight: 1.3 }}>{sc?.card_name ?? cardId}</div>
+            {sc?.bank_name && <div style={{ fontSize: 12, color: '#5A6A85' }}>{sc.bank_name}</div>}
+            {topCats && (
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#FFF8E6', border: '1px solid #FDDEA0', borderRadius: 20, padding: '3px 10px', width: 'fit-content' }}>
+                <span style={{ fontSize: 11 }}>⭐</span>
+                <span style={{ fontSize: 11, fontWeight: 600, color: '#92600A' }}>Best for {topCats}</span>
+              </div>
+            )}
+            <div style={{ marginTop: 6 }}>
+              <div style={{ fontSize: 11, color: '#5A6A85', fontWeight: 600, marginBottom: 3 }}>Monthly Rewards</div>
+              <div style={{ fontSize: 24, fontWeight: 700, color: '#00A67E', lineHeight: 1 }}>AED {fmt(totalMonthly)}</div>
+              <div style={{ fontSize: 11, color: '#9DAEC8', marginTop: 3 }}>({sharePct}% of total rewards)</div>
             </div>
           </div>
-          {/* Spillover rows */}
-          {c.routes.length > 1 && (
-            <div className="mt-2.5 border-t border-border/40 pt-2 space-y-1">
-              {c.routes.map((r, i) => (
-                <div key={i} className="grid grid-cols-[160px_minmax(0,1fr)_140px_130px] items-center gap-2">
-                  <div />
-                  <div className="flex items-center gap-1.5 min-w-0 pl-8">
-                    <span className="h-1.5 w-1.5 rounded-full bg-[#0E3785]/30 flex-shrink-0" />
-                    <span className="text-[11px] text-[#0E3785] font-medium truncate">{r.card_name.split(' ').slice(0, 4).join(' ')}</span>
+
+          {/* Col 3: where this card is used */}
+          <div style={{ borderLeft: '1px solid #EEF3FF', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ padding: '14px 20px 10px', fontSize: 11, fontWeight: 600, color: '#5A6A85' }}>Where this card is used</div>
+
+            {/* Category rows */}
+            <div style={{ flex: 1, padding: '0 20px', display: 'flex', flexDirection: 'column', gap: 0 }}>
+              {catEntries.map(({ key, route, isCapped }, i) => {
+                const monthlyReward = Math.round(route.annual_aed / 12)
+                const spendChunk = route.monthly_spend_chunk
+                const totalCatSpend = userSpend[key] ?? 0
+                return (
+                  <div key={key} style={{ display: 'grid', gridTemplateColumns: '40px 1fr auto', alignItems: 'center', gap: 12, padding: '10px 0', borderTop: i > 0 ? '1px solid #F0F4FF' : 'none' }}>
+                    {/* Icon circle */}
+                    <div style={{ width: 36, height: 36, borderRadius: 10, background: '#EEF3FF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 17, flexShrink: 0 }}>
+                      {CAT_EMOJI[key] || '💳'}
+                    </div>
+                    {/* Name + spend line */}
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 2 }}>
+                        <span style={{ fontSize: 13, fontWeight: 600, color: '#0D1828' }}>
+                          {CAT_LABELS[key]}{!isCapped && (userSpend[key] ?? 0) > route.monthly_spend_chunk ? ' (after cap)' : ''}
+                        </span>
+                        {isCapped && (
+                          <span style={{ fontSize: 9, fontWeight: 700, background: '#FEF3C7', color: '#B45309', border: '1px solid #FDE68A', borderRadius: 4, padding: '2px 6px', letterSpacing: '0.04em' }}>CAPPING HIT</span>
+                        )}
+                      </div>
+                      <div style={{ fontSize: 11, color: '#5A6A85' }}>
+                        Spent: AED {fmt(spendChunk)}{totalCatSpend > spendChunk ? ` / AED ${fmt(totalCatSpend)}` : ''} ({totalCatSpend > 0 ? Math.round((spendChunk / totalCatSpend) * 100) : 100}% of spend)
+                      </div>
+                    </div>
+                    {/* Reward */}
+                    <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                      <div style={{ fontSize: 10, color: '#9DAEC8', fontWeight: 600, marginBottom: 2 }}>Reward</div>
+                      <div style={{ fontSize: 15, fontWeight: 700, color: '#00A67E' }}>AED {fmt(monthlyReward)}</div>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-left text-[11px] text-muted-foreground tabular-nums">AED {fmt(r.monthly_spend_chunk)}/mo</span>
-                    {i < c.routes.length - 1 && (
-                      <span className="flex-shrink-0 rounded-full bg-amber-100 px-1.5 py-px text-[9px] font-semibold uppercase tracking-wide text-amber-700">capped</span>
-                    )}
-                  </div>
-                  <span className="text-right text-[12px] text-emerald font-semibold tabular-nums">+AED {fmt(Math.round(r.annual_aed / 12))}/mo</span>
-                </div>
-              ))}
+                )
+              })}
             </div>
-          )}
+
+            {/* Footer totals */}
+            <div style={{ borderTop: '1px solid #EEF3FF', padding: '10px 20px', display: 'flex', alignItems: 'center', gap: 16, background: '#FAFBFF' }}>
+              <span style={{ fontSize: 12, color: '#5A6A85', fontWeight: 600 }}>Total spent on this card</span>
+              <span style={{ fontSize: 13, color: '#0D1828', fontWeight: 700 }}>AED {fmt(totalSpendOnCard)} / month</span>
+              <div style={{ width: 1, background: '#D6E0F5', alignSelf: 'stretch', margin: '0 4px' }} />
+              <span style={{ fontSize: 12, color: '#5A6A85', fontWeight: 600 }}>Total reward</span>
+              <span style={{ fontSize: 15, color: '#00A67E', fontWeight: 700 }}>AED {fmt(totalMonthly)}</span>
+            </div>
+          </div>
         </div>
       ))}
 
+      {/* Footer strategy bar */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: 12, padding: '14px 20px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{ fontSize: 20 }}>🏆</span>
+          <span style={{ fontSize: 14, fontWeight: 600, color: '#92400E' }}>Follow this strategy to earn the maximum rewards</span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 24, flexShrink: 0 }}>
+          <div style={{ textAlign: 'right' }}>
+            <div style={{ fontSize: 10, color: '#B45309', fontWeight: 700, letterSpacing: '0.06em' }}>TOTAL MONTHLY REWARDS</div>
+            <div style={{ fontSize: 18, fontWeight: 700, color: '#00A67E' }}>AED {fmt(totalMonthlyRewards)}</div>
+          </div>
+          <div style={{ textAlign: 'right' }}>
+            <div style={{ fontSize: 10, color: '#B45309', fontWeight: 700, letterSpacing: '0.06em' }}>TOTAL YEARLY REWARDS</div>
+            <div style={{ fontSize: 18, fontWeight: 700, color: '#00A67E' }}>AED {fmt(totalMonthlyRewards * 12)}</div>
+          </div>
+        </div>
+      </div>
+
       {subMsg && (
-        <div className="mt-2 rounded-xl border px-4 py-3 text-sm" style={{ borderColor: heroIdx === 0 ? 'rgba(14,55,133,0.20)' : 'rgba(245,215,110,0.35)', background: heroIdx === 0 ? 'rgba(14,55,133,0.05)' : 'rgba(245,215,110,0.08)', color: heroIdx === 0 ? '#5A6A85' : '#92660A' }}>
+        <div style={{ borderRadius: 12, border: heroIdx === 0 ? '1px solid rgba(14,55,133,0.20)' : '1px solid rgba(245,215,110,0.35)', background: heroIdx === 0 ? 'rgba(14,55,133,0.05)' : 'rgba(245,215,110,0.08)', color: heroIdx === 0 ? '#5A6A85' : '#92660A', padding: '12px 16px', fontSize: 14 }}>
           {subMsg}
         </div>
       )}
@@ -1324,8 +1393,7 @@ function Screen4Wallet({ scoredCards, walletData, wallet, setWallet, onBack, onN
         </div>
 
         {/* Right: wallet */}
-        <div className="space-y-4">
-          <div className="sticky top-20 space-y-4">
+        <div className="flex flex-col gap-4 self-start">
             <div className="overflow-hidden rounded-3xl bg-primary p-6 text-primary-foreground shadow-card">
               <div className="flex items-center justify-between text-xs uppercase tracking-wider text-primary-foreground/70">
                 <span>💳 Your wallet</span>
@@ -1369,79 +1437,98 @@ function Screen4Wallet({ scoredCards, walletData, wallet, setWallet, onBack, onN
               </div>
             </div>
 
-            {/* Category allocation */}
-            <div className="rounded-3xl border border-border/60 bg-card p-5 shadow-soft">
-              <div className="flex items-center gap-2 text-sm font-semibold text-primary mb-4">
-                🗂️ Category Allocation
-              </div>
+          {/* Spend split */}
+          <div className="rounded-3xl border border-border/60 bg-card shadow-soft flex flex-col min-h-0 flex-1">
+            <div className="flex-shrink-0 flex items-center gap-2 text-sm font-semibold text-primary px-5 py-4 border-b border-border/60 rounded-t-3xl bg-card">
+              💳 Spend Split by Card
+            </div>
+            <div className="p-5 pt-4 overflow-y-auto flex-1">
               {wallet.length === 0 ? (
                 <p className="text-sm text-muted-foreground">Add cards to your wallet to see category allocation.</p>
               ) : !pgScore ? (
                 <p className="text-sm text-muted-foreground">{pgLoading ? 'Calculating…' : 'Select cards to see allocation.'}</p>
               ) : (() => {
-                const routing = pgScore.category_routing
-                type CatItem = { key: string; label: string; emoji: string; monthly: number; routes: RouteEntry[]; totalAnnual: number; totalMonthly: number }
-                const items: CatItem[] = SPEND_CATS
-                  .map(key => {
-                    const monthly = walletData.user_spend[key] ?? 0
-                    const routes = (routing[key] ?? []).filter(r => r.annual_aed > 0)
-                    const totalAnnual = routes.reduce((s, r) => s + r.annual_aed, 0)
-                    const totalMonthly = Math.round(totalAnnual / 12)
-                    return { key, label: CAT_LABELS[key], emoji: CAT_EMOJI[key], monthly, routes, totalAnnual, totalMonthly }
-                  })
-                  .filter(c => c.monthly > 0)
-                  .sort((a, b) => b.totalAnnual - a.totalAnnual)
+                const userSpend = walletData.user_spend
+                const totalMonthlyRewards = Math.round(pgScore.gross_annual_aed / 12)
+
+                // Build per-card view from routing
+                const cardData = wallet.map(cardId => {
+                  const sc = scoredCards.find(c => c.earnn_card_id === cardId)
+                  type CatEntry = { key: string; route: RouteEntry; isCapped: boolean }
+                  const catEntries: CatEntry[] = []
+                  for (const [catKey, routes] of Object.entries(pgScore.category_routing)) {
+                    const idx = routes.findIndex(r => r.card_id === cardId)
+                    if (idx === -1) continue
+                    const route = routes[idx]
+                    if (route.annual_aed <= 0) continue
+                    catEntries.push({ key: catKey, route, isCapped: routes.length > 1 && idx === 0 })
+                  }
+                  catEntries.sort((a, b) => b.route.annual_aed - a.route.annual_aed)
+                  const totalMonthly = Math.round(catEntries.reduce((s, e) => s + e.route.annual_aed, 0) / 12)
+                  const totalSpendOnCard = Math.round(catEntries.reduce((s, e) => s + e.route.monthly_spend_chunk, 0))
+                  const topCats = catEntries.slice(0, 2).map(e => CAT_LABELS[e.key]).join(' & ')
+                  const sharePct = totalMonthlyRewards > 0 ? Math.round((totalMonthly / totalMonthlyRewards) * 100) : 0
+                  return { cardId, sc, catEntries, totalMonthly, totalSpendOnCard, topCats, sharePct }
+                }).filter(d => d.catEntries.length > 0)
 
                 return (
-                  <div className="space-y-2">
-                    {items.map(c => (
-                      <div key={c.key} className="rounded-xl border border-border/60 bg-card px-4 py-3 shadow-soft">
-                        {/* Row 1: category + monthly rewards */}
-                        <div className="flex items-center justify-between gap-3">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <span className="text-base">{c.emoji}</span>
-                            <span className="font-semibold text-sm text-primary truncate">{c.label}</span>
-                            <span className="text-[12px] text-muted-foreground tabular-nums">· AED {fmt(c.monthly)}/mo spend</span>
-                          </div>
-                          <div className="flex-shrink-0">
-                            {c.totalMonthly > 0 ? (
-                              <span className="font-bold text-emerald tabular-nums text-[15px]">AED {fmt(c.totalMonthly)}<span className="text-[10px] font-normal text-muted-foreground"> /mo</span></span>
-                            ) : (
-                              <span className="text-sm text-muted-foreground/40">No reward</span>
-                            )}
-                          </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    {cardData.map(({ cardId, sc, catEntries, totalMonthly, totalSpendOnCard, topCats, sharePct }) => (
+                      <div key={cardId} style={{ border: '1px solid #D6E0F5', borderRadius: 14, overflow: 'hidden', background: 'white' }}>
+
+                        {/* Header: card name + best-for badge */}
+                        <div style={{ padding: '12px 18px', borderBottom: '1px solid #EEF3FF', display: 'flex', alignItems: 'center', gap: 12 }}>
+                          <div style={{ fontSize: 14, fontWeight: 700, color: '#0D1828' }}>{sc?.card_name ?? cardId}</div>
+                          {topCats && (
+                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#FFF8E6', border: '1px solid #FDDEA0', borderRadius: 20, padding: '3px 10px', flexShrink: 0 }}>
+                              <span style={{ fontSize: 10 }}>⭐</span>
+                              <span style={{ fontSize: 10, fontWeight: 600, color: '#92600A' }}>Best for {topCats}</span>
+                            </div>
+                          )}
                         </div>
 
-                        {/* Row 2: card allocation */}
-                        {c.routes.length === 1 && (
-                          <div className="mt-2 flex items-center gap-2">
-                            <span className="text-[10px] uppercase tracking-wide text-muted-foreground/60 font-semibold">Earning via</span>
-                            <span className="inline-flex items-center rounded-full bg-[#EEF3FF] px-2.5 py-0.5 text-[11px] font-medium text-[#0E3785]">
-                              {c.routes[0].card_name.split(' ').slice(0, 4).join(' ')}
-                            </span>
-                          </div>
-                        )}
-
-                        {/* Spillover rows */}
-                        {c.routes.length > 1 && (
-                          <div className="mt-2 space-y-1.5 border-t border-border/40 pt-2">
-                            {c.routes.map((r, i) => (
-                              <div key={i} className="flex items-center justify-between gap-2">
-                                <div className="flex items-center gap-2 min-w-0">
-                                  <span className="h-1.5 w-1.5 rounded-full bg-[#0E3785]/30 flex-shrink-0" />
-                                  <span className="text-[11px] text-[#0E3785] font-medium truncate">{r.card_name.split(' ').slice(0, 4).join(' ')}</span>
-                                  {i < c.routes.length - 1 && (
-                                    <span className="rounded-full bg-amber-100 px-1.5 py-px text-[9px] font-semibold uppercase tracking-wide text-amber-700">capped</span>
-                                  )}
+                        {/* Category rows — full width */}
+                        <div style={{ padding: '0 18px', display: 'flex', flexDirection: 'column' }}>
+                          {catEntries.map(({ key, route, isCapped }, i) => {
+                            const monthlyReward = Math.round(route.annual_aed / 12)
+                            const spendChunk = route.monthly_spend_chunk
+                            const totalCatSpend = userSpend[key] ?? 0
+                            return (
+                              <div key={key} style={{ display: 'grid', gridTemplateColumns: '34px 1fr auto', alignItems: 'center', gap: 12, padding: '10px 0', borderTop: i > 0 ? '1px solid #F0F4FF' : 'none' }}>
+                                <div style={{ width: 32, height: 32, borderRadius: 8, background: '#EEF3FF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, flexShrink: 0 }}>
+                                  {CAT_EMOJI[key] || '💳'}
                                 </div>
-                                <div className="flex items-center gap-3 flex-shrink-0">
-                                  <span className="text-[11px] text-muted-foreground tabular-nums">AED {fmt(r.monthly_spend_chunk)}/mo</span>
-                                  <span className="text-[12px] text-emerald font-semibold tabular-nums">+AED {fmt(Math.round(r.annual_aed / 12))}/mo</span>
+                                <div>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+                                    <span style={{ fontSize: 12, fontWeight: 600, color: '#0D1828' }}>
+                                      {CAT_LABELS[key]}{!isCapped && totalCatSpend > spendChunk ? ' (after cap)' : ''}
+                                    </span>
+                                    {isCapped && (
+                                      <span style={{ fontSize: 9, fontWeight: 700, background: '#FEF3C7', color: '#B45309', border: '1px solid #FDE68A', borderRadius: 4, padding: '1px 5px', letterSpacing: '0.04em' }}>CAPPING HIT</span>
+                                    )}
+                                  </div>
+                                  <div style={{ fontSize: 10, color: '#5A6A85' }}>
+                                    Spent: AED {fmt(spendChunk)}{totalCatSpend > spendChunk ? ` / AED ${fmt(totalCatSpend)}` : ''} ({totalCatSpend > 0 ? Math.round((spendChunk / totalCatSpend) * 100) : 100}% of spend)
+
+                                  </div>
+                                </div>
+                                <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                                  <div style={{ fontSize: 10, color: '#9DAEC8', fontWeight: 600, marginBottom: 1 }}>Reward</div>
+                                  <div style={{ fontSize: 13, fontWeight: 700, color: '#00A67E' }}>AED {fmt(monthlyReward)}</div>
                                 </div>
                               </div>
-                            ))}
-                          </div>
-                        )}
+                            )
+                          })}
+                        </div>
+
+                        {/* Footer */}
+                        <div style={{ borderTop: '1px solid #EEF3FF', padding: '8px 18px', display: 'flex', alignItems: 'center', gap: 14, background: '#FAFBFF' }}>
+                          <span style={{ fontSize: 11, color: '#5A6A85', fontWeight: 600 }}>Total spent on this card</span>
+                          <span style={{ fontSize: 12, color: '#0D1828', fontWeight: 700 }}>AED {fmt(totalSpendOnCard)} / month</span>
+                          <div style={{ width: 1, background: '#D6E0F5', alignSelf: 'stretch', margin: '0 2px' }} />
+                          <span style={{ fontSize: 11, color: '#5A6A85', fontWeight: 600 }}>Total reward</span>
+                          <span style={{ fontSize: 13, color: '#00A67E', fontWeight: 700 }}>AED {fmt(totalMonthly)}</span>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -1453,6 +1540,7 @@ function Screen4Wallet({ scoredCards, walletData, wallet, setWallet, onBack, onN
       </div>
 
       <NavRow onBack={onBack} onNext={onNext} nextLabel="See my final plan" />
+
 
       {/* All UAE Cards modal */}
       {showAllCards && (

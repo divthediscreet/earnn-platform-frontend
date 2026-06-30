@@ -1,6 +1,18 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
 
 :root {
+  /* ── New results-page design tokens (Lovable system) ── */
+  --ds-primary:       #0A2A66;
+  --ds-primary-fg:    #ffffff;
+  --ds-emerald:       #00A870;
+  --ds-emerald-soft:  #e6f7f1;
+  --ds-surface-2:     #f5f7fb;
+  --ds-border:        #e4eaf5;
+  --ds-muted:         #6b7a99;
+  --ds-shadow-soft:   0 1px 2px rgba(0,0,0,0.04), 0 8px 24px rgba(0,0,0,0.06);
+  --ds-shadow-elev:   0 2px 4px rgba(0,0,0,0.04), 0 24px 48px -12px rgba(0,0,0,0.12);
+  --ds-shadow-card:   0 20px 40px -16px rgba(10,42,102,0.32);
   /* earnn Brand Colours */
   --earnn-blue:        #0E3785;   /* Primary royal blue — from logo */
   --earnn-blue-dark:   #0A2860;   /* Hover / deep state */
@@ -17,8 +29,28 @@
 }
 
 @theme inline {
-  --color-background: var(--earnn-offwhite);
-  --color-foreground: var(--earnn-text);
+  --color-background:          var(--earnn-offwhite);
+  --color-foreground:          #0d1428;
+  --color-card:                #ffffff;
+  --color-card-foreground:     #0d1428;
+  --color-primary:             #0A2A66;
+  --color-primary-foreground:  #ffffff;
+  --color-muted:               #f5f7fb;
+  --color-muted-foreground:    #6b7a99;
+  --color-border:              #e4eaf5;
+  --color-emerald:             #00A870;
+  --color-emerald-soft:        #e6f7f1;
+  --color-surface-2:           #f5f7fb;
+  --color-navy:                #0A2A66;
+  --shadow-soft:    0 1px 2px rgba(0,0,0,0.04), 0 8px 24px rgba(0,0,0,0.06);
+  --shadow-elevated:0 2px 4px rgba(0,0,0,0.04), 0 24px 48px -12px rgba(0,0,0,0.12);
+  --shadow-card:    0 20px 40px -16px rgba(10,42,102,0.32);
+  --font-display:  'Plus Jakarta Sans', system-ui, sans-serif;
+  --font-sans:     'Inter', system-ui, sans-serif;
+}
+
+@utility tabular {
+  font-variant-numeric: tabular-nums;
 }
 
 * {
@@ -128,3 +160,9 @@ h1, h2, h3, h4, h5, h6 {
   color: var(--earnn-warning);
   font-weight: 700;
 }
+
+/* Analyse page — spend slider */
+input[type=range].spend-slider { -webkit-appearance: none; appearance: none; height: 5px; border-radius: 3px; outline: none; cursor: pointer; }
+input[type=range].spend-slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 16px; height: 16px; border-radius: 50%; background: #0E3785; cursor: pointer; box-shadow: 0 1px 4px rgba(14,55,133,0.35); }
+input[type=range].spend-slider::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%; background: #0E3785; cursor: pointer; border: none; box-shadow: 0 1px 4px rgba(14,55,133,0.35); }
+input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
