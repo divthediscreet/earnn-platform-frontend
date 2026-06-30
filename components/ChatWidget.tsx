@@ -7,7 +7,7 @@ interface Message { role: 'user' | 'assistant'; text: string }
 export default function ChatWidget() {
   const [open, setOpen] = useState(false)
   const [messages, setMessages] = useState<Message[]>([
-    { role: 'assistant', text: "Hi! I'm Mony — an AI brain of earnn. Ask me anything about UAE credit cards. Which card gives the best rewards for dining? Which has the best lounge access? Which suits your salary? I know them all. 🇦🇪" }
+    { role: 'assistant', text: "Hi! I'm Earnie — earnn's UAE credit card expert. Ask me anything about UAE credit cards. Which card gives the best rewards for dining? Which has the best lounge access? Which suits your salary? I know them all. 🇦🇪" }
   ])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
@@ -53,7 +53,7 @@ export default function ChatWidget() {
         }}>
           {/* Header */}
           <div style={{ background: '#0E3785', padding: '16px 20px', color: 'white' }}>
-            <div style={{ fontWeight: 700, fontSize: 16 }}>💬 Ask earnn</div>
+            <div style={{ fontWeight: 700, fontSize: 16 }}>💬 Ask Earnie</div>
             <div style={{ fontSize: 12, opacity: 0.7, marginTop: 2 }}>UAE credit card expert · 155+ cards</div>
           </div>
 

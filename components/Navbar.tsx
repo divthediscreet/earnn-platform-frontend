@@ -38,10 +38,10 @@ export default function Navbar() {
             Analyse
           </Link>
           <Link href="/compare" style={{ padding: '8px 16px', borderRadius: 6, color: 'var(--earnn-text-muted)', fontSize: 15, fontWeight: 500, textDecoration: 'none' }}>
-            Compare Cards
+            All UAE Cards
           </Link>
           <Link href="/chat" style={{ padding: '8px 16px', borderRadius: 6, color: 'var(--earnn-text-muted)', fontSize: 15, fontWeight: 500, textDecoration: 'none' }}>
-            Ask earnn
+            Ask Earnie
           </Link>
           <Link href="/analyse" className="btn-primary" style={{ padding: '10px 24px', fontSize: 14, marginLeft: 8 }}>
             Get Started Free

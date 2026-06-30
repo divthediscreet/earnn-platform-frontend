@@ -64,7 +64,7 @@ export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([
     {
       role: 'assistant',
-      text: "Hi! I'm Mony — earnn's UAE credit card expert. Ask me anything: best card for dining, lounge access, miles, Islamic cards, fee comparisons. I know all 155+ UAE cards. 🇦🇪",
+      text: "Hi! I'm Earnie — earnn's UAE credit card expert. Ask me anything: best card for dining, lounge access, miles, Islamic cards, fee comparisons. I know all 155+ UAE cards. 🇦🇪",
     },
   ])
   const [input, setInput]               = useState('')
@@ -153,7 +153,7 @@ export default function ChatPage() {
       {/* Header */}
       <div style={{ marginBottom: 24, flexShrink: 0 }}>
         <h1 style={{ fontSize: 28, fontWeight: 800, color: '#0E3785', marginBottom: 4 }}>
-          Ask Mony
+          Ask Earnie
         </h1>
         <p style={{ color: '#5A6A85', fontSize: 15 }}>
           AI-powered UAE credit card expert · 155+ cards · Real-time database
@@ -206,7 +206,7 @@ export default function ChatPage() {
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     fontSize: 11, color: 'white', fontWeight: 700,
                   }}>e</div>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: '#0E3785' }}>Mony</span>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: '#0E3785' }}>Earnie</span>
                   {msg.cards_found !== undefined && msg.cards_found > 0 && (
                     <span style={{ fontSize: 11, color: '#5A6A85', marginLeft: 4 }}>
                       {msg.cards_found} cards matched
