@@ -99,6 +99,7 @@ export interface SessionProfile {
   preferred_reward_type: 'cashback' | 'miles' | 'points' | null
   preferred_banks:       string[]
   preferred_network:     string | null
+  shown_card_ids:        string[]
 }
 
 export async function sendChatMessage(

@@ -32,6 +32,7 @@ const EMPTY_PROFILE: SessionProfile = {
   preferred_reward_type: null,
   preferred_banks:       [],
   preferred_network:     null,
+  shown_card_ids:        [],
 }
 
 function mergeProfile(
@@ -54,6 +55,8 @@ function mergeProfile(
     merged.preferred_network = extracted.preferred_network as string
   if (Array.isArray(extracted.preferred_banks) && extracted.preferred_banks.length > 0)
     merged.preferred_banks = [...new Set([...merged.preferred_banks, ...extracted.preferred_banks as string[]])]
+  if (Array.isArray(extracted.shown_card_ids) && extracted.shown_card_ids.length > 0)
+    merged.shown_card_ids = extracted.shown_card_ids as string[]
 
   return merged
 }
