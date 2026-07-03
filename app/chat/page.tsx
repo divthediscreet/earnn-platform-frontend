@@ -393,13 +393,13 @@ export default function ChatPage() {
                   😊
                 </button>
 
-                {/* Frustrated 😤 */}
+                {/* Confused 🤔 */}
                 <button
                   onClick={() => msg.rating === -1 ? undefined : handleRate(i, -1)}
-                  title="Not what I needed"
+                  title="Didn't quite answer my question"
                   style={{
-                    background:  msg.rating === -1 ? '#FFEBEE' : 'transparent',
-                    border:      msg.rating === -1 ? '1.5px solid #EF5350' : '1.5px solid #D6E0F5',
+                    background:  msg.rating === -1 ? '#FFF8E1' : 'transparent',
+                    border:      msg.rating === -1 ? '1.5px solid #FFA726' : '1.5px solid #D6E0F5',
                     borderRadius: 8,
                     padding:     '2px 8px',
                     fontSize:    18,
@@ -408,14 +408,14 @@ export default function ChatPage() {
                     transition:  'all 0.15s',
                   }}
                 >
-                  😤
+                  🤔
                 </button>
 
                 {msg.rating === 1 && (
                   <span style={{ fontSize: 11, color: '#4CAF50' }}>Thanks! 🙌</span>
                 )}
                 {msg.rating === -1 && (
-                  <span style={{ fontSize: 11, color: '#EF5350' }}>Got it — we'll improve.</span>
+                  <span style={{ fontSize: 11, color: '#FFA726' }}>Got it — we'll do better.</span>
                 )}
               </div>
             )}
