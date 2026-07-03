@@ -102,16 +102,48 @@ export interface SessionProfile {
   shown_card_ids:        string[]
 }
 
+export interface DiscoveryHint {
+  type:      'aggregator' | 'mall'
+  merchant:  string
+  apps?:     string[]
+  category:  string
+  message:   string
+}
+
 export async function sendChatMessage(
-  message: string,
-  history: ChatMessage[] = [],
+  message:         string,
+  history:         ChatMessage[] = [],
   session_profile: Partial<SessionProfile> = {},
+  session_id:      string = '',
 ) {
   const res = await fetch(`${API_BASE}/api/chat/message`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ message, history, session_profile }),
+    body: JSON.stringify({ message, history, session_profile, session_id }),
   })
   if (!res.ok) throw new Error(`Chat failed: ${res.statusText}`)
+  return res.json() as Promise<{
+    answer:          string
+    intent:          Record<string, unknown>
+    cards_found:     number
+    extracted_facts: Record<string, unknown>
+    decision:        Record<string, unknown>
+    discovery_hints: DiscoveryHint[]
+    session_id:      string
+    turn_number:     number
+  }>
+}
+
+export async function rateResponse(
+  session_id:  string,
+  turn_number: number,
+  rating:      1 | -1,
+) {
+  const res = await fetch(`${API_BASE}/api/chat/rate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ session_id, turn_number, rating }),
+  })
+  if (!res.ok) throw new Error(`Rate failed: ${res.statusText}`)
   return res.json()
 }

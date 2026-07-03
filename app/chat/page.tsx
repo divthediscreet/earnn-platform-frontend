@@ -1,15 +1,25 @@
 'use client'
 import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { sendChatMessage, SessionProfile, ChatMessage as ApiChatMessage } from '@/lib/api'
+import {
+  sendChatMessage, rateResponse,
+  SessionProfile, ChatMessage as ApiChatMessage, DiscoveryHint,
+} from '@/lib/api'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 
+// ─── Types ────────────────────────────────────────────────────────────────────
+
 interface Message {
-  role: 'user' | 'assistant'
-  text: string
-  cards_found?: number
+  role:             'user' | 'assistant'
+  text:             string
+  cards_found?:     number
+  turn_number?:     number
+  discovery_hints?: DiscoveryHint[]
+  rating?:          1 | -1 | null   // null = not yet rated
 }
+
+// ─── Constants ────────────────────────────────────────────────────────────────
 
 const SUGGESTED = [
   'Best card for dining at restaurants (not delivery)?',
@@ -35,8 +45,12 @@ const EMPTY_PROFILE: SessionProfile = {
   shown_card_ids:        [],
 }
 
+function genSessionId(): string {
+  return Math.random().toString(36).slice(2, 14)
+}
+
 function mergeProfile(
-  existing: SessionProfile,
+  existing:  SessionProfile,
   extracted: Record<string, unknown>,
 ): SessionProfile {
   const merged = { ...existing }
@@ -58,8 +72,16 @@ function mergeProfile(
   if (Array.isArray(extracted.shown_card_ids) && extracted.shown_card_ids.length > 0)
     merged.shown_card_ids = extracted.shown_card_ids as string[]
 
+  // Persist pending_discovery state so backend can process it next turn
+  if ('pending_discovery' in extracted)
+    (merged as Record<string, unknown>)['pending_discovery'] = extracted.pending_discovery
+  if ('pending_salary_for_discovery' in extracted)
+    (merged as Record<string, unknown>)['pending_salary_for_discovery'] = extracted.pending_salary_for_discovery
+
   return merged
 }
+
+// ─── Main component ───────────────────────────────────────────────────────────
 
 export default function ChatPage() {
   const router = useRouter()
@@ -70,63 +92,66 @@ export default function ChatPage() {
       text: "Hi! I'm Earnie — earnn's UAE credit card expert. Ask me anything: best card for dining, lounge access, miles, Islamic cards, fee comparisons. I know all 155+ UAE cards. 🇦🇪",
     },
   ])
-  const [input, setInput]               = useState('')
-  const [loading, setLoading]           = useState(false)
+  const [input, setInput]             = useState('')
+  const [loading, setLoading]         = useState(false)
   const [sessionProfile, setSessionProfile] = useState<SessionProfile>(EMPTY_PROFILE)
   const [walletNudgeShown, setWalletNudgeShown] = useState(false)
   const [showWalletNudge, setShowWalletNudge]   = useState(false)
-  const bottomRef = useRef<HTMLDivElement>(null)
 
-  // History in the API format (last 6 turns)
-  const historyRef = useRef<ApiChatMessage[]>([])
+  const sessionIdRef  = useRef<string>(genSessionId())
+  const historyRef    = useRef<ApiChatMessage[]>([])
+  const bottomRef     = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, showWalletNudge])
 
-  const send = async (text: string) => {
+  // ── Core send ─────────────────────────────────────────────────────────────
+
+  const send = async (text: string, profileOverride?: Partial<SessionProfile>) => {
     if (!text.trim() || loading) return
     const userMsg = text.trim()
     setInput('')
 
-    // Add to messages display
     setMessages(prev => [...prev, { role: 'user', text: userMsg }])
 
-    // Build history for API (last 6 turns)
-    const apiHistory = historyRef.current.slice(-6)
+    const apiHistory    = historyRef.current.slice(-6)
+    const profileToSend = profileOverride
+      ? { ...sessionProfile, ...profileOverride }
+      : sessionProfile
 
     setLoading(true)
     try {
-      const res = await sendChatMessage(userMsg, apiHistory, sessionProfile)
+      const res = await sendChatMessage(
+        userMsg, apiHistory, profileToSend, sessionIdRef.current,
+      )
 
-      const assistantText = res.answer as string
+      // Keep session_id in sync (backend echoes it back)
+      if (res.session_id) sessionIdRef.current = res.session_id
+
+      const assistantText = res.answer
       setMessages(prev => [...prev, {
-        role: 'assistant',
-        text: assistantText,
-        cards_found: res.cards_found,
+        role:             'assistant',
+        text:             assistantText,
+        cards_found:      res.cards_found,
+        turn_number:      res.turn_number,
+        discovery_hints:  res.discovery_hints?.length ? res.discovery_hints : undefined,
+        rating:           null,
       }])
 
-      // Update history ref
       historyRef.current = [
         ...historyRef.current,
         { role: 'user',      content: userMsg },
         { role: 'assistant', content: assistantText },
-      ].slice(-12) // keep last 12 messages = 6 exchanges
+      ].slice(-12)
 
-      // Merge extracted facts into session profile
       if (res.extracted_facts && Object.keys(res.extracted_facts).length > 0) {
         setSessionProfile(prev => {
           const updated = mergeProfile(prev, res.extracted_facts)
-
-          // Check wallet nudge trigger: 2+ spend categories known
-          if (
-            !walletNudgeShown &&
-            Object.keys(updated.spend).length >= 2
-          ) {
+          if (!walletNudgeShown && Object.keys(updated.spend).length >= 2) {
             setWalletNudgeShown(true)
             setShowWalletNudge(true)
           }
-
           return updated
         })
       }
@@ -140,13 +165,58 @@ export default function ChatPage() {
     }
   }
 
-  const handleWalletClick = () => {
-    // Pre-fill analyse page with known spend values
-    if (Object.keys(sessionProfile.spend).length > 0) {
-      sessionStorage.setItem('prefill_spend', JSON.stringify(sessionProfile.spend))
+  // ── Discovery YES / NO ────────────────────────────────────────────────────
+
+  const handleDiscoveryYes = (hint: DiscoveryHint) => {
+    // Store hint in session_profile so backend can process it
+    const profileWithHint = {
+      ...sessionProfile,
+      pending_discovery: hint,
+    } as SessionProfile & { pending_discovery: DiscoveryHint }
+    setSessionProfile(profileWithHint as SessionProfile)
+    send('yes', profileWithHint as SessionProfile)
+  }
+
+  const handleDiscoveryNo = (hint: DiscoveryHint) => {
+    const profileWithHint = {
+      ...sessionProfile,
+      pending_discovery: hint,
+    } as SessionProfile & { pending_discovery: DiscoveryHint }
+    send('no', profileWithHint as SessionProfile)
+  }
+
+  // ── Emoji rating ──────────────────────────────────────────────────────────
+
+  const handleRate = async (msgIndex: number, rating: 1 | -1) => {
+    const msg = messages[msgIndex]
+    if (!msg.turn_number) return
+
+    // Optimistic UI update
+    setMessages(prev => prev.map((m, i) =>
+      i === msgIndex ? { ...m, rating } : m
+    ))
+
+    try {
+      await rateResponse(sessionIdRef.current, msg.turn_number, rating)
+    } catch {
+      // Non-fatal — revert optimistic update
+      setMessages(prev => prev.map((m, i) =>
+        i === msgIndex ? { ...m, rating: null } : m
+      ))
     }
+  }
+
+  // ── Wallet nudge ──────────────────────────────────────────────────────────
+
+  const handleWalletClick = () => {
+    if (Object.keys(sessionProfile.spend).length > 0)
+      sessionStorage.setItem('prefill_spend', JSON.stringify(sessionProfile.spend))
     router.push('/analyse')
   }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // RENDER
+  // ─────────────────────────────────────────────────────────────────────────
 
   return (
     <div style={{
@@ -188,63 +258,167 @@ export default function ChatPage() {
         flexDirection: 'column', gap: 16, paddingBottom: 16,
       }}>
         {messages.map((msg, i) => (
-          <div
-            key={i}
-            style={{ display: 'flex', justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start' }}
-          >
+          <div key={i}>
             <div style={{
-              maxWidth: '82%',
-              padding: '14px 18px',
-              borderRadius: msg.role === 'user' ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
-              background: msg.role === 'user' ? '#0E3785' : 'white',
-              color: msg.role === 'user' ? 'white' : '#0D1828',
-              border: msg.role === 'assistant' ? '1px solid #D6E0F5' : 'none',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-              fontSize: 15, lineHeight: 1.7,
+              display: 'flex',
+              justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start',
             }}>
-              {msg.role === 'assistant' && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-                  <div style={{
-                    width: 20, height: 20, background: '#0E3785', borderRadius: 4,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: 11, color: 'white', fontWeight: 700,
-                  }}>e</div>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: '#0E3785' }}>Earnie</span>
-                  {msg.cards_found !== undefined && msg.cards_found > 0 && (
-                    <span style={{ fontSize: 11, color: '#5A6A85', marginLeft: 4 }}>
-                      {msg.cards_found} cards matched
-                    </span>
-                  )}
-                </div>
-              )}
-              {msg.role === 'assistant' ? (
-                <div className="mony-md">
-                  <ReactMarkdown
-                    remarkPlugins={[remarkGfm]}
-                    components={{
-                      a: ({ href, children }) => {
-                        const isInternal = href && href.startsWith('/')
-                        return isInternal ? (
-                          <a
-                            href={href}
-                            onClick={e => { e.preventDefault(); router.push(href) }}
-                            style={{ color: '#0E3785', fontWeight: 600, textDecoration: 'underline', cursor: 'pointer' }}
-                          >{children}</a>
-                        ) : (
-                          <a href={href} target="_blank" rel="noopener noreferrer"
-                            style={{ color: '#0E3785', fontWeight: 600, textDecoration: 'underline' }}
-                          >{children}</a>
-                        )
-                      }
+              <div style={{
+                maxWidth: '82%',
+                padding: '14px 18px',
+                borderRadius: msg.role === 'user'
+                  ? '18px 18px 4px 18px'
+                  : '18px 18px 18px 4px',
+                background: msg.role === 'user' ? '#0E3785' : 'white',
+                color:      msg.role === 'user' ? 'white' : '#0D1828',
+                border:     msg.role === 'assistant' ? '1px solid #D6E0F5' : 'none',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                fontSize: 15, lineHeight: 1.7,
+              }}>
+                {/* Earnie badge */}
+                {msg.role === 'assistant' && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                    <div style={{
+                      width: 20, height: 20, background: '#0E3785', borderRadius: 4,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: 11, color: 'white', fontWeight: 700,
+                    }}>e</div>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: '#0E3785' }}>Earnie</span>
+                    {(msg.cards_found ?? 0) > 0 && (
+                      <span style={{ fontSize: 11, color: '#5A6A85', marginLeft: 4 }}>
+                        {msg.cards_found} cards matched
+                      </span>
+                    )}
+                  </div>
+                )}
+
+                {/* Message body */}
+                {msg.role === 'assistant' ? (
+                  <div className="mony-md">
+                    <ReactMarkdown
+                      remarkPlugins={[remarkGfm]}
+                      components={{
+                        a: ({ href, children }) => {
+                          const isInternal = href?.startsWith('/')
+                          return isInternal ? (
+                            <a
+                              href={href}
+                              onClick={e => { e.preventDefault(); router.push(href!) }}
+                              style={{ color: '#0E3785', fontWeight: 600, textDecoration: 'underline', cursor: 'pointer' }}
+                            >{children}</a>
+                          ) : (
+                            <a href={href} target="_blank" rel="noopener noreferrer"
+                              style={{ color: '#0E3785', fontWeight: 600, textDecoration: 'underline' }}
+                            >{children}</a>
+                          )
+                        }
+                      }}
+                    >
+                      {msg.text}
+                    </ReactMarkdown>
+                  </div>
+                ) : (
+                  <span style={{ whiteSpace: 'pre-wrap' }}>{msg.text}</span>
+                )}
+              </div>
+            </div>
+
+            {/* ── Discovery hints — YES / NO buttons ── */}
+            {msg.role === 'assistant' && msg.discovery_hints?.map((hint, hi) => (
+              <div
+                key={hi}
+                style={{
+                  maxWidth: '82%',
+                  marginTop: 8,
+                  padding: '14px 16px',
+                  background: '#F5F8FF',
+                  border: '1px dashed #B8CCFF',
+                  borderRadius: 12,
+                  fontSize: 14,
+                  lineHeight: 1.6,
+                  color: '#0D1828',
+                }}
+              >
+                <div style={{ marginBottom: 10 }}>{hint.message}</div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button
+                    onClick={() => handleDiscoveryYes(hint)}
+                    disabled={loading}
+                    style={{
+                      padding: '7px 18px', background: '#0E3785', color: 'white',
+                      border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700,
+                      cursor: loading ? 'not-allowed' : 'pointer',
                     }}
                   >
-                    {msg.text}
-                  </ReactMarkdown>
+                    Yes, show me!
+                  </button>
+                  <button
+                    onClick={() => handleDiscoveryNo(hint)}
+                    disabled={loading}
+                    style={{
+                      padding: '7px 14px', background: 'transparent', color: '#5A6A85',
+                      border: '1px solid #D6E0F5', borderRadius: 8, fontSize: 13,
+                      cursor: loading ? 'not-allowed' : 'pointer',
+                    }}
+                  >
+                    No thanks
+                  </button>
                 </div>
-              ) : (
-                <span style={{ whiteSpace: 'pre-wrap' }}>{msg.text}</span>
-              )}
-            </div>
+              </div>
+            ))}
+
+            {/* ── Emoji rating — only on assistant turns that have a turn_number ── */}
+            {msg.role === 'assistant' && msg.turn_number !== undefined && (
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: 6,
+                marginTop: 4, marginLeft: 2,
+              }}>
+                <span style={{ fontSize: 11, color: '#8A9AB8' }}>Was this helpful?</span>
+
+                {/* Happy 😊 */}
+                <button
+                  onClick={() => msg.rating === 1 ? undefined : handleRate(i, 1)}
+                  title="This helped!"
+                  style={{
+                    background:  msg.rating === 1 ? '#E8F5E9' : 'transparent',
+                    border:      msg.rating === 1 ? '1.5px solid #4CAF50' : '1.5px solid #D6E0F5',
+                    borderRadius: 8,
+                    padding:     '2px 8px',
+                    fontSize:    18,
+                    cursor:      msg.rating != null ? 'default' : 'pointer',
+                    lineHeight:  1.4,
+                    transition:  'all 0.15s',
+                  }}
+                >
+                  😊
+                </button>
+
+                {/* Frustrated 😤 */}
+                <button
+                  onClick={() => msg.rating === -1 ? undefined : handleRate(i, -1)}
+                  title="Not what I needed"
+                  style={{
+                    background:  msg.rating === -1 ? '#FFEBEE' : 'transparent',
+                    border:      msg.rating === -1 ? '1.5px solid #EF5350' : '1.5px solid #D6E0F5',
+                    borderRadius: 8,
+                    padding:     '2px 8px',
+                    fontSize:    18,
+                    cursor:      msg.rating != null ? 'default' : 'pointer',
+                    lineHeight:  1.4,
+                    transition:  'all 0.15s',
+                  }}
+                >
+                  😤
+                </button>
+
+                {msg.rating === 1 && (
+                  <span style={{ fontSize: 11, color: '#4CAF50' }}>Thanks! 🙌</span>
+                )}
+                {msg.rating === -1 && (
+                  <span style={{ fontSize: 11, color: '#EF5350' }}>Got it — we'll improve.</span>
+                )}
+              </div>
+            )}
           </div>
         ))}
 
@@ -259,17 +433,15 @@ export default function ChatPage() {
               📊 You're spending across multiple categories
             </div>
             <div style={{ color: '#0D1828', fontSize: 14, lineHeight: 1.6 }}>
-              One card can't optimise all of them.
-              Your best move is a 2–3 card wallet — earnn calculates the exact combination
-              that maximises your annual return across all your spend.
+              One card can't optimise all of them. Your best move is a 2–3 card wallet —
+              earnn calculates the exact combination that maximises your annual return.
             </div>
             <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
               <button
                 onClick={handleWalletClick}
                 style={{
                   padding: '10px 20px', background: '#0E3785', color: 'white',
-                  border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 700,
-                  cursor: 'pointer',
+                  border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 700, cursor: 'pointer',
                 }}
               >
                 Run your wallet analysis →
@@ -297,13 +469,10 @@ export default function ChatPage() {
             }}>
               <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
                 {[0, 1, 2].map(j => (
-                  <div
-                    key={j}
-                    style={{
-                      width: 8, height: 8, background: '#0E3785', borderRadius: '50%',
-                      opacity: 0.4, animation: `bounce 1.2s ${j * 0.2}s infinite`,
-                    }}
-                  />
+                  <div key={j} style={{
+                    width: 8, height: 8, background: '#0E3785', borderRadius: '50%',
+                    opacity: 0.4, animation: `bounce 1.2s ${j * 0.2}s infinite`,
+                  }} />
                 ))}
               </div>
             </div>
@@ -334,7 +503,7 @@ export default function ChatPage() {
           style={{
             padding: '14px 24px',
             background: !input.trim() ? '#D6E0F5' : '#0E3785',
-            color: !input.trim() ? '#5A6A85' : 'white',
+            color:      !input.trim() ? '#5A6A85' : 'white',
             border: 'none', borderRadius: 12, fontSize: 15, fontWeight: 700,
             cursor: !input.trim() ? 'not-allowed' : 'pointer', flexShrink: 0,
           }}
@@ -349,41 +518,23 @@ export default function ChatPage() {
           40% { transform: scale(1); opacity: 1 }
         }
         .mony-md table {
-          border-collapse: collapse;
-          width: 100%;
-          margin: 12px 0;
-          font-size: 14px;
+          border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 14px;
         }
         .mony-md th, .mony-md td {
-          border: 1px solid #D6E0F5;
-          padding: 8px 12px;
-          text-align: left;
+          border: 1px solid #D6E0F5; padding: 8px 12px; text-align: left;
         }
-        .mony-md th {
-          background: #EEF3FF;
-          font-weight: 700;
-          color: #0E3785;
-        }
+        .mony-md th { background: #EEF3FF; font-weight: 700; color: #0E3785; }
         .mony-md tr:nth-child(even) td { background: #F9FBFF; }
         .mony-md h3 {
-          font-size: 15px;
-          font-weight: 700;
-          color: #0E3785;
-          margin: 16px 0 8px;
+          font-size: 15px; font-weight: 700; color: #0E3785; margin: 16px 0 8px;
         }
-        .mony-md ul, .mony-md ol {
-          margin: 8px 0;
-          padding-left: 20px;
-        }
+        .mony-md ul, .mony-md ol { margin: 8px 0; padding-left: 20px; }
         .mony-md li { margin-bottom: 4px; line-height: 1.6; }
         .mony-md p { margin: 6px 0; }
         .mony-md strong { color: #0D1828; }
         .mony-md a { color: #0E3785; }
         .mony-md code {
-          background: #EEF3FF;
-          padding: 2px 6px;
-          border-radius: 4px;
-          font-size: 13px;
+          background: #EEF3FF; padding: 2px 6px; border-radius: 4px; font-size: 13px;
         }
         .mony-md hr { border: none; border-top: 1px solid #D6E0F5; margin: 12px 0; }
       `}</style>
