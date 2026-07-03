@@ -3,7 +3,7 @@ import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   sendChatMessage, rateResponse,
-  SessionProfile, ChatMessage as ApiChatMessage, DiscoveryHint,
+  SessionProfile, MerchantQuery, BenefitsWanted, ChatMessage as ApiChatMessage, DiscoveryHint,
 } from '@/lib/api'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -35,18 +35,36 @@ const SUGGESTED = [
 ]
 
 const EMPTY_PROFILE: SessionProfile = {
-  salary_aed:            null,
-  is_islamic:            null,
-  spend:                 {},
-  merchants:             [],
-  preferred_reward_type: null,
-  preferred_banks:       [],
-  preferred_network:     null,
-  shown_card_ids:              [],
-  show_more_count:             0,
-  last_categories:             [],
-  last_granular_categories:    [],
-  last_excluded_granular:      [],
+  salary_aed:              null,
+  employment_type:         null,
+  is_expat:                null,
+  is_new_to_uae:           null,
+  is_islamic:              null,
+  preferred_reward_type:   null,
+  preferred_miles_program: null,
+  preferred_banks:         [],
+  preferred_network:       null,
+  wants_free_for_life:     null,
+  wants_premium:           null,
+  wants_no_annual_fee:     null,
+  willing_salary_transfer: null,
+  spend:                   {},
+  merchants:               [],
+  merchant_queries:        [],
+  benefits_wanted:         {
+    lounge_access: null, golf: null, cinema: null,
+    airport_transfer: null, travel_insurance: null,
+    dining_discount: null, welcome_bonus: null, purchase_protection: null,
+  },
+  existing_cards:          [],
+  last_categories:         [],
+  last_granular_categories:[],
+  last_excluded_granular:  [],
+  last_merchants:          [],
+  last_question_type:      null,
+  last_intent:             {},
+  shown_card_ids:          [],
+  show_more_count:         0,
 }
 
 function genSessionId(): string {
@@ -73,6 +91,34 @@ function mergeProfile(
     merged.preferred_network = extracted.preferred_network as string
   if (Array.isArray(extracted.preferred_banks) && extracted.preferred_banks.length > 0)
     merged.preferred_banks = [...new Set([...merged.preferred_banks, ...extracted.preferred_banks as string[]])]
+  if (extracted.employment_type != null)
+    merged.employment_type = extracted.employment_type as SessionProfile['employment_type']
+  if (extracted.is_expat != null)
+    merged.is_expat = extracted.is_expat as boolean
+  if (extracted.is_new_to_uae != null)
+    merged.is_new_to_uae = extracted.is_new_to_uae as boolean
+  if (extracted.preferred_miles_program != null)
+    merged.preferred_miles_program = extracted.preferred_miles_program as string
+  if (extracted.wants_free_for_life != null)
+    merged.wants_free_for_life = extracted.wants_free_for_life as boolean
+  if (extracted.wants_premium != null)
+    merged.wants_premium = extracted.wants_premium as boolean
+  if (extracted.wants_no_annual_fee != null)
+    merged.wants_no_annual_fee = extracted.wants_no_annual_fee as boolean
+  if (extracted.willing_salary_transfer != null)
+    merged.willing_salary_transfer = extracted.willing_salary_transfer as boolean
+  if (Array.isArray(extracted.merchant_queries))
+    merged.merchant_queries = extracted.merchant_queries as MerchantQuery[]
+  if (extracted.benefits_wanted && typeof extracted.benefits_wanted === 'object')
+    merged.benefits_wanted = { ...merged.benefits_wanted, ...(extracted.benefits_wanted as BenefitsWanted) }
+  if (Array.isArray(extracted.existing_cards) && extracted.existing_cards.length > 0)
+    merged.existing_cards = [...new Set([...merged.existing_cards, ...extracted.existing_cards as string[]])]
+  if (Array.isArray(extracted.last_merchants))
+    merged.last_merchants = extracted.last_merchants as string[]
+  if (extracted.last_question_type != null)
+    merged.last_question_type = extracted.last_question_type as string
+  if (extracted.last_intent && typeof extracted.last_intent === 'object')
+    merged.last_intent = extracted.last_intent as Record<string, unknown>
   if (Array.isArray(extracted.shown_card_ids) && extracted.shown_card_ids.length > 0)
     merged.shown_card_ids = extracted.shown_card_ids as string[]
   if (typeof extracted.show_more_count === 'number')

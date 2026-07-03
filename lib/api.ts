@@ -91,19 +91,58 @@ export function getCardImageUrl(earnnCardId: string) {
 // ── Chatbot (Module 1) ────────────────────────────────────────────────────────
 export interface ChatMessage { role: 'user' | 'assistant'; content: string }
 
+export interface MerchantQuery {
+  merchant:  string
+  category:  string
+  spend_aed: number | null
+}
+
+export interface BenefitsWanted {
+  lounge_access:       boolean | null
+  golf:                boolean | null
+  cinema:              boolean | null
+  airport_transfer:    boolean | null
+  travel_insurance:    boolean | null
+  dining_discount:     boolean | null
+  welcome_bonus:       boolean | null
+  purchase_protection: boolean | null
+}
+
 export interface SessionProfile {
-  salary_aed:            number | null
-  is_islamic:            boolean | null
-  spend:                 Record<string, number>
-  merchants:             string[]
-  preferred_reward_type: 'cashback' | 'miles' | 'points' | null
-  preferred_banks:       string[]
-  preferred_network:     string | null
-  shown_card_ids:              string[]
-  show_more_count:             number
+  // Identity & eligibility
+  salary_aed:              number | null
+  employment_type:         'employee' | 'freelancer' | 'student' | 'retired' | null
+  is_expat:                boolean | null
+  is_new_to_uae:           boolean | null
+  is_islamic:              boolean | null
+  // Preferences
+  preferred_reward_type:   'cashback' | 'miles' | 'points' | null
+  preferred_miles_program: string | null
+  preferred_banks:         string[]
+  preferred_network:       string | null
+  wants_free_for_life:     boolean | null
+  wants_premium:           boolean | null
+  wants_no_annual_fee:     boolean | null
+  willing_salary_transfer: boolean | null
+  // Spend
+  spend:                   Record<string, number>
+  // Merchants
+  merchants:               string[]
+  merchant_queries:        MerchantQuery[]
+  // Benefits
+  benefits_wanted:         BenefitsWanted
+  // Existing cards
+  existing_cards:          string[]
+  // Query context
   last_categories:             string[]
   last_granular_categories:    string[]
   last_excluded_granular:      string[]
+  last_merchants:              string[]
+  last_question_type:          string | null
+  last_intent:                 Record<string, unknown>
+  // Pagination
+  shown_card_ids:              string[]
+  show_more_count:             number
 }
 
 export interface DiscoveryHint {
