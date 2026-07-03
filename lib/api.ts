@@ -99,8 +99,11 @@ export interface SessionProfile {
   preferred_reward_type: 'cashback' | 'miles' | 'points' | null
   preferred_banks:       string[]
   preferred_network:     string | null
-  shown_card_ids:        string[]
-  show_more_count:       number
+  shown_card_ids:              string[]
+  show_more_count:             number
+  last_categories:             string[]
+  last_granular_categories:    string[]
+  last_excluded_granular:      string[]
 }
 
 export interface DiscoveryHint {

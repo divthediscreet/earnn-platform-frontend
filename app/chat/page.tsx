@@ -42,8 +42,11 @@ const EMPTY_PROFILE: SessionProfile = {
   preferred_reward_type: null,
   preferred_banks:       [],
   preferred_network:     null,
-  shown_card_ids:        [],
-  show_more_count:       0,
+  shown_card_ids:              [],
+  show_more_count:             0,
+  last_categories:             [],
+  last_granular_categories:    [],
+  last_excluded_granular:      [],
 }
 
 function genSessionId(): string {
@@ -74,6 +77,12 @@ function mergeProfile(
     merged.shown_card_ids = extracted.shown_card_ids as string[]
   if (typeof extracted.show_more_count === 'number')
     merged.show_more_count = extracted.show_more_count as number
+  if (Array.isArray(extracted.last_categories))
+    merged.last_categories = extracted.last_categories as string[]
+  if (Array.isArray(extracted.last_granular_categories))
+    merged.last_granular_categories = extracted.last_granular_categories as string[]
+  if (Array.isArray(extracted.last_excluded_granular))
+    merged.last_excluded_granular = extracted.last_excluded_granular as string[]
 
   // Persist pending_discovery state so backend can process it next turn
   if ('pending_discovery' in extracted)
