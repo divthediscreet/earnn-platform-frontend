@@ -100,6 +100,7 @@ export interface SessionProfile {
   preferred_banks:       string[]
   preferred_network:     string | null
   shown_card_ids:        string[]
+  show_more_count:       number
 }
 
 export interface DiscoveryHint {

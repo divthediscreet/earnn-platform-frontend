@@ -43,6 +43,7 @@ const EMPTY_PROFILE: SessionProfile = {
   preferred_banks:       [],
   preferred_network:     null,
   shown_card_ids:        [],
+  show_more_count:       0,
 }
 
 function genSessionId(): string {
@@ -71,6 +72,8 @@ function mergeProfile(
     merged.preferred_banks = [...new Set([...merged.preferred_banks, ...extracted.preferred_banks as string[]])]
   if (Array.isArray(extracted.shown_card_ids) && extracted.shown_card_ids.length > 0)
     merged.shown_card_ids = extracted.shown_card_ids as string[]
+  if (typeof extracted.show_more_count === 'number')
+    merged.show_more_count = extracted.show_more_count as number
 
   // Persist pending_discovery state so backend can process it next turn
   if ('pending_discovery' in extracted)
