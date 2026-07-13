@@ -162,8 +162,8 @@ function ParseDataDebug({ data }: { data: any }) {
                         <td style={{ padding: '7px 10px', color: '#0D1828', maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={t.description_raw}>{t.description_raw || '—'}</td>
                         <td style={{ padding: '7px 10px', color: '#5A6A85', maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.parent_merchant || t.merchant_name_clean || '—'}</td>
                         <td style={{ padding: '7px 10px' }}>
-                          {t.earnn_category_code ? (
-                            <span style={{ background: '#EEF3FF', color: '#0E3785', borderRadius: 4, padding: '2px 7px', fontWeight: 600, fontSize: 11 }}>{t.earnn_category_code}</span>
+                          {t.earnn_category_granular_code ? (
+                            <span style={{ background: '#EEF3FF', color: '#0E3785', borderRadius: 4, padding: '2px 7px', fontWeight: 600, fontSize: 11 }}>{t.earnn_category_granular_code}</span>
                           ) : <span style={{ color: '#C8D4E8' }}>—</span>}
                         </td>
                         <td style={{ padding: '7px 10px', color: t.debit_amount_aed ? '#C0392B' : '#C8D4E8', fontWeight: 600, textAlign: 'right', whiteSpace: 'nowrap', fontFamily: 'monospace' }}>

@@ -130,11 +130,15 @@ function mergeProfile(
   if (Array.isArray(extracted.last_excluded_granular))
     merged.last_excluded_granular = extracted.last_excluded_granular as string[]
 
-  // Persist pending_discovery state so backend can process it next turn
+  // Persist pending state so backend can process it next turn
   if ('pending_discovery' in extracted)
     (merged as Record<string, unknown>)['pending_discovery'] = extracted.pending_discovery
   if ('pending_salary_for_discovery' in extracted)
     (merged as Record<string, unknown>)['pending_salary_for_discovery'] = extracted.pending_salary_for_discovery
+  if ('pending_spend_amount' in extracted)
+    (merged as Record<string, unknown>)['pending_spend_amount'] = extracted.pending_spend_amount
+  if ('pending_spend_category' in extracted)
+    (merged as Record<string, unknown>)['pending_spend_category'] = extracted.pending_spend_category
 
   return merged
 }
