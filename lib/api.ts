@@ -162,7 +162,7 @@ export async function sendChatMessage(
   const res = await fetch(`${API_BASE}/api/chat/message`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ message, history, session_profile, session_id }),
+    body: JSON.stringify({ message, history, session_profile, session_id, client_source: 'frontend' }),
   })
   if (!res.ok) throw new Error(`Chat failed: ${res.statusText}`)
   return res.json() as Promise<{
