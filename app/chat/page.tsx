@@ -217,7 +217,8 @@ export default function ChatPage() {
           return updated
         })
       }
-    } catch {
+    } catch (err) {
+      console.error('sendChatMessage failed:', err)
       setMessages(prev => [
         ...prev,
         { role: 'assistant', text: "Sorry, I'm having trouble connecting. Please try again." },
