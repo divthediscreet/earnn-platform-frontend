@@ -153,6 +153,26 @@ export interface DiscoveryHint {
   message:   string
 }
 
+export class ChatRequestError extends Error {
+  readonly status: number
+  readonly code: string
+  readonly retryable: boolean
+
+  constructor(message: string, status: number, code = 'temporarily_unavailable', retryable = true) {
+    super(message)
+    this.name = 'ChatRequestError'
+    this.status = status
+    this.code = code
+    this.retryable = retryable
+  }
+}
+
+export function chatFailureMessage(error: unknown): string {
+  return error instanceof ChatRequestError
+    ? error.message
+    : "I'm having trouble completing that right now. Please try again in a moment."
+}
+
 export async function sendChatMessage(
   message:         string,
   history:         ChatMessage[] = [],
@@ -164,7 +184,18 @@ export async function sendChatMessage(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ message, history, session_profile, session_id, client_source: 'frontend' }),
   })
-  if (!res.ok) throw new Error(`Chat failed: ${res.statusText}`)
+  if (!res.ok) {
+    const payload: unknown = await res.json().catch(() => null)
+    const body = payload && typeof payload === 'object' ? payload as Record<string, unknown> : {}
+    throw new ChatRequestError(
+      typeof body.message === 'string'
+        ? body.message
+        : "I'm having trouble completing that right now. Please try again in a moment.",
+      res.status,
+      typeof body.code === 'string' ? body.code : 'temporarily_unavailable',
+      body.retryable !== false,
+    )
+  }
   return res.json() as Promise<{
     answer:          string
     intent:          Record<string, unknown>

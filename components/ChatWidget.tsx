@@ -1,6 +1,6 @@
 'use client'
 import { useState, useRef, useEffect } from 'react'
-import { sendChatMessage } from '@/lib/api'
+import { chatFailureMessage, sendChatMessage } from '@/lib/api'
 
 interface Message { role: 'user' | 'assistant'; text: string }
 
@@ -23,8 +23,8 @@ export default function ChatWidget() {
     try {
       const res = await sendChatMessage(text.trim())
       setMessages(prev => [...prev, { role: 'assistant', text: res.answer }])
-    } catch {
-      setMessages(prev => [...prev, { role: 'assistant', text: "Sorry, try again in a moment." }])
+    } catch (error) {
+      setMessages(prev => [...prev, { role: 'assistant', text: chatFailureMessage(error) }])
     } finally { setLoading(false) }
   }
 

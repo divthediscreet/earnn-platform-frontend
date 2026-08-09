@@ -2,7 +2,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import {
-  sendChatMessage, rateResponse,
+  chatFailureMessage, sendChatMessage, rateResponse,
   SessionProfile, MerchantQuery, BenefitsWanted, ChatMessage as ApiChatMessage, DiscoveryHint,
 } from '@/lib/api'
 import ReactMarkdown from 'react-markdown'
@@ -221,7 +221,7 @@ export default function ChatPage() {
       console.error('sendChatMessage failed:', err)
       setMessages(prev => [
         ...prev,
-        { role: 'assistant', text: "Sorry, I'm having trouble connecting. Please try again." },
+        { role: 'assistant', text: chatFailureMessage(err) },
       ])
     } finally {
       setLoading(false)
