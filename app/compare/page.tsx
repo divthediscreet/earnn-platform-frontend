@@ -40,6 +40,14 @@ interface ApiCard {
   effective_reward_rate_retail: number
   effective_reward_rate_utility: number
   effective_reward_rate_all_spend: number
+  display_reward_rate_dining: number
+  display_reward_rate_grocery: number
+  display_reward_rate_travel: number
+  display_reward_rate_fuel: number
+  display_reward_rate_online: number
+  display_reward_rate_retail: number
+  display_reward_rate_utility: number
+  display_reward_rate_all_spend: number
 }
 
 interface CardDetail {
@@ -63,14 +71,14 @@ function scoreColor(score: number): string {
 }
 
 const RATE_PILLS = [
-  { key: 'effective_reward_rate_dining',    name: 'Dining',    icon: '🍽️' },
-  { key: 'effective_reward_rate_grocery',   name: 'Grocery',   icon: '🛒' },
-  { key: 'effective_reward_rate_travel',    name: 'Travel',    icon: '✈️' },
-  { key: 'effective_reward_rate_fuel',      name: 'Fuel',      icon: '⛽' },
-  { key: 'effective_reward_rate_online',    name: 'Online',    icon: '📦' },
-  { key: 'effective_reward_rate_retail',    name: 'Retail',    icon: '🛍️' },
-  { key: 'effective_reward_rate_utility',   name: 'Utility',   icon: '💡' },
-  { key: 'effective_reward_rate_all_spend', name: 'All Other', icon: '➕' },
+  { key: 'display_reward_rate_dining',    name: 'Dining',    icon: '🍽️' },
+  { key: 'display_reward_rate_grocery',   name: 'Grocery',   icon: '🛒' },
+  { key: 'display_reward_rate_travel',    name: 'Travel',    icon: '✈️' },
+  { key: 'display_reward_rate_fuel',      name: 'Fuel',      icon: '⛽' },
+  { key: 'display_reward_rate_online',    name: 'Online',    icon: '📦' },
+  { key: 'display_reward_rate_retail',    name: 'Retail',    icon: '🛍️' },
+  { key: 'display_reward_rate_utility',   name: 'Utility',   icon: '💡' },
+  { key: 'display_reward_rate_all_spend', name: 'All Other', icon: '➕' },
 ]
 
 const SALARY_BANDS = [
@@ -229,7 +237,7 @@ export default function ComparePage() {
       return true
     })
     if (!sortCat) return base
-    const col = `effective_reward_rate_${sortCat}` as keyof ApiCard
+    const col = `display_reward_rate_${sortCat}` as keyof ApiCard
     return [...base].sort((a, b) => ((b[col] as number) ?? 0) - ((a[col] as number) ?? 0))
   }, [cards, salaryMin, network, bank, freeOnly, sortCat])
 
@@ -287,15 +295,18 @@ export default function ComparePage() {
         boxShadow: '0 12px 44px rgba(14,55,133,0.25)'
       }}>
         <div style={{ position: 'absolute', inset: 0, opacity: 0.05, backgroundImage: 'linear-gradient(white 1px, transparent 1px), linear-gradient(90deg, white 1px, transparent 1px)', backgroundSize: '44px 44px' }} />
-        <div style={{ position: 'relative', maxWidth: 760 }}>
+        <div style={{ position: 'relative', maxWidth: 860 }}>
           <div style={{ display: 'inline-block', fontSize: 11, fontWeight: 700, letterSpacing: '0.14em', color: '#C9A84C', textTransform: 'uppercase', marginBottom: 12 }}>
-            All UAE Credit Cards
+            ALL UAE CREDIT CARDS
           </div>
           <h1 style={{ fontSize: 'clamp(24px, 3.4vw, 32px)', fontWeight: 800, lineHeight: 1.25, marginBottom: 10, color: 'white' }}>
-            Credit card rewards are highly personal.
+            See what you’re actually likely to earn.
           </h1>
           <p style={{ fontSize: 15.5, color: 'rgba(255,255,255,0.78)', lineHeight: 1.7, marginBottom: 24 }}>
-            Rankings below are calculated using spending patterns of an average UAE resident.
+            Earnnn Scores and reward rates are estimated using the spending patterns of an average UAE resident, accounting for reward caps, eligibility conditions, spending mix and the likelihood of earning each reward.
+            <span style={{ display: 'block', marginTop: 10, fontStyle: 'italic', color: 'rgba(255,255,255,0.66)' }}>
+              Displayed reward rates are Earnnn estimates, not banks’ advertised rates.
+            </span>
           </p>
           <Link href="/analyse" style={{
             display: 'inline-flex', alignItems: 'center', gap: 10,
@@ -366,7 +377,7 @@ export default function ComparePage() {
             <span style={filterLabelStyle}>Sort by</span>
             <select value={sortCat} onChange={e => { setSortCat(e.target.value); setPage(1) }} style={filterSelectStyle}>
               <option value="">Default (earnn rank)</option>
-              {RATE_PILLS.map(c => <option key={c.key} value={c.key.replace('effective_reward_rate_', '')}>{c.name} rate</option>)}
+              {RATE_PILLS.map(c => <option key={c.key} value={c.key.replace('display_reward_rate_', '')}>{c.name} rate</option>)}
             </select>
           </div>
 
@@ -530,7 +541,7 @@ function CardTile({ card, detail, detailLoading, inCompare, compareFull, onToggl
   const allBars = RATE_PILLS.map(p => ({
     ...p,
     rate: (card[p.key as keyof ApiCard] as number) || 0,
-    catKey: p.key.replace('effective_reward_rate_', ''),
+    catKey: p.key.replace('display_reward_rate_', ''),
   }))
   const leftBars  = allBars.slice(0, 4)   // Dining, Grocery, Travel, Fuel
   const rightBars = allBars.slice(4)       // Online, Retail, Utility, All Other
@@ -622,9 +633,6 @@ function CardTile({ card, detail, detailLoading, inCompare, compareFull, onToggl
           {[leftBars, rightBars].map((col, ci) => (
             <div key={ci} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               {col.map(p => {
-                const monthlyAed = detail?.card
-                  ? (detail.card as Record<string, unknown>)[`${p.catKey}_monthly_reward_aed`] as number | undefined
-                  : undefined
                 const tooltipKey = `bar_${card.earnn_card_id}_${p.key}`
                 return (
                   <div key={p.key}
@@ -656,7 +664,6 @@ function CardTile({ card, detail, detailLoading, inCompare, compareFull, onToggl
                         boxShadow: '0 4px 14px rgba(0,0,0,0.25)'
                       }}>
                         {p.name}: {fmtRate(p.rate)}
-                        {monthlyAed != null ? ` · AED ${monthlyAed.toFixed(1)}/mo` : ''}
                       </span>
                     )}
                   </div>
