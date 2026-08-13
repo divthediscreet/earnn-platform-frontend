@@ -373,6 +373,18 @@ export default function ComparePage() {
   }, [loadDetail])
 
   const compareCards = compareIds.map(id => cards.find(c => c.earnn_card_id === id)!).filter(Boolean)
+  const resetFilters = () => {
+    setCardNameQuery('')
+    setSalaryInput('')
+    setBank('All Banks')
+    setNetwork('All Networks')
+    setRewardProgramFilter('')
+    setRewardCurrencyFilter('')
+    setBenefitFilters(new Set())
+    setFreeOnly(false)
+    setSortCat('')
+    setPage(1)
+  }
 
   // ── Loading / error states ──────────────────────────────────────────────
   if (loading) return (
@@ -594,7 +606,10 @@ export default function ComparePage() {
                       })}
                     </div>
                   </div>
-                  <div style={{ gridColumn: '1 / -1', display: 'flex', justifyContent: 'center', paddingTop: 8 }}>
+                  <div style={{ gridColumn: '1 / -1', display: 'flex', justifyContent: 'center', gap: 10, paddingTop: 8 }}>
+                    <button type="button" onClick={resetFilters} style={{ minWidth: 112, padding: '11px 24px', border: '1px solid #B9C9E3', borderRadius: 9, background: 'white', color: '#31517F', fontSize: 13, fontWeight: 800, cursor: 'pointer' }}>
+                      Reset
+                    </button>
                     <button type="button" onClick={() => setAllFiltersOpen(false)} style={{ minWidth: 170, padding: '11px 24px', border: 'none', borderRadius: 9, background: '#0E3785', color: 'white', fontSize: 13, fontWeight: 800, cursor: 'pointer', boxShadow: '0 6px 16px rgba(14,55,133,0.22)' }}>
                       Apply Filters
                     </button>
