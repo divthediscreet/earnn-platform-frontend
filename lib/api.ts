@@ -54,6 +54,7 @@ export async function fetchCards(params?: {
   bank?: string
   network?: string
   free_only?: boolean
+  min_salary?: number
   sort_by?: string
   search?: string
   limit?: number
@@ -62,6 +63,7 @@ export async function fetchCards(params?: {
   if (params?.bank)      q.set('bank', params.bank)
   if (params?.network)   q.set('network', params.network)
   if (params?.free_only) q.set('free_only', 'true')
+  if (params?.min_salary !== undefined) q.set('min_salary', String(params.min_salary))
   if (params?.sort_by)   q.set('sort_by', params.sort_by)
   if (params?.search)    q.set('search', params.search)
   if (params?.limit)     q.set('limit', String(params.limit))

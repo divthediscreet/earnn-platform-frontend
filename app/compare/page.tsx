@@ -10,6 +10,9 @@ interface ApiCard {
   earnn_card_id: string
   card_name: string
   bank_name: string
+  bank_code: string | null
+  best_for: string | null
+  card_summary_tag: string | null
   network: string
   reward_program_type: string | null
   reward_currency_name: string | null
@@ -22,6 +25,7 @@ interface ApiCard {
   has_golf_benefit: boolean
   has_cinema_benefit: boolean
   has_dining_benefit: boolean
+  has_airport_transfer: boolean
   has_travel_insurance: boolean
   has_welcome_bonus: boolean
   earnn_score: number
@@ -103,16 +107,25 @@ const RATE_PILLS = [
   { key: 'display_reward_rate_all_spend', name: 'All Other', icon: '➕' },
 ]
 
-const SALARY_BANDS = [
-  { label: 'Any salary', min: 0 },
-  { label: 'AED 5,000+', min: 5000 },
-  { label: 'AED 8,000+', min: 8000 },
-  { label: 'AED 15,000+', min: 15000 },
-  { label: 'AED 20,000+', min: 20000 },
-]
-
 const NETWORK_OPTIONS = ['All Networks', 'Visa', 'Mastercard', 'Amex']
 const PAGE_SIZE = 10
+
+type BenefitFilterKey =
+  | 'has_welcome_bonus'
+  | 'has_lounge_access'
+  | 'has_golf_benefit'
+  | 'has_cinema_benefit'
+  | 'has_airport_transfer'
+  | 'has_travel_insurance'
+
+const BENEFIT_FILTERS: { key: BenefitFilterKey; label: string }[] = [
+  { key: 'has_welcome_bonus', label: 'Welcome bonus' },
+  { key: 'has_lounge_access', label: 'Lounge access' },
+  { key: 'has_golf_benefit', label: 'Golf benefit' },
+  { key: 'has_cinema_benefit', label: 'Cinema benefit' },
+  { key: 'has_airport_transfer', label: 'Airport transfer' },
+  { key: 'has_travel_insurance', label: 'Travel insurance' },
+]
 
 // ─────────────────────────────────────────────────────────────────────────────
 // HELPERS
@@ -148,6 +161,18 @@ function fmtScore(score: number): string {
   return score.toFixed(1)
 }
 
+function bestForSectionItems(
+  bestFor: string | string[] | null | undefined,
+  section: 'Top earn rates' | 'Highlight' | 'Best for',
+): string[] {
+  const lines = Array.isArray(bestFor) ? bestFor : (bestFor || '').split(/\r?\n/)
+  const prefix = section.replace(/\s+/g, '\\s+')
+  return lines
+    .map(line => line.match(new RegExp(`^\\s*${prefix}\\s*:\\s*(.*)$`, 'i'))?.[1] || '')
+    .filter(Boolean)
+    .flatMap(value => value.split(/[;|]/).map(item => item.trim()).filter(Boolean))
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // PAGE
 // ─────────────────────────────────────────────────────────────────────────────
@@ -164,28 +189,23 @@ export default function ComparePage() {
   // gains a field.  Keep one controlled retry per card for that migration.
   const legacyDetailRefreshes = useRef<Set<string>>(new Set())
 
-  const [salaryMin, setSalaryMin]   = useState(0)
+  const [salaryInput, setSalaryInput] = useState('')
+  const [cardNameQuery, setCardNameQuery] = useState('')
   const [network, setNetwork]       = useState('All Networks')
   const [bank, setBank]             = useState('All Banks')
+  const [rewardProgramFilter, setRewardProgramFilter] = useState('')
+  const [rewardCurrencyFilter, setRewardCurrencyFilter] = useState('')
+  const [benefitFilters, setBenefitFilters] = useState<Set<BenefitFilterKey>>(new Set())
   const [freeOnly, setFreeOnly]     = useState(false)
   const [sortCat, setSortCat]       = useState('')
   const [page, setPage]             = useState(1)
+  const [bankPickerOpen, setBankPickerOpen] = useState(false)
+  const [allFiltersOpen, setAllFiltersOpen] = useState(false)
+  const bankPickerRef = useRef<HTMLDivElement>(null)
+  const allFiltersRef = useRef<HTMLDivElement>(null)
 
   // App preferences — multi-select sets (UI-only, backend wiring coming soon)
-  const [selectedApps, setSelectedApps] = useState<Set<string>>(new Set())
-  const [openDropdown, setOpenDropdown] = useState<string | null>(null)
-  const toggleApp = (key: string) => setSelectedApps(prev => {
-    const next = new Set(prev)
-    next.has(key) ? next.delete(key) : next.add(key)
-    return next
-  })
-
   // Benefit preferences (UI-only for now)
-  const [prefLounge,   setPrefLounge]   = useState(false)
-  const [prefGolf,     setPrefGolf]     = useState(false)
-  const [prefCinema,   setPrefCinema]   = useState(false)
-  const [prefTravel,   setPrefTravel]   = useState(false)
-  const [prefWelcome,  setPrefWelcome]  = useState(false)
   const [compareIds, setCompareIds] = useState<string[]>([])
   const [compareOpen, setCompareOpen] = useState(false)
   const [showOptionalRewardCategories, setShowOptionalRewardCategories] = useState(false)
@@ -198,24 +218,31 @@ export default function ComparePage() {
     if (typeof window === 'undefined') return
     const params = new URLSearchParams(window.location.search)
     const isFromResults = params.get('from_results') === '1'
-    const salary = parseFloat(params.get('salary') || '0') || 0
+    const salary = params.get('salary') || ''
     setFromResults(isFromResults)
-    if (salary > 0) {
-      const bands = [20000, 15000, 8000, 5000, 0]
-      setSalaryMin(bands.find(b => salary >= b) ?? 0)
-    }
+    setSalaryInput(salary.replace(/\D/g, '').slice(0, 6))
   }, [])
 
   // ── Fetch all cards on mount (min 2s display so heading is readable) ───
+  const salaryMin = salaryInput === '' ? null : Number(salaryInput)
+  const normalisedCardNameQuery = cardNameQuery.trim().toLowerCase()
+
   useEffect(() => {
-    const minDelay = new Promise<void>(res => setTimeout(res, 2000))
-    Promise.all([
-      fetchCards({ sort_by: 'card_ranking' })
-        .then(d => setCards(promoteOneFamilyMember(d.cards || [])))
-        .catch(e => setError(e.message)),
-      minDelay,
-    ]).finally(() => setLoading(false))
-  }, [])
+    let active = true
+    fetchCards({ sort_by: 'card_ranking', min_salary: salaryMin ?? undefined })
+      .then(d => {
+        if (!active) return
+        setCards(promoteOneFamilyMember(d.cards || []))
+        setError(null)
+      })
+      .catch(e => {
+        if (active) setError(e.message)
+      })
+      .finally(() => {
+        if (active) setLoading(false)
+      })
+    return () => { active = false }
+  }, [salaryMin])
 
   // ── Fetch card detail lazily on expand ──────────────────────────────────
   const loadDetail = useCallback(async (cardId: string, refreshLegacyDetail = false) => {
@@ -246,33 +273,66 @@ export default function ComparePage() {
     return () => clearTimeout(t)
   }, [comingSoon])
 
-  // Close dropdown on outside click
   useEffect(() => {
-    if (!openDropdown) return
-    const handler = () => setOpenDropdown(null)
-    document.addEventListener('click', handler)
-    return () => document.removeEventListener('click', handler)
-  }, [openDropdown])
+    const closeOnOutsideClick = (event: MouseEvent) => {
+      const target = event.target as Node
+      if (bankPickerRef.current && !bankPickerRef.current.contains(target)) setBankPickerOpen(false)
+      if (allFiltersRef.current && !allFiltersRef.current.contains(target)) setAllFiltersOpen(false)
+    }
+    document.addEventListener('mousedown', closeOnOutsideClick)
+    return () => document.removeEventListener('mousedown', closeOnOutsideClick)
+  }, [])
 
+  // Close dropdown on outside click
   // ── Derived bank list from loaded cards ────────────────────────────────
   const bankOptions = useMemo(() => {
-    const names = Array.from(new Set(cards.map(c => c.bank_name).filter(Boolean))).sort()
-    return ['All Banks', ...names]
+    const banks = new Map<string, string | null>()
+    for (const card of cards) {
+      if (card.bank_name && !banks.has(card.bank_name)) banks.set(card.bank_name, card.bank_code)
+    }
+    return [
+      { value: 'All Banks', label: 'All Banks' },
+      ...Array.from(banks.entries())
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([name, code]) => ({
+          value: name,
+          label: code ? `${name} (${code})` : name,
+        })),
+    ]
   }, [cards])
+  const selectedBankLabel = bankOptions.find(option => option.value === bank)?.label ?? bank
+  const rewardProgramOptions = useMemo(() => Array.from(new Set(
+    cards.map(card => card.reward_program_type).filter((value): value is string => Boolean(value?.trim()))
+  )).sort(), [cards])
+  const rewardCurrencyOptions = useMemo(() => Array.from(new Set(
+    cards.map(card => card.reward_currency_name).filter((value): value is string => Boolean(value?.trim()))
+  )).sort(), [cards])
+  const toggleBenefitFilter = (key: BenefitFilterKey) => {
+    setBenefitFilters(current => {
+      const next = new Set(current)
+      next.has(key) ? next.delete(key) : next.add(key)
+      return next
+    })
+    setPage(1)
+  }
 
   // ── Client-side filtering + sorting ────────────────────────────────────
   const filtered = useMemo(() => {
     const base = cards.filter(c => {
-      if (salaryMin > 0 && c.min_salary_aed && c.min_salary_aed > salaryMin) return false
+      if (salaryMin !== null && c.min_salary_aed !== null && c.min_salary_aed > salaryMin) return false
+      if (normalisedCardNameQuery && !c.card_name.toLowerCase().includes(normalisedCardNameQuery)) return false
       if (network !== 'All Networks' && c.network?.toLowerCase() !== network.toLowerCase()) return false
       if (bank !== 'All Banks' && c.bank_name !== bank) return false
+      if (rewardProgramFilter && c.reward_program_type !== rewardProgramFilter) return false
+      if (rewardCurrencyFilter && c.reward_currency_name !== rewardCurrencyFilter) return false
+      if (!Array.from(benefitFilters).every(filterKey => c[filterKey] === true)) return false
       if (freeOnly && !c.free_for_life) return false
       return true
     })
     if (!sortCat) return base
     const col = `display_reward_rate_${sortCat}` as keyof ApiCard
     return [...base].sort((a, b) => ((b[col] as number) ?? 0) - ((a[col] as number) ?? 0))
-  }, [cards, salaryMin, network, bank, freeOnly, sortCat])
+  }, [cards, salaryMin, normalisedCardNameQuery, network, bank, rewardProgramFilter, rewardCurrencyFilter, benefitFilters, freeOnly, sortCat])
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
   const pageCards  = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
@@ -356,131 +416,175 @@ export default function ComparePage() {
       {/* ── FILTER BAR ───────────────────────────────────────────────────── */}
       <div style={{
         background: 'white', borderRadius: 16, border: '1px solid #D6E0F5',
-        marginBottom: 20, boxShadow: '0 2px 14px rgba(14,55,133,0.05)', overflow: 'hidden'
+        marginBottom: 20, boxShadow: '0 2px 14px rgba(14,55,133,0.05)', overflow: 'visible', position: 'relative', zIndex: allFiltersOpen ? 400 : 20
       }}>
         {/* Filter row */}
         <div style={{ display: 'flex', alignItems: 'stretch', gap: 0, padding: '10px 14px' }}>
 
+          {/* Card name */}
+          <div style={{ ...filterGroupStyle, flex: 1.65 }}>
+            <span style={leftFilterLabelStyle}>Card Name</span>
+            <input
+              value={cardNameQuery}
+              onChange={e => { setCardNameQuery(e.target.value); setPage(1) }}
+              placeholder="Search card name"
+              aria-label="Search by card name"
+              style={{ ...filterSelectStyle, cursor: 'text' }}
+            />
+          </div>
+
+          <div style={dividerStyle} />
+
           {/* Salary */}
-          <div style={{ ...filterGroupStyle, flex: 1 }}>
-            <span style={filterLabelStyle}>Salary</span>
-            <select value={salaryMin} onChange={e => { setSalaryMin(Number(e.target.value)); setPage(1) }} style={filterSelectStyle}>
-              {SALARY_BANDS.map(b => <option key={b.label} value={b.min}>{b.label}</option>)}
-            </select>
+          <div style={{ ...filterGroupStyle, flex: 0.9 }}>
+            <span style={leftFilterLabelStyle}>Salary</span>
+            <input
+              value={salaryInput}
+              onChange={e => { setSalaryInput(e.target.value.replace(/\D/g, '').slice(0, 6)); setPage(1) }}
+              inputMode="numeric"
+              pattern="[0-9]*"
+              maxLength={6}
+              placeholder="AED salary"
+              aria-label="Monthly salary in AED"
+              style={{ ...filterSelectStyle, cursor: 'text' }}
+            />
           </div>
 
           <div style={dividerStyle} />
 
           {/* Bank */}
-          <div style={{ ...filterGroupStyle, flex: 1.6 }}>
-            <span style={filterLabelStyle}>Bank</span>
-            <select value={bank} onChange={e => { setBank(e.target.value); setPage(1) }} style={filterSelectStyle}>
-              {bankOptions.map(b => <option key={b}>{b}</option>)}
-            </select>
-          </div>
-
-          <div style={dividerStyle} />
-
-          {/* Network */}
-          <div style={{ ...filterGroupStyle, flex: 1 }}>
-            <span style={filterLabelStyle}>Network</span>
-            <select value={network} onChange={e => { setNetwork(e.target.value); setPage(1) }} style={filterSelectStyle}>
-              {NETWORK_OPTIONS.map(n => <option key={n}>{n}</option>)}
-            </select>
+          <div ref={bankPickerRef} style={{ ...filterGroupStyle, flex: 0.8, minWidth: 116, position: 'relative' }}>
+            <span style={leftFilterLabelStyle}>Bank</span>
+            <button
+              type="button"
+              onClick={() => { setBankPickerOpen(open => !open); setAllFiltersOpen(false) }}
+              aria-expanded={bankPickerOpen}
+              style={{ ...filterSelectStyle, display: 'flex', alignItems: 'center', justifyContent: 'space-between', textAlign: 'left' }}
+            >
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{selectedBankLabel}</span>
+              <span style={{ color: '#5A6A85', marginLeft: 5 }}>⌄</span>
+            </button>
+            {bankPickerOpen && (
+              <div style={{ position: 'absolute', top: 'calc(100% + 9px)', left: 0, width: 'min(430px, calc(100vw - 48px))', maxHeight: 360, overflowY: 'auto', background: 'white', border: '1px solid #D6E0F5', borderRadius: 14, boxShadow: '0 16px 34px rgba(13,24,40,0.18)', padding: 7, zIndex: 40 }}>
+                {bankOptions.map(option => (
+                  <button key={option.value} type="button" onClick={() => { setBank(option.value); setPage(1); setBankPickerOpen(false) }} style={{ width: '100%', padding: '10px 12px', border: 'none', borderRadius: 8, background: bank === option.value ? '#EEF3FF' : 'transparent', color: bank === option.value ? '#0E3785' : '#0D1828', textAlign: 'left', fontSize: 13, fontWeight: bank === option.value ? 700 : 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           <div style={dividerStyle} />
 
           {/* Free for life */}
           <button onClick={() => { setFreeOnly(f => !f); setPage(1) }} style={{
-            flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-start',
+            flex: 0.7, display: 'flex', flexDirection: 'column', alignItems: 'stretch', justifyContent: 'flex-start',
             gap: 2, padding: '3px 11px 4px', borderRadius: 0, border: 'none',
             borderLeft: freeOnly ? '1.5px solid #00A67E' : 'none',
             borderRight: freeOnly ? '1.5px solid #00A67E' : 'none',
             background: freeOnly ? '#EAFBF5' : '#F4F6FB',
             color: freeOnly ? '#00785C' : '#5A6A85', cursor: 'pointer'
           }}>
-            <span style={{ fontSize: 9, fontWeight: 700, color: freeOnly ? '#00785C' : '#9DAEC8', textTransform: 'uppercase', letterSpacing: '0.06em', lineHeight: 1.4 }}>🆓 Fee</span>
-            <span style={{ fontSize: 12, fontWeight: 700 }}>Free for life{freeOnly ? ' ✓' : ''}</span>
+            <span style={{ fontSize: 9, fontWeight: 700, color: freeOnly ? '#00785C' : '#9DAEC8', textTransform: 'uppercase', letterSpacing: '0.06em', lineHeight: 1.4, textAlign: 'left' }}>🆓 Fee</span>
+            <span style={{ fontSize: 12, fontWeight: 700, textAlign: 'left' }}>Free for life{freeOnly ? ' ✓' : ''}</span>
           </button>
 
           <div style={dividerStyle} />
 
-          {/* Sort by category */}
+          {/* Find best cards by category */}
           <div style={{ ...filterGroupStyle, flex: 1.4 }}>
-            <span style={filterLabelStyle}>Sort by</span>
+            <span style={leftFilterLabelStyle}>Find Best Cards</span>
             <select value={sortCat} onChange={e => { setSortCat(e.target.value); setPage(1) }} style={filterSelectStyle}>
-              <option value="">Default (earnn rank)</option>
-              {RATE_PILLS.map(c => <option key={c.key} value={c.key.replace('display_reward_rate_', '')}>{c.name} rate</option>)}
+              <option value="">Best Overall Cards</option>
+              {RATE_PILLS.map(c => <option key={c.key} value={c.key.replace('display_reward_rate_', '')}>Best {c.name} Cards</option>)}
             </select>
           </div>
 
-          {/* Result count */}
-          <span style={{ marginLeft: 12, fontSize: 12, color: '#5A6A85', whiteSpace: 'nowrap', alignSelf: 'center' }}>
-            <strong style={{ color: '#0D1828' }}>{filtered.length}</strong> cards · pg {page}/{totalPages}
-          </span>
+          <div ref={allFiltersRef} style={{ position: 'relative', alignSelf: 'center', marginLeft: 12 }}>
+            <button type="button" onClick={() => { setAllFiltersOpen(open => !open); setBankPickerOpen(false) }} aria-expanded={allFiltersOpen} style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '9px 12px', border: '1px solid #D6E0F5', borderRadius: 9, background: allFiltersOpen ? '#EEF3FF' : 'white', color: '#0E3785', fontSize: 12.5, fontWeight: 800, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+              <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round">
+                <path d="M4 6h16M4 12h16M4 18h16" /><circle cx="9" cy="6" r="1.5" fill="white" /><circle cx="15" cy="12" r="1.5" fill="white" /><circle cx="7" cy="18" r="1.5" fill="white" />
+              </svg>
+              All Filters
+            </button>
+            {allFiltersOpen && (
+              <div role="dialog" aria-modal="true" aria-label="All card filters" onClick={() => setAllFiltersOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, background: 'rgba(13,24,40,0.42)' }}>
+                <div onClick={event => event.stopPropagation()} style={{ width: 'min(580px, 100%)', maxHeight: 'calc(100vh - 48px)', overflowY: 'auto', background: 'white', border: '1px solid #D6E0F5', borderRadius: 18, boxShadow: '0 24px 60px rgba(13,24,40,0.28)', padding: 22 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                  <strong style={{ color: '#0D1828', fontSize: 16 }}>All Filters</strong>
+                  <button type="button" onClick={() => setAllFiltersOpen(false)} aria-label="Close filters" style={{ border: 'none', background: 'transparent', color: '#5A6A85', cursor: 'pointer', fontSize: 23, lineHeight: 1 }}>×</button>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 14 }}>
+                  <label style={popupFilterLabelStyle}>Salary (AED)
+                    <input value={salaryInput} onChange={e => { setSalaryInput(e.target.value.replace(/\D/g, '').slice(0, 6)); setPage(1) }} inputMode="numeric" pattern="[0-9]*" maxLength={6} placeholder="Enter monthly salary" style={popupControlStyle} />
+                  </label>
+                  <label style={popupFilterLabelStyle}>Card Name
+                    <input value={cardNameQuery} onChange={e => { setCardNameQuery(e.target.value); setPage(1) }} placeholder="Search card name" style={popupControlStyle} />
+                  </label>
+                  <label style={popupFilterLabelStyle}>Bank
+                    <select value={bank} onChange={e => { setBank(e.target.value); setPage(1) }} style={popupControlStyle}>
+                      {bankOptions.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
+                    </select>
+                  </label>
+                  <label style={popupFilterLabelStyle}>Network
+                    <select value={network} onChange={e => { setNetwork(e.target.value); setPage(1) }} style={popupControlStyle}>
+                      {NETWORK_OPTIONS.map(option => <option key={option}>{option}</option>)}
+                    </select>
+                  </label>
+                  <label style={popupFilterLabelStyle}>Reward Program Type
+                    <select value={rewardProgramFilter} onChange={e => { setRewardProgramFilter(e.target.value); setPage(1) }} style={popupControlStyle}>
+                      <option value="">All reward programs</option>
+                      {rewardProgramOptions.map(option => <option key={option} value={option}>{option}</option>)}
+                    </select>
+                  </label>
+                  <label style={popupFilterLabelStyle}>Reward Currency
+                    <select value={rewardCurrencyFilter} onChange={e => { setRewardCurrencyFilter(e.target.value); setPage(1) }} style={popupControlStyle}>
+                      <option value="">All reward currencies</option>
+                      {rewardCurrencyOptions.map(option => <option key={option} value={option}>{option.replace(/_/g, ' ')}</option>)}
+                    </select>
+                  </label>
+                  <label style={popupFilterLabelStyle}>Find Best Cards
+                    <select value={sortCat} onChange={e => { setSortCat(e.target.value); setPage(1) }} style={popupControlStyle}>
+                      <option value="">Best Overall Cards</option>
+                      {RATE_PILLS.map(category => <option key={category.key} value={category.key.replace('display_reward_rate_', '')}>Best {category.name} Cards</option>)}
+                    </select>
+                  </label>
+                  <div style={popupFilterLabelStyle}>Fee
+                    <button type="button" onClick={() => { setFreeOnly(value => !value); setPage(1) }} style={{ ...popupControlStyle, display: 'flex', alignItems: 'center', justifyContent: 'space-between', border: freeOnly ? '1.5px solid #00A67E' : '1px solid #D6E0F5', background: freeOnly ? '#EAFBF5' : '#F8FAFF', color: freeOnly ? '#00785C' : '#0D1828', cursor: 'pointer' }}>
+                      <span>Show only Free for Life Cards{freeOnly ? ' ✓' : ''}</span>
+                    </button>
+                  </div>
+                  <div style={{ gridColumn: '1 / -1', paddingTop: 4, borderTop: '1px solid #E4EAF5' }}>
+                    <div style={{ margin: '14px 0 10px', color: '#0D1828', fontSize: 13, fontWeight: 800 }}>Benefit Filters <span style={{ color: '#94A3B8', fontSize: 11, fontWeight: 600 }}>(must include)</span></div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 8 }}>
+                      {BENEFIT_FILTERS.map(filter => {
+                        const selected = benefitFilters.has(filter.key)
+                        return (
+                          <button key={filter.key} type="button" onClick={() => toggleBenefitFilter(filter.key)} aria-pressed={selected} style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '9px 10px', border: selected ? '1px solid #B7D4FF' : '1px solid transparent', borderRadius: 8, background: selected ? '#EEF3FF' : 'white', color: selected ? '#0E3785' : '#334155', fontSize: 13, fontWeight: selected ? 700 : 600, cursor: 'pointer', textAlign: 'left' }}>
+                            <span aria-hidden="true" style={{ width: 14, height: 14, borderRadius: '50%', border: selected ? '1.5px solid #1677FF' : '1.5px solid #94A3B8', background: selected ? '#1677FF' : 'white', color: 'white', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, lineHeight: 1, flexShrink: 0 }}>{selected ? '✓' : ''}</span>
+                            {filter.label}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                </div>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
-        {/* Row 2 — Preferences: app dropdowns + benefit chips, all one row */}
-        <div style={{ padding: '7px 14px', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', background: '#FAFBFF' }}>
-          <span style={{ fontSize: 11, fontWeight: 700, color: '#5A6A85', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>✨ I prefer:</span>
-
-          {/* Food Delivery multi-select */}
-          <MultiSelectDropdown
-            label="🛵 Food Delivery"
-            options={[
-              { key: 'talabat',     name: 'Talabat'    },
-              { key: 'noon_food',   name: 'Noon Food'  },
-              { key: 'careem_food', name: 'Careem'     },
-            ]}
-            selected={selectedApps}
-            onToggle={toggleApp}
-            openKey="food"
-            openDropdown={openDropdown}
-            setOpenDropdown={setOpenDropdown}
-          />
-
-          {/* Grocery multi-select */}
-          <MultiSelectDropdown
-            label="🛒 Grocery"
-            options={[
-              { key: 'carrefour',    name: 'Carrefour'    },
-              { key: 'noon_grocery', name: 'Noon'         },
-              { key: 'amazon_fresh', name: 'Amazon Fresh' },
-              { key: 'lulu',         name: 'Lulu'         },
-              { key: 'spinneys',     name: 'Spinneys'     },
-            ]}
-            selected={selectedApps}
-            onToggle={toggleApp}
-            openKey="grocery"
-            openDropdown={openDropdown}
-            setOpenDropdown={setOpenDropdown}
-          />
-
-          <div style={dividerStyle} />
-
-          {/* Benefit chips */}
-          {[
-            { key: 'lounge',  label: '🛫 Lounge',          val: prefLounge,  set: setPrefLounge  },
-            { key: 'golf',    label: '⛳ Golf',             val: prefGolf,    set: setPrefGolf    },
-            { key: 'cinema',  label: '🎬 Cinema',           val: prefCinema,  set: setPrefCinema  },
-            { key: 'travel',  label: '🌍 Travel Insurance', val: prefTravel,  set: setPrefTravel  },
-            { key: 'welcome', label: '🎁 Welcome Bonus',    val: prefWelcome, set: setPrefWelcome },
-          ].map(p => (
-            <button key={p.key} onClick={() => p.set(v => !v)} style={{
-              padding: '4px 10px', borderRadius: 100, fontSize: 11.5, fontWeight: 600, cursor: 'pointer',
-              border: p.val ? '1.5px solid #0E3785' : '1.5px solid #E4EAF5',
-              background: p.val ? '#EEF3FF' : 'white',
-              color: p.val ? '#0E3785' : '#5A6A85', transition: 'all 0.12s'
-            }}>{p.label}{p.val ? ' ✓' : ''}</button>
-          ))}
-
-          <span style={{ fontSize: 10.5, color: '#C2CCDD', marginLeft: 'auto', whiteSpace: 'nowrap' }}>personalisation coming soon</span>
-        </div>
       </div>
 
       {/* ── CARD TILES ───────────────────────────────────────────────────── */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {pageCards.length === 0 && (
+          <div style={{ padding: '44px 24px', textAlign: 'center', border: '1px solid #D6E0F5', borderRadius: 16, background: 'white', color: '#5A6A85' }}>
+            {salaryMin !== null ? 'There is no eligible card for the given salary.' : 'No cards match the selected filters.'}
+          </div>
+        )}
         {pageCards.map(card => (
           <CardTile
             key={card.earnn_card_id}
@@ -577,17 +681,7 @@ function CardTile({ card, detail, detailLoading, inCompare, compareFull, onToggl
   const fee = effectiveFeeAed(card)
   const navKey = `earn_${card.earnn_card_id}`
 
-  // Fixed importance order — always all 8, split into 2 columns of 4
-  const allBars = RATE_PILLS.map(p => ({
-    ...p,
-    rate: (card[p.key as keyof ApiCard] as number) || 0,
-    catKey: p.key.replace('display_reward_rate_', ''),
-  }))
-  const leftBars  = allBars.slice(0, 4)   // Dining, Grocery, Travel, Fuel
-  const rightBars = allBars.slice(4)       // Online, Retail, Utility, All Other
-
-  // Max rate across all 8 for consistent bar scaling
-  const maxRate = Math.max(...allBars.map(p => p.rate), 0.001)
+  const topEarnRates = bestForSectionItems(card.best_for, 'Top earn rates')
 
   return (
     <div
@@ -648,72 +742,44 @@ function CardTile({ card, detail, detailLoading, inCompare, compareFull, onToggl
       {/* ── BODY ROW: image | rate bars | earn up to | fee ── */}
       <div style={{ display: 'flex', alignItems: 'stretch', gap: 0 }}>
 
-        {/* Card image + effective rate */}
+        {/* Card image + salary requirement */}
         <div style={{ flexShrink: 0, padding: '12px 12px 12px 16px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
           <img src={getCardImageUrl(card.earnn_card_id)} alt={card.card_name} width={108} height={66} loading="lazy"
             onError={(e) => { (e.target as HTMLImageElement).src = '/card-dummy.svg' }}
             style={{ borderRadius: 8, objectFit: 'cover', boxShadow: '0 4px 16px rgba(14,55,133,0.2)', display: 'block' }} />
-          {card.effective_reward_rate > 0 && (() => {
-            const rate = card.effective_reward_rate * 100
-            const hue = Math.round((rate / 10) * 142)
-            const bg = `hsl(${hue}, 72%, 32%)`
-            return (
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
-                <div style={{ width: 46, height: 46, borderRadius: '50%', background: bg, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: `0 2px 8px ${bg}66` }}>
-                  <span style={{ fontSize: 11, fontWeight: 800, color: 'white', lineHeight: 1 }}>{rate.toFixed(1)}%</span>
-                </div>
-                <div style={{ fontSize: 8, fontWeight: 600, color: '#7A8BA8', textAlign: 'center', lineHeight: 1.3, maxWidth: 60 }}>Overall Effective Rate</div>
-              </div>
-            )
-          })()}
+          <div style={{ textAlign: 'center', maxWidth: 108 }}>
+            <div style={{ fontSize: 8.5, fontWeight: 800, color: '#7A8BA8', textTransform: 'uppercase', letterSpacing: '0.04em', lineHeight: 1.3 }}>Salary requirement</div>
+            <div style={{ marginTop: 3, fontSize: 11, fontWeight: 800, color: card.min_salary_aed ? '#0D1828' : '#00A67E', lineHeight: 1.3 }}>
+              {card.min_salary_aed ? `AED ${Math.round(card.min_salary_aed).toLocaleString()} / mo` : 'No minimum salary'}
+            </div>
+          </div>
         </div>
 
         {/* Divider */}
         <div style={{ width: 1, background: '#EEF3FF', margin: '12px 0' }} />
 
         {/* Rate bars — 2 columns × 4 rows, fixed positions */}
-        <div style={{ flex: 1, padding: '12px 16px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px', alignItems: 'center', minWidth: 0 }}>
-          {[leftBars, rightBars].map((col, ci) => (
-            <div key={ci} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {col.map(p => {
-                const tooltipKey = `bar_${card.earnn_card_id}_${p.key}`
-                return (
-                  <div key={p.key}
-                    style={{ display: 'flex', alignItems: 'center', gap: 6, position: 'relative' }}
-                    onMouseEnter={() => setHoverNav(tooltipKey)}
-                    onMouseLeave={() => setHoverNav(null)}
-                    onClick={e => e.stopPropagation()}
-                  >
-                    <span style={{ fontSize: 11, flexShrink: 0, width: 14 }}>{p.icon}</span>
-                    <span style={{ fontSize: 11, color: p.rate > 0 ? '#3D4B63' : '#C2CCDD', width: 48, flexShrink: 0, cursor: 'default' }}>{p.name}</span>
-                    {/* Bar track */}
-                    <div style={{ flex: 1, height: 6, background: '#F0F2F7', borderRadius: 100, overflow: 'hidden' }}>
-                      {p.rate > 0 && (
-                        <div style={{
-                          height: '100%', borderRadius: 100,
-                          width: `${Math.round((p.rate / maxRate) * 100)}%`,
-                          background: '#8B2E2E',
-                          transition: 'width 0.4s ease'
-                        }} />
-                      )}
-                    </div>
-                    <span style={{ fontSize: 11, fontWeight: 700, color: p.rate > 0 ? '#0D1828' : '#C2CCDD', width: 36, textAlign: 'right', flexShrink: 0 }}>{fmtRate(p.rate)}</span>
-                    {/* Hover tooltip */}
-                    {hoverNav === tooltipKey && (
-                      <span style={{
-                        position: 'absolute', bottom: '120%', left: '50%', transform: 'translateX(-50%)',
-                        background: '#0D1828', color: 'white', fontSize: 11.5, fontWeight: 600,
-                        padding: '5px 10px', borderRadius: 7, whiteSpace: 'nowrap', zIndex: 80,
-                        boxShadow: '0 4px 14px rgba(0,0,0,0.25)'
-                      }}>
-                        {p.name}: {fmtRate(p.rate)}
-                      </span>
-                    )}
-                  </div>
-                )
-              })}
+        <div style={{ flex: 1, padding: '13px 16px', display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', columnGap: 16, rowGap: 12, minWidth: 0 }}>
+          <div style={{ minWidth: 0, paddingRight: 16, borderRight: '1px solid #EEF3FF' }}>
+            <div style={{ fontSize: 10.5, fontWeight: 800, color: '#0E3785', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 7 }}>Top earn rates</div>
+            {topEarnRates.length > 0 ? (
+              <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {topEarnRates.map((item, index) => <li key={index} style={{ fontSize: 12, color: '#0D1828', lineHeight: 1.35 }}>• {item}</li>)}
+              </ul>
+            ) : <div style={{ fontSize: 12, color: '#94A3B8' }}>No top earn rates available</div>}
+          </div>
+          <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+            <div style={{ width: 46, height: 46, borderRadius: '50%', background: '#00A67E', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(0,166,126,0.35)' }}>
+              <span style={{ fontSize: 11, fontWeight: 800, color: 'white', lineHeight: 1 }}>{(card.effective_reward_rate * 100).toFixed(1)}%</span>
             </div>
-          ))}
+            <div style={{ fontSize: 8.5, fontWeight: 700, color: '#7A8BA8', textAlign: 'center', lineHeight: 1.3 }}>Overall Effective Rate</div>
+          </div>
+          <div style={{ gridColumn: '1 / -1', minWidth: 0, paddingTop: 10, borderTop: '1px solid #EEF3FF' }}>
+            <div style={{ fontSize: 10.5, fontWeight: 800, color: '#0E3785', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 5 }}>Card summary</div>
+            <div style={{ fontSize: 12, color: card.card_summary_tag ? '#0D1828' : '#94A3B8', lineHeight: 1.45 }}>
+              {card.card_summary_tag || 'No card summary available'}
+            </div>
+          </div>
         </div>
 
         {/* Divider */}
@@ -1235,7 +1301,7 @@ const selectStyle: React.CSSProperties = {
 
 // Compact filter group — label sits flush above/beside the select
 const filterGroupStyle: React.CSSProperties = {
-  display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-start',
+  display: 'flex', flexDirection: 'column', alignItems: 'stretch', justifyContent: 'flex-start',
   background: '#F4F6FB', border: 'none', paddingTop: 3, paddingBottom: 4
 }
 const filterLabelStyle: React.CSSProperties = {
@@ -1243,9 +1309,20 @@ const filterLabelStyle: React.CSSProperties = {
   textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap',
   lineHeight: 1.4, textAlign: 'center'
 }
+const leftFilterLabelStyle: React.CSSProperties = {
+  ...filterLabelStyle, textAlign: 'left', paddingLeft: 8
+}
 const filterSelectStyle: React.CSSProperties = {
   width: '100%', padding: '0 8px', height: 24, border: 'none', background: 'transparent',
-  color: '#0D1828', fontSize: 12, fontWeight: 600, cursor: 'pointer', outline: 'none', textAlign: 'center'
+  color: '#0D1828', fontSize: 12, fontWeight: 600, cursor: 'pointer', outline: 'none', textAlign: 'left'
+}
+const popupFilterLabelStyle: React.CSSProperties = {
+  display: 'flex', flexDirection: 'column', gap: 6, color: '#5A6A85',
+  fontSize: 11, fontWeight: 800, letterSpacing: '0.04em', textTransform: 'uppercase', textAlign: 'left'
+}
+const popupControlStyle: React.CSSProperties = {
+  width: '100%', height: 38, padding: '0 10px', border: '1px solid #D6E0F5', borderRadius: 8,
+  background: '#F8FAFF', color: '#0D1828', fontSize: 13, fontWeight: 600, outline: 'none', textAlign: 'left'
 }
 const dividerStyle: React.CSSProperties = {
   width: 1, height: 20, background: '#E4EAF5', flexShrink: 0
