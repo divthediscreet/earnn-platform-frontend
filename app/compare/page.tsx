@@ -189,6 +189,7 @@ export default function ComparePage() {
   const [fromResults, setFromResults] = useState(false)
 
   const [cards, setCards]           = useState<ApiCard[]>([])
+  const [catalogueRewardRates, setCatalogueRewardRates] = useState<number[]>([])
   const [loading, setLoading]       = useState(true)
 
   const [error, setError]           = useState<string | null>(null)
@@ -252,6 +253,21 @@ export default function ComparePage() {
       })
     return () => { active = false }
   }, [salaryMin])
+
+  // The reward-rate badge is benchmarked against the full active catalogue,
+  // independent of the user’s temporary salary or card filters.
+  useEffect(() => {
+    let active = true
+    fetchCards({ sort_by: 'card_ranking' })
+      .then(data => {
+        if (!active) return
+        setCatalogueRewardRates((data.cards || [])
+          .map((card: ApiCard) => card.effective_reward_rate)
+          .filter((rate: number): rate is number => typeof rate === 'number' && Number.isFinite(rate)))
+      })
+      .catch(() => { /* The modal safely falls back to its selected cards. */ })
+    return () => { active = false }
+  }, [])
 
   // ── Fetch card detail lazily on expand ──────────────────────────────────
   const loadDetail = useCallback(async (cardId: string, refreshLegacyDetail = false) => {
@@ -653,6 +669,7 @@ export default function ComparePage() {
       {compareOpen && compareCards.length > 0 && (
         <ComparisonModal
           cards={compareCards}
+          catalogueRewardRates={catalogueRewardRates}
           details={details}
           onClose={() => setCompareOpen(false)}
           onRemove={(id) => toggleCompare(id)}
@@ -1055,8 +1072,9 @@ function ComparisonTable({ cards, details, onRemove, hoverNav, setHoverNav }: {
 // ─────────────────────────────────────────────────────────────────────────────
 // SMALL HELPERS
 // ─────────────────────────────────────────────────────────────────────────────
-function ComparisonModal({ cards, details, onClose, onRemove, showOptionalCategories, onToggleOptionalSection }: {
+function ComparisonModal({ cards, catalogueRewardRates, details, onClose, onRemove, showOptionalCategories, onToggleOptionalSection }: {
   cards: ApiCard[]
+  catalogueRewardRates: number[]
   details: Record<string, CardDetail>
   onClose: () => void
   onRemove: (id: string) => void
@@ -1082,6 +1100,21 @@ function ComparisonModal({ cards, details, onClose, onRemove, showOptionalCatego
     const directValue = card[`display_tier_cap_${category}` as keyof ApiCard]
     const value = typeof directValue === 'number' ? directValue : detailValue(card, `${category}_tier_cap_aed`)
     return value && value > 0 ? `cap AED ${Math.round(value).toLocaleString()}` : 'no category cap'
+  }
+  const rewardRateBadge = (card: ApiCard) => {
+    const benchmark = catalogueRewardRates.length ? catalogueRewardRates : cards.map(item => item.effective_reward_rate)
+    const rate = card.effective_reward_rate || 0
+    const percentile = benchmark.length
+      ? (benchmark.filter(value => value <= rate).length / benchmark.length) * 100
+      : 50
+    const band = percentile <= 25
+      ? { background: '#C93D3D', emoji: '😞😞', label: 'Bottom quarter of reward rates' }
+      : percentile <= 50
+        ? { background: '#D99817', emoji: '😞', label: 'Second quarter of reward rates' }
+        : percentile <= 75
+          ? { background: '#69AE6A', emoji: '🙂', label: 'Upper-middle quarter of reward rates' }
+          : { background: '#087448', emoji: '😊😊', label: 'Top quarter of reward rates' }
+    return <span aria-label={`${fmtRate(rate)}. ${band.label}.`} title={band.label} style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '5px 8px', borderRadius: 5, background: band.background, color: 'white', fontSize: 12, lineHeight: 1, fontWeight: 900, boxShadow: 'inset 0 -1px 0 rgba(0,0,0,.15)' }}><span>{fmtRate(rate)}</span><span aria-hidden="true" style={{ fontSize: 13, letterSpacing: -2 }}>{band.emoji}</span></span>
   }
   const thresholdTiers = (card: ApiCard, category: string): RewardThresholdTier[] => card.display_reward_tiers?.[category] || []
   const merchantDisclaimer = (card: ApiCard, category: string) => {
@@ -1181,7 +1214,7 @@ function ComparisonModal({ cards, details, onClose, onRemove, showOptionalCatego
           {row('earnn score', card => <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}><ScoreGauge score={card.earnn_score} /><div><strong style={{ display: 'block', color: scoreColor(card.earnn_score), fontSize: 24, letterSpacing: '-.04em', lineHeight: 1 }}>{fmtScore(card.earnn_score)}</strong><span style={{ display: 'block', marginTop: 3, color: '#7184A4', fontSize: 10.5, fontWeight: 800, letterSpacing: '.04em' }}>/ 100</span></div></div>, true, <ComparisonMetricLabel label="earnn score" text="earnn Score is hyper-personalised — it varies based on your spending pattern. This score reflects how well this card works for you." />)}
           {row('Best for', card => bestForSection(card, 'Best for'))}
           {row('Highlight', card => bestForSection(card, 'Highlight'), true)}
-          {row('Overall expected reward rate', card => <strong style={{ color: '#0E3785' }}>{fmtRate(card.effective_reward_rate)}</strong>)}
+          {row('Overall expected reward rate', rewardRateBadge)}
           {row('Fee', card => { const fee = effectiveFeeAed(card); return <strong style={{ color: fee === 0 ? '#00A67E' : '#C95B00' }}>{fee === 0 ? 'Lifetime free' : `AED ${Math.round(fee).toLocaleString()} / yr`}</strong> }, true)}
           {row('Expected yearly reward', card => <strong style={{ color: '#00A67E' }}>AED {Math.round(card.expected_annual_return_aed || 0).toLocaleString()}</strong>, false, <ComparisonMetricLabel label="Expected yearly reward" text="Estimated annual rewards based on the standard UAE spending profile used for this comparison, before annual fees." />)}
           {row('Expected monthly reward', card => <strong style={{ color: '#00A67E' }}>AED {Math.round((card.expected_annual_return_aed || 0) / 12).toLocaleString()}</strong>, true)}
