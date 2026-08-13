@@ -48,6 +48,16 @@ interface ApiCard {
   display_reward_rate_retail: number
   display_reward_rate_utility: number
   display_reward_rate_all_spend: number
+  display_tier_cap_dining: number
+  display_tier_cap_grocery: number
+  display_tier_cap_travel: number
+  display_tier_cap_fuel: number
+  display_tier_cap_online: number
+  display_tier_cap_retail: number
+  display_tier_cap_utility: number
+  display_tier_cap_all_spend: number
+  display_max_earning_per_card_aed: number
+  display_min_monthly_spend_aed_on_card: number
 }
 
 interface CardDetail {
@@ -150,6 +160,9 @@ export default function ComparePage() {
   const [error, setError]           = useState<string | null>(null)
   const [details, setDetails]       = useState<Record<string, CardDetail>>({})
   const [detailLoading, setDetailLoading] = useState<string | null>(null)
+  // A Fast Refresh can retain a card detail fetched before a backend response
+  // gains a field.  Keep one controlled retry per card for that migration.
+  const legacyDetailRefreshes = useRef<Set<string>>(new Set())
 
   const [salaryMin, setSalaryMin]   = useState(0)
   const [network, setNetwork]       = useState('All Networks')
@@ -176,9 +189,6 @@ export default function ComparePage() {
   const [compareIds, setCompareIds] = useState<string[]>([])
   const [compareOpen, setCompareOpen] = useState(false)
   const [showOptionalRewardCategories, setShowOptionalRewardCategories] = useState(false)
-  const [optionalRewardCategories, setOptionalRewardCategories] = useState<Set<string>>(new Set([
-    'utility', 'education', 'online', 'retail', 'fuel',
-  ]))
   const [hoverNav, setHoverNav]     = useState<string | null>(null)
   const [expanded, setExpanded]     = useState<string | null>(null)
   const [comingSoon, setComingSoon] = useState(false)
@@ -208,8 +218,14 @@ export default function ComparePage() {
   }, [])
 
   // ── Fetch card detail lazily on expand ──────────────────────────────────
-  const loadDetail = useCallback(async (cardId: string) => {
-    if (details[cardId] || detailLoading === cardId) return
+  const loadDetail = useCallback(async (cardId: string, refreshLegacyDetail = false) => {
+    const existingDetail = details[cardId]
+    if (detailLoading === cardId) return
+    if (existingDetail && (!refreshLegacyDetail || Array.isArray(existingDetail.benefit_rows))) return
+    if (existingDetail && refreshLegacyDetail) {
+      if (legacyDetailRefreshes.current.has(cardId)) return
+      legacyDetailRefreshes.current.add(cardId)
+    }
     setDetailLoading(cardId)
     try {
       const d = await fetchCardDetail(cardId)
@@ -502,7 +518,10 @@ export default function ComparePage() {
       {/* ── PERSISTENT COMPARE ACTION ─────────────────────────────────────── */}
       {compareCards.length > 0 && (
         <div style={{ position: 'fixed', right: 28, bottom: 28, zIndex: 150 }}>
-          <button onClick={() => setCompareOpen(true)} style={{
+          <button onClick={() => {
+            compareCards.forEach(card => loadDetail(card.earnn_card_id, true))
+            setCompareOpen(true)
+          }} style={{
             display: 'flex', alignItems: 'center', gap: 10, background: '#0E3785', color: 'white',
             border: 'none', borderRadius: 100, padding: '14px 20px', cursor: 'pointer',
             boxShadow: '0 14px 34px rgba(14,55,133,0.34)', fontSize: 14, fontWeight: 800,
@@ -519,20 +538,8 @@ export default function ComparePage() {
           details={details}
           onClose={() => setCompareOpen(false)}
           onRemove={(id) => toggleCompare(id)}
-          optionalCategories={optionalRewardCategories}
           showOptionalCategories={showOptionalRewardCategories}
-          onToggleOptionalSection={() => {
-            setShowOptionalRewardCategories(open => !open)
-            if (!showOptionalRewardCategories) {
-              setOptionalRewardCategories(new Set(['utility', 'education', 'online', 'retail', 'fuel']))
-            }
-          }}
-          onToggleOptionalCategory={(category) => setOptionalRewardCategories(previous => {
-            const next = new Set(previous)
-            if (next.has(category)) next.delete(category)
-            else next.add(category)
-            return next
-          })}
+          onToggleOptionalSection={() => setShowOptionalRewardCategories(open => !open)}
         />
       )}
 
@@ -951,21 +958,20 @@ function ComparisonTable({ cards, details, onRemove, hoverNav, setHoverNav }: {
 // ─────────────────────────────────────────────────────────────────────────────
 // SMALL HELPERS
 // ─────────────────────────────────────────────────────────────────────────────
-function ComparisonModal({ cards, details, onClose, onRemove, optionalCategories, showOptionalCategories, onToggleOptionalSection, onToggleOptionalCategory }: {
+function ComparisonModal({ cards, details, onClose, onRemove, showOptionalCategories, onToggleOptionalSection }: {
   cards: ApiCard[]
   details: Record<string, CardDetail>
   onClose: () => void
   onRemove: (id: string) => void
-  optionalCategories: Set<string>
   showOptionalCategories: boolean
   onToggleOptionalSection: () => void
-  onToggleOptionalCategory: (category: string) => void
 }) {
   const fixed = [['dining', 'Dining'], ['grocery', 'Grocery'], ['travel', 'Travel'], ['all_spend', 'Base expense']] as const
   const optional = [['utility', 'Utility'], ['education', 'Education'], ['online', 'Online'], ['retail', 'Retail'], ['fuel', 'Fuel']] as const
-  const categories = [...fixed, ...(showOptionalCategories ? optional.filter(([key]) => optionalCategories.has(key)) : [])]
-  const label: React.CSSProperties = { padding: '14px 18px', fontSize: 11.5, fontWeight: 800, color: '#5A6A85', textTransform: 'uppercase', letterSpacing: '.04em', verticalAlign: 'top', whiteSpace: 'nowrap' }
-  const cell: React.CSSProperties = { padding: '14px 18px', fontSize: 13, color: '#0D1828', verticalAlign: 'top', borderLeft: '1px solid #EEF3FF' }
+  const categories = [...fixed, ...(showOptionalCategories ? optional : [])]
+  const firstColumnWidth = 190
+  const label: React.CSSProperties = { width: firstColumnWidth, minWidth: firstColumnWidth, maxWidth: firstColumnWidth, padding: '16px 18px', fontSize: 10.5, fontWeight: 900, color: '#4C6183', textTransform: 'uppercase', letterSpacing: '.075em', verticalAlign: 'top', whiteSpace: 'normal', overflowWrap: 'anywhere', background: '#F7F9FE', borderRight: '1px solid #E5ECF8' }
+  const cell: React.CSSProperties = { padding: '16px 18px', fontSize: 13, color: '#10213B', verticalAlign: 'top', borderLeft: '1px solid #E5ECF8', lineHeight: 1.45 }
   const detailValue = (card: ApiCard, key: string): number | null => {
     const value = details[card.earnn_card_id]?.card?.[key]
     return typeof value === 'number' ? value : null
@@ -975,7 +981,8 @@ function ComparisonModal({ cards, details, onClose, onRemove, optionalCategories
     return typeof listValue === 'number' ? listValue : detailValue(card, `${category}_actual_rate`) ?? detailValue(card, `effective_reward_rate_${category}`) ?? 0
   }
   const cap = (card: ApiCard, category: string): string => {
-    const value = detailValue(card, `${category}_tier_cap_aed`)
+    const directValue = card[`display_tier_cap_${category}` as keyof ApiCard]
+    const value = typeof directValue === 'number' ? directValue : detailValue(card, `${category}_tier_cap_aed`)
     return value && value > 0 ? `cap AED ${Math.round(value).toLocaleString()}` : 'no category cap'
   }
   const list = (items: string[] | undefined) => items && items.length ? <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 5 }}>{items.map((item, index) => <li key={index} style={{ lineHeight: 1.5, fontSize: 12 }}>• {item}</li>)}</ul> : <span style={{ color: '#9CA3AF', fontSize: 12 }}>Loading current card details…</span>
@@ -1008,38 +1015,90 @@ function ComparisonModal({ cards, details, onClose, onRemove, optionalCategories
     if (!rows.length) return <span style={{ color: '#9CA3AF', fontSize: 12 }}>No other top benefits available</span>
     return <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 5 }}>{rows.map((row, index) => <li key={index} style={{ lineHeight: 1.5, fontSize: 12 }}>• {row.featured_display_message}</li>)}</ul>
   }
-  const row = (text: string, render: (card: ApiCard) => React.ReactNode, shaded = false) => <tr key={text} style={{ background: shaded ? '#F8FAFF' : 'white' }}><td style={label}>{text}</td>{cards.map(card => <td key={card.earnn_card_id} style={cell}>{render(card)}</td>)}</tr>
+  const bestForItems = (card: ApiCard, section: 'Top earn rates' | 'Highlight' | 'Best for') => {
+    const detail = details[card.earnn_card_id]
+    if (!detail) return null
+    const prefix = section.replace(/\s+/g, '\\s+')
+    const matched = detail.best_for
+      .map(line => line.match(new RegExp(`^\\s*${prefix}\\s*:\\s*(.*)$`, 'i'))?.[1] || '')
+      .filter(Boolean)
+      .flatMap(value => value.split(/[;|]/).map(item => item.trim()).filter(Boolean))
+    return matched
+  }
+  const bestForSection = (card: ApiCard, section: 'Top earn rates' | 'Highlight' | 'Best for') => {
+    const items = bestForItems(card, section)
+    if (items === null) return <span style={{ color: '#9CA3AF', fontSize: 12 }}>Loading current card details…</span>
+    if (!items.length) return null
+    return <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 5 }}>{items.map((item, index) => <li key={index} style={{ lineHeight: 1.5, fontSize: 12 }}>• {item}</li>)}</ul>
+  }
+  const row = (text: string, render: (card: ApiCard) => React.ReactNode, shaded = false, labelContent: React.ReactNode = text) => <tr key={text} style={{ background: shaded ? '#FBFCFF' : 'white', borderTop: '1px solid #E7EDF8' }}><td style={label}>{labelContent}</td>{cards.map(card => <td key={card.earnn_card_id} style={cell}>{render(card)}</td>)}</tr>
+  const sectionHeading = (title: string, eyebrow: string) => <tr><td colSpan={cards.length + 1} style={{ padding: 0, borderTop: '1px solid #DCE6F6' }}><div style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 10, background: 'linear-gradient(90deg, #EEF3FF 0%, #F9FBFF 72%, #FFFFFF 100%)' }}><span style={{ width: 8, height: 8, borderRadius: '50%', background: '#C9A84C', boxShadow: '0 0 0 5px rgba(201,168,76,.13)' }} /><span style={{ color: '#0E3785', fontSize: 15, fontWeight: 900, letterSpacing: '-.01em' }}>{title}</span><span style={{ color: '#7A8BA8', fontSize: 11.5, fontWeight: 600 }}>{eyebrow}</span></div></td></tr>
 
-  return <div role="dialog" aria-modal="true" aria-label="Compare selected cards" onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 300, padding: 24, background: 'rgba(13,24,40,.6)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-    <div onClick={event => event.stopPropagation()} style={{ width: 'min(1240px, 100%)', maxHeight: '92vh', overflow: 'auto', borderRadius: 22, background: '#F8FAFF', boxShadow: '0 28px 80px rgba(0,0,0,.35)' }}>
-      <div style={{ position: 'sticky', top: 0, zIndex: 2, padding: '18px 24px', background: '#0E3785', color: 'white', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div><div style={{ fontSize: 10.5, letterSpacing: '.12em', fontWeight: 800, color: '#C9A84C', textTransform: 'uppercase' }}>Card comparison</div><div style={{ marginTop: 4, fontSize: 22, fontWeight: 800 }}>Compare {cards.length} selected card{cards.length === 1 ? '' : 's'}</div></div>
+  return <div role="dialog" aria-modal="true" aria-label="Compare selected cards" onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 300, padding: 'clamp(12px, 3vw, 32px)', background: 'rgba(5,18,43,.72)', backdropFilter: 'blur(7px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+    <div onClick={event => event.stopPropagation()} style={{ width: 'min(1280px, 100%)', maxHeight: '94vh', overflow: 'auto', borderRadius: 26, background: '#F3F6FC', boxShadow: '0 32px 96px rgba(3,12,30,.48)', border: '1px solid rgba(255,255,255,.35)' }}>
+      <div style={{ position: 'sticky', top: 0, zIndex: 3, padding: '25px clamp(20px, 3vw, 34px)', color: 'white', display: 'flex', justifyContent: 'space-between', alignItems: 'center', overflow: 'hidden', background: 'radial-gradient(circle at 82% 0%, rgba(52,112,222,.65), transparent 32%), linear-gradient(118deg, #071D4A 0%, #0E3785 58%, #123F91 100%)' }}>
+        <div style={{ position: 'absolute', right: 82, bottom: -58, width: 220, height: 160, border: '1px solid rgba(255,255,255,.12)', borderRadius: '50%', transform: 'rotate(-18deg)' }} />
+        <div style={{ position: 'relative' }}><div style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '5px 9px', borderRadius: 100, background: 'rgba(255,255,255,.1)', color: '#E7C65A', fontSize: 10.5, letterSpacing: '.11em', fontWeight: 900, textTransform: 'uppercase' }}><span style={{ width: 6, height: 6, borderRadius: '50%', background: '#E7C65A' }} />Earnn card compare</div><div style={{ marginTop: 10, fontSize: 'clamp(22px, 3vw, 30px)', fontWeight: 900, letterSpacing: '-.035em' }}>Your cards, side by side.</div><div style={{ marginTop: 5, color: '#C7D7F6', fontSize: 12.5 }}>Compare rewards, value and benefits at a glance.</div></div>
         <button onClick={onClose} aria-label="Close comparison" style={{ width: 34, height: 34, borderRadius: 8, border: '1px solid rgba(255,255,255,.25)', background: 'rgba(255,255,255,.1)', color: 'white', cursor: 'pointer', fontSize: 20 }}>×</button>
       </div>
-      <div style={{ padding: 20 }}><div style={{ overflowX: 'auto', borderRadius: 16, overflowY: 'hidden', border: '1px solid #D6E0F5', background: 'white' }}><table style={{ minWidth: 700, width: '100%', borderCollapse: 'collapse' }}>
-        <thead><tr style={{ background: '#F0F4FF' }}><th style={{ ...label, textAlign: 'left' }}>Card</th>{cards.map(card => <th key={card.earnn_card_id} style={{ ...cell, minWidth: 220, textAlign: 'left' }}><div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}><div><div style={{ color: '#5A6A85', fontSize: 11 }}>{card.bank_name}</div><div style={{ marginTop: 3, fontWeight: 800 }}>{card.card_name}</div></div><button onClick={() => onRemove(card.earnn_card_id)} aria-label={`Remove ${card.card_name}`} style={{ width: 25, height: 25, border: 'none', borderRadius: 6, background: '#E7EDFA', color: '#0E3785', cursor: 'pointer', fontWeight: 800 }}>×</button></div></th>)}</tr></thead>
+      <div style={{ padding: 'clamp(14px, 2.4vw, 28px)', background: 'linear-gradient(180deg, #EAF0FB 0%, #F8FAFE 290px)' }}><div style={{ overflowX: 'auto', borderRadius: 18, overflowY: 'hidden', border: '1px solid #D7E2F3', background: 'white', boxShadow: '0 14px 34px rgba(24,58,112,.10)' }}><table style={{ minWidth: 920, width: '100%', tableLayout: 'fixed', borderCollapse: 'separate', borderSpacing: 0 }}>
+        <colgroup><col style={{ width: firstColumnWidth }} />{cards.map(card => <col key={card.earnn_card_id} />)}</colgroup>
+        <thead><tr style={{ background: '#FFFFFF' }}><th style={{ ...label, textAlign: 'left', background: '#F0F4FC', borderBottom: '1px solid #DCE6F6' }}><div style={{ color: '#0E3785', fontSize: 11, fontWeight: 900 }}>SELECTED<br />CARDS</div><div style={{ marginTop: 5, color: '#7385A5', fontSize: 10, fontWeight: 700, textTransform: 'none', letterSpacing: 0 }}>{cards.length} of 3 selected</div></th>{cards.map(card => <th key={card.earnn_card_id} style={{ ...cell, minWidth: 0, textAlign: 'left', background: '#FFFFFF', borderBottom: '1px solid #DCE6F6' }}><div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}><div style={{ display: 'flex', alignItems: 'center', gap: 11, minWidth: 0 }}><div style={{ padding: 4, flexShrink: 0, borderRadius: 9, background: '#F2F6FF', border: '1px solid #DFE8F8' }}><img src={getCardImageUrl(card.earnn_card_id)} alt={card.card_name} width={70} height={44} loading="lazy" onError={(event) => { (event.target as HTMLImageElement).src = '/card-dummy.svg' }} style={{ display: 'block', borderRadius: 5, objectFit: 'cover' }} /></div><div><div style={{ color: '#6A7D9E', fontSize: 10.5, fontWeight: 700 }}>{card.bank_name}</div><div style={{ marginTop: 3, color: '#10213B', fontWeight: 900, fontSize: 13, lineHeight: 1.25 }}>{card.card_name}</div></div></div><button onClick={() => onRemove(card.earnn_card_id)} aria-label={`Remove ${card.card_name}`} style={{ flexShrink: 0, width: 27, height: 27, border: '1px solid #D9E3F4', borderRadius: 8, background: '#F5F8FE', color: '#45628E', cursor: 'pointer', fontWeight: 900 }}>×</button></div></th>)}</tr></thead>
         <tbody>
-          {row('earnn score', card => <strong style={{ color: scoreColor(card.earnn_score), fontSize: 15 }}>{fmtScore(card.earnn_score)}</strong>, true)}
+          {row('earnn score', card => <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}><ScoreGauge score={card.earnn_score} /><div><strong style={{ display: 'block', color: scoreColor(card.earnn_score), fontSize: 24, letterSpacing: '-.04em', lineHeight: 1 }}>{fmtScore(card.earnn_score)}</strong><span style={{ display: 'block', marginTop: 3, color: '#7184A4', fontSize: 10.5, fontWeight: 800, letterSpacing: '.04em' }}>/ 100</span></div></div>, true, <ComparisonMetricLabel label="earnn score" text="earnn Score is hyper-personalised — it varies based on your spending pattern. This score reflects how well this card works for you." />)}
+          {row('Best for', card => bestForSection(card, 'Best for'))}
+          {row('Highlight', card => bestForSection(card, 'Highlight'), true)}
           {row('Overall expected reward rate', card => <strong style={{ color: '#0E3785' }}>{fmtRate(card.effective_reward_rate)}</strong>)}
           {row('Fee', card => { const fee = effectiveFeeAed(card); return <strong style={{ color: fee === 0 ? '#00A67E' : '#C95B00' }}>{fee === 0 ? 'Lifetime free' : `AED ${Math.round(fee).toLocaleString()} / yr`}</strong> }, true)}
-          {row('Expected yearly reward', card => <strong style={{ color: '#00A67E' }}>AED {Math.round(card.expected_annual_return_aed || 0).toLocaleString()}</strong>)}
+          {row('Expected yearly reward', card => <strong style={{ color: '#00A67E' }}>AED {Math.round(card.expected_annual_return_aed || 0).toLocaleString()}</strong>, false, <ComparisonMetricLabel label="Expected yearly reward" text="Estimated annual rewards based on the standard UAE spending profile used for this comparison, before annual fees." />)}
           {row('Expected monthly reward', card => <strong style={{ color: '#00A67E' }}>AED {Math.round((card.expected_annual_return_aed || 0) / 12).toLocaleString()}</strong>, true)}
-          {row('NAV', card => <strong style={{ color: '#0E3785' }}>AED {Math.round(card.nav_aed || 0).toLocaleString()}</strong>)}
-          <tr><td colSpan={cards.length + 1} style={{ padding: '18px 18px 8px', color: '#0E3785', background: '#F8FAFF', fontSize: 15, fontWeight: 900 }}>Rewards</td></tr>
+          {row('NAV', card => <strong style={{ color: '#0E3785' }}>AED {Math.round(card.nav_aed || 0).toLocaleString()}</strong>, false, <ComparisonMetricLabel label="NAV" text="Expected yearly rewards minus the true annual fee (after waivers)." />)}
+          {sectionHeading('Rewards', 'Rates, caps and earning thresholds')}
           {categories.map(([key, text], index) => row(text, card => <><strong style={{ color: '#0E3785' }}>{fmtRate(rate(card, key))}</strong><span style={{ display: 'block', marginTop: 3, color: '#7A8BA8', fontSize: 11 }}>({cap(card, key)})</span></>, index % 2 === 0))}
-          <tr style={{ background: '#F8FAFF' }}><td style={label}>More reward categories</td><td colSpan={cards.length} style={cell}><button onClick={onToggleOptionalSection} style={{ border: '1px solid #C8D5EF', borderRadius: 8, background: 'white', color: '#0E3785', padding: '7px 11px', cursor: 'pointer', fontWeight: 800, fontSize: 12 }}>{showOptionalCategories ? 'Hide optional categories ↑' : 'Show more categories ↓'}</button>{showOptionalCategories && <span style={{ display: 'inline-flex', flexWrap: 'wrap', gap: 10, marginLeft: 14 }}>{optional.map(([key, text]) => <label key={key} style={{ cursor: 'pointer', fontSize: 12 }}><input type="checkbox" checked={optionalCategories.has(key)} onChange={() => onToggleOptionalCategory(key)} style={{ accentColor: '#0E3785', marginRight: 5 }} />{text}</label>)}</span>}</td></tr>
-          {row('Max capping at card', card => { const value = detailValue(card, 'max_earning_per_card_in_aed'); return value && value > 0 ? `AED ${Math.round(value).toLocaleString()} / mo` : 'No card cap recorded' })}
-          {row('Min spend required', card => { const value = detailValue(card, 'min_monthly_spend_aed_on_card'); return value && value > 0 ? `AED ${Math.round(value).toLocaleString()} / mo` : 'No minimum spend recorded' }, true)}
-          <tr><td colSpan={cards.length + 1} style={{ padding: '18px 18px 8px', color: '#0E3785', background: '#F8FAFF', fontSize: 15, fontWeight: 900 }}>Card details</td></tr>
+          <tr style={{ height: 42, background: '#F7F9FE', borderTop: '1px solid #E3EAF6', borderBottom: '1px solid #E3EAF6' }}><td style={{ ...label, padding: '9px 14px' }}><button onClick={onToggleOptionalSection} aria-expanded={showOptionalCategories} style={{ display: 'inline-flex', alignItems: 'center', gap: 7, border: 'none', padding: 0, background: 'transparent', color: '#0E3785', cursor: 'pointer', fontSize: 10.5, fontWeight: 900, textAlign: 'left', textTransform: 'uppercase', letterSpacing: '.06em' }}><span style={{ display: 'inline-flex', width: 17, height: 17, alignItems: 'center', justifyContent: 'center', borderRadius: 5, background: '#0E3785', color: 'white', fontSize: 15, lineHeight: 1 }}>{showOptionalCategories ? '−' : '+'}</span>{showOptionalCategories ? 'Hide extra categories' : 'Show more categories'}</button></td><td colSpan={cards.length} style={{ ...cell, padding: 0, background: '#FFFFFF' }} /></tr>
+          {row('Max capping at card', card => { const value = card.display_max_earning_per_card_aed ?? detailValue(card, 'max_earning_per_card_in_aed'); return value && value > 0 ? `AED ${Math.round(value).toLocaleString()} / mo` : 'No card cap recorded' })}
+          {row('Min spend required', card => { const value = card.display_min_monthly_spend_aed_on_card ?? detailValue(card, 'min_monthly_spend_aed_on_card'); return value && value > 0 ? `AED ${Math.round(value).toLocaleString()} / mo` : 'No minimum spend recorded' }, true)}
+          {sectionHeading('Benefits', 'Travel, entertainment and card privileges')}
           {row('Lounge access', card => { const rows = loungeRows(card); return !details[card.earnn_card_id] ? <span style={{ color: '#9CA3AF', fontSize: 12 }}>Loading current card details…</span> : rows.length ? <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>{rows.map((benefit, index) => <span key={index}>{loungeValue(benefit)}</span>)}</div> : <span style={{ color: '#9CA3AF', fontSize: 12 }}>No benefit available</span> }, true)}
           {row('Cinema benefit', card => { const rows = cinemaRows(card); return !details[card.earnn_card_id] ? <span style={{ color: '#9CA3AF', fontSize: 12 }}>Loading current card details…</span> : rows.length ? <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>{rows.map((benefit, index) => <span key={index}>{cinemaValue(benefit)}</span>)}</div> : <span style={{ color: '#9CA3AF', fontSize: 12 }}>No benefit available</span> })}
           {row('Other top benefits', otherBenefitList, true)}
-          {row('Best for', card => list(details[card.earnn_card_id]?.best_for))}
+          {row('Top earn rates', card => bestForSection(card, 'Top earn rates'))}
           {row('Things to note', card => list(details[card.earnn_card_id]?.card_disclaimer), true)}
+          <tr style={{ borderTop: '1px solid #DCE6F6', background: '#F7F9FE' }}><td style={{ ...label, verticalAlign: 'middle' }}><span style={{ color: '#7385A5', fontSize: 10 }}>APPLICATION</span></td>{cards.map(card => <td key={card.earnn_card_id} style={{ ...cell, verticalAlign: 'middle', textAlign: 'center' }}><button disabled aria-disabled="true" style={{ minWidth: 132, padding: '11px 18px', border: 'none', borderRadius: 9, background: '#C9A84C', color: '#FFFFFF', opacity: .52, cursor: 'not-allowed', fontSize: 12, fontWeight: 900, letterSpacing: '.02em' }}>Apply Now</button></td>)}</tr>
         </tbody>
       </table></div></div>
     </div>
   </div>
+}
+
+function ScoreGauge({ score }: { score: number }) {
+  const value = Math.max(0, Math.min(100, score))
+  const angle = Math.PI - (value / 100) * Math.PI
+  const needleX = 80 + 46 * Math.cos(angle)
+  const needleY = 78 - 46 * Math.sin(angle)
+
+  return <svg viewBox="0 0 160 96" width="106" height="64" role="img" aria-label={`Earnn score gauge: ${fmtScore(value)} out of 100`} style={{ flexShrink: 0, overflow: 'visible' }}>
+    <title>Earnn score gauge</title>
+    <path d="M22 78 C22 65 26 53 33 44" fill="none" stroke="#E94B3C" strokeWidth="16" strokeLinecap="butt" />
+    <path d="M33 44 C41 33 50 26 62 23" fill="none" stroke="#F78C32" strokeWidth="16" strokeLinecap="butt" />
+    <path d="M62 23 C74 18 86 18 98 23" fill="none" stroke="#F4C842" strokeWidth="16" strokeLinecap="butt" />
+    <path d="M98 23 C110 26 119 33 127 44" fill="none" stroke="#85C84A" strokeWidth="16" strokeLinecap="butt" />
+    <path d="M127 44 C134 53 138 65 138 78" fill="none" stroke="#159B61" strokeWidth="16" strokeLinecap="butt" />
+    <path d="M35 78 C35 53 55 33 80 33 C105 33 125 53 125 78" fill="none" stroke="rgba(14,55,133,.08)" strokeWidth="18" strokeLinecap="butt" />
+    <line x1="80" y1="78" x2={needleX} y2={needleY} stroke="#143968" strokeWidth="3.5" strokeLinecap="round" />
+    <circle cx="80" cy="78" r="8" fill="#143968" />
+    <circle cx="80" cy="78" r="3" fill="#FFFFFF" opacity=".85" />
+    <text x="16" y="94" fill="#8090A8" fontSize="9" fontWeight="800">0</text>
+    <text x="135" y="94" fill="#8090A8" fontSize="9" fontWeight="800">100</text>
+  </svg>
+}
+
+function ComparisonMetricLabel({ label, text }: { label: string; text: string }) {
+  const [visible, setVisible] = useState(false)
+  return <span style={{ position: 'relative', display: 'inline-block', cursor: 'help', borderBottom: '1.5px dotted #7589AA' }} onMouseEnter={() => setVisible(true)} onMouseLeave={() => setVisible(false)}>
+    {label}
+    {visible && <span style={{ position: 'absolute', zIndex: 20, left: 0, bottom: 'calc(100% + 9px)', width: 240, padding: '10px 12px', borderRadius: 9, background: '#0D1828', color: 'white', textTransform: 'none', letterSpacing: 0, fontSize: 11.5, fontWeight: 500, lineHeight: 1.5, boxShadow: '0 10px 24px rgba(0,0,0,.24)', pointerEvents: 'none' }}>{text}</span>}
+  </span>
 }
 
 function NavTooltip({ id, hoverNav, setHoverNav }: { id: string; hoverNav: string | null; setHoverNav: (v: string | null) => void }) {
