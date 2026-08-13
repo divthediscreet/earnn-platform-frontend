@@ -391,15 +391,15 @@ export default function ComparePage() {
         <div style={{ position: 'absolute', inset: 0, opacity: 0.05, backgroundImage: 'linear-gradient(white 1px, transparent 1px), linear-gradient(90deg, white 1px, transparent 1px)', backgroundSize: '44px 44px' }} />
         <div style={{ position: 'relative', maxWidth: 860 }}>
           <div style={{ display: 'inline-block', fontSize: 11, fontWeight: 700, letterSpacing: '0.14em', color: '#C9A84C', textTransform: 'uppercase', marginBottom: 12 }}>
-            ALL UAE CREDIT CARDS
+            ANALYZE ALL UAE CREDIT CARDS
           </div>
-          <h1 style={{ fontSize: 'clamp(24px, 3.4vw, 32px)', fontWeight: 800, lineHeight: 1.25, marginBottom: 10, color: 'white' }}>
-            See what you’re actually likely to earn.
+          <h1 style={{ fontSize: 'clamp(21px, 2.6vw, 28px)', fontWeight: 800, letterSpacing: '-0.025em', lineHeight: 1.25, marginBottom: 10, color: 'white' }}>
+            Compare Real Earning Potential, Not Headline Rates
           </h1>
           <p style={{ fontSize: 15.5, color: 'rgba(255,255,255,0.78)', lineHeight: 1.7, marginBottom: 24 }}>
-            Earnnn Scores and reward rates are estimated using the spending patterns of an average UAE resident, accounting for reward caps, eligibility conditions, spending mix and the likelihood of earning each reward.
-            <span style={{ display: 'block', marginTop: 10, fontStyle: 'italic', color: 'rgba(255,255,255,0.66)' }}>
-              Displayed reward rates are Earnnn estimates, not banks’ advertised rates.
+            We estimate each UAE credit card&apos;s <strong>effective reward rate and earning potential</strong>, taking reward rules, caps and conditions into account, so you can see how cards may perform in practice.
+            <span style={{ display: 'block', marginTop: 10, fontWeight: 800, color: 'rgba(255,255,255,0.9)' }}>
+              Select up to 3 cards to compare side by side.
             </span>
           </p>
           <Link href="/analyse" style={{
@@ -408,7 +408,7 @@ export default function ComparePage() {
             fontSize: 15, fontWeight: 800, textDecoration: 'none',
             boxShadow: '0 8px 28px rgba(201,168,76,0.35)'
           }}>
-            🎯 Calculate My Personal Rewards →
+            🎯 Personalized My Portfolio →
           </Link>
         </div>
       </div>}
@@ -569,6 +569,11 @@ export default function ComparePage() {
                       })}
                     </div>
                   </div>
+                  <div style={{ gridColumn: '1 / -1', display: 'flex', justifyContent: 'center', paddingTop: 8 }}>
+                    <button type="button" onClick={() => setAllFiltersOpen(false)} style={{ minWidth: 170, padding: '11px 24px', border: 'none', borderRadius: 9, background: '#0E3785', color: 'white', fontSize: 13, fontWeight: 800, cursor: 'pointer', boxShadow: '0 6px 16px rgba(14,55,133,0.22)' }}>
+                      Apply Filters
+                    </button>
+                  </div>
                 </div>
                 </div>
               </div>
@@ -621,7 +626,7 @@ export default function ComparePage() {
 
       {/* ── PERSISTENT COMPARE ACTION ─────────────────────────────────────── */}
       {compareCards.length > 0 && (
-        <div style={{ position: 'fixed', right: 28, bottom: 28, zIndex: 150 }}>
+        <div style={{ position: 'fixed', right: 28, top: 84, zIndex: 150 }}>
           <button onClick={() => {
             compareCards.forEach(card => loadDetail(card.earnn_card_id, true))
             setCompareOpen(true)
@@ -630,7 +635,7 @@ export default function ComparePage() {
             border: 'none', borderRadius: 100, padding: '14px 20px', cursor: 'pointer',
             boxShadow: '0 14px 34px rgba(14,55,133,0.34)', fontSize: 14, fontWeight: 800,
           }}>
-            ⚖️ Compare {compareCards.length} card{compareCards.length === 1 ? '' : 's'}
+            Compare {compareCards.length} card{compareCards.length === 1 ? '' : 's'}
             <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 7px', borderRadius: 100, background: 'rgba(255,255,255,0.18)' }}>up to 3</span>
           </button>
         </div>
@@ -680,6 +685,8 @@ function CardTile({ card, detail, detailLoading, inCompare, compareFull, onToggl
 }) {
   const fee = effectiveFeeAed(card)
   const navKey = `earn_${card.earnn_card_id}`
+  const bestForItems = detail ? bestForSectionItems(detail.best_for, 'Best for') : []
+  const highlightItems = detail ? bestForSectionItems(detail.best_for, 'Highlight') : []
 
   const topEarnRates = bestForSectionItems(card.best_for, 'Top earn rates')
 
@@ -698,7 +705,9 @@ function CardTile({ card, detail, detailLoading, inCompare, compareFull, onToggl
       <div style={{
         display: 'flex', alignItems: 'center', gap: 12,
         padding: '12px 16px', borderBottom: '1px solid #EEF3FF',
-        background: inCompare ? '#F0F4FF' : 'white'
+        background: inCompare ? '#F0F4FF' : 'white',
+        borderTopLeftRadius: inCompare ? 14 : 15,
+        borderTopRightRadius: inCompare ? 14 : 15
       }}>
         {/* Name + bank */}
         <div style={{ flex: 1, minWidth: 0 }}>
@@ -726,7 +735,7 @@ function CardTile({ card, detail, detailLoading, inCompare, compareFull, onToggl
         </div>
 
         {/* Card-selection action for the persistent comparison view. */}
-        <button onClick={(e) => { e.stopPropagation(); onToggleCompare(e) }} disabled={compareFull} style={{
+        <button type="button" aria-pressed={inCompare} onClick={(e) => { e.stopPropagation(); onToggleCompare(e) }} disabled={compareFull} style={{
           flexShrink: 0, display: 'flex', alignItems: 'center', gap: 6,
           padding: '8px 14px', borderRadius: 100,
           border: inCompare ? '1px solid #0E3785' : '1px solid #D6E0F5',
@@ -735,7 +744,10 @@ function CardTile({ card, detail, detailLoading, inCompare, compareFull, onToggl
           color: inCompare ? 'white' : compareFull ? '#9DAEC8' : '#0E3785',
           fontSize: 12, fontWeight: 800, opacity: compareFull ? 0.7 : 1,
         }}>
-          {inCompare ? '✓ Selected' : compareFull ? '3 selected' : '⚖️ Compare'}
+          <span>Compare</span>
+          <span aria-hidden="true" style={{ width: 15, height: 15, boxSizing: 'border-box', borderRadius: 3, border: inCompare ? '1.5px solid white' : `1.5px solid ${compareFull ? '#C2CCDD' : '#0E3785'}`, background: 'white', color: '#0E3785', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 900, lineHeight: 1 }}>
+            {inCompare ? '✓' : ''}
+          </span>
         </button>
       </div>
 
@@ -743,11 +755,11 @@ function CardTile({ card, detail, detailLoading, inCompare, compareFull, onToggl
       <div style={{ display: 'flex', alignItems: 'stretch', gap: 0 }}>
 
         {/* Card image + salary requirement */}
-        <div style={{ flexShrink: 0, padding: '12px 12px 12px 16px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-          <img src={getCardImageUrl(card.earnn_card_id)} alt={card.card_name} width={108} height={66} loading="lazy"
+        <div style={{ flexShrink: 0, width: 164, boxSizing: 'border-box', padding: '14px 12px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 9, textAlign: 'center' }}>
+          <img src={getCardImageUrl(card.earnn_card_id)} alt={card.card_name} width={126} height={78} loading="lazy"
             onError={(e) => { (e.target as HTMLImageElement).src = '/card-dummy.svg' }}
             style={{ borderRadius: 8, objectFit: 'cover', boxShadow: '0 4px 16px rgba(14,55,133,0.2)', display: 'block' }} />
-          <div style={{ textAlign: 'center', maxWidth: 108 }}>
+          <div style={{ textAlign: 'center', width: '100%' }}>
             <div style={{ fontSize: 8.5, fontWeight: 800, color: '#7A8BA8', textTransform: 'uppercase', letterSpacing: '0.04em', lineHeight: 1.3 }}>Salary requirement</div>
             <div style={{ marginTop: 3, fontSize: 11, fontWeight: 800, color: card.min_salary_aed ? '#0D1828' : '#00A67E', lineHeight: 1.3 }}>
               {card.min_salary_aed ? `AED ${Math.round(card.min_salary_aed).toLocaleString()} / mo` : 'No minimum salary'}
@@ -759,7 +771,7 @@ function CardTile({ card, detail, detailLoading, inCompare, compareFull, onToggl
         <div style={{ width: 1, background: '#EEF3FF', margin: '12px 0' }} />
 
         {/* Rate bars — 2 columns × 4 rows, fixed positions */}
-        <div style={{ flex: 1, padding: '13px 16px', display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', columnGap: 16, rowGap: 12, minWidth: 0 }}>
+        <div style={{ flex: 1, padding: '13px 16px', display: 'grid', gridTemplateColumns: 'minmax(0, 7fr) minmax(0, 3fr)', columnGap: 16, rowGap: 12, minWidth: 0 }}>
           <div style={{ minWidth: 0, paddingRight: 16, borderRight: '1px solid #EEF3FF' }}>
             <div style={{ fontSize: 10.5, fontWeight: 800, color: '#0E3785', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 7 }}>Top earn rates</div>
             {topEarnRates.length > 0 ? (
@@ -768,11 +780,17 @@ function CardTile({ card, detail, detailLoading, inCompare, compareFull, onToggl
               </ul>
             ) : <div style={{ fontSize: 12, color: '#94A3B8' }}>No top earn rates available</div>}
           </div>
-          <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
-            <div style={{ width: 46, height: 46, borderRadius: '50%', background: '#00A67E', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(0,166,126,0.35)' }}>
-              <span style={{ fontSize: 11, fontWeight: 800, color: 'white', lineHeight: 1 }}>{(card.effective_reward_rate * 100).toFixed(1)}%</span>
-            </div>
-            <div style={{ fontSize: 8.5, fontWeight: 700, color: '#7A8BA8', textAlign: 'center', lineHeight: 1.3 }}>Overall Effective Rate</div>
+          <div
+            style={{ minWidth: 0, minHeight: 88, padding: '10px 8px', borderRadius: 10, background: '#00A67E', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 7, boxShadow: '0 3px 10px rgba(0,166,126,0.24)', position: 'relative', cursor: 'help' }}
+            onMouseEnter={() => setHoverNav(`effective_rate_${card.earnn_card_id}`)}
+            onMouseLeave={() => setHoverNav(null)}
+            onClick={event => event.stopPropagation()}
+          >
+            <div style={{ fontSize: 11.5, fontWeight: 800, color: 'white', textAlign: 'center', lineHeight: 1.25 }}>Overall Effective Reward Rate</div>
+            <div style={{ fontSize: 22, fontWeight: 900, color: 'white', lineHeight: 1 }}>{(card.effective_reward_rate * 100).toFixed(1)}%</div>
+            {hoverNav === `effective_rate_${card.earnn_card_id}` && (
+              <InlineTooltip text="A generic estimate of how much an average UAE resident could potentially earn across all spending categories, after accounting for minimum-spend requirements and applicable reward caps." />
+            )}
           </div>
           <div style={{ gridColumn: '1 / -1', minWidth: 0, paddingTop: 10, borderTop: '1px solid #EEF3FF' }}>
             <div style={{ fontSize: 10.5, fontWeight: 800, color: '#0E3785', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 5 }}>Card summary</div>
@@ -848,7 +866,11 @@ function CardTile({ card, detail, detailLoading, inCompare, compareFull, onToggl
               <div>
                 <div style={{ fontSize: 11.5, fontWeight: 700, color: '#00A67E', letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: 10 }}>💡 Best For</div>
                 <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 7 }}>
-                  {detail.best_for.length > 0 ? detail.best_for.map((b, i) => <li key={i} style={{ fontSize: 13, color: '#0D1828', lineHeight: 1.5 }}>• {b}</li>) : <li style={{ fontSize: 13, color: '#9CA3AF' }}>—</li>}
+                  {bestForItems.length > 0 ? bestForItems.map((b, i) => <li key={i} style={{ fontSize: 13, color: '#0D1828', lineHeight: 1.5 }}>• {b}</li>) : <li style={{ fontSize: 13, color: '#9CA3AF' }}>—</li>}
+                </ul>
+                <div style={{ fontSize: 11.5, fontWeight: 700, color: '#C95B00', letterSpacing: '0.05em', textTransform: 'uppercase', margin: '16px 0 10px' }}>✨ Highlight</div>
+                <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 7 }}>
+                  {highlightItems.length > 0 ? highlightItems.map((item, index) => <li key={index} style={{ fontSize: 13, color: '#0D1828', lineHeight: 1.5 }}>• {item}</li>) : <li style={{ fontSize: 13, color: '#9CA3AF' }}>—</li>}
                 </ul>
               </div>
               <div>
