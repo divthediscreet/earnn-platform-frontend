@@ -1108,12 +1108,12 @@ function ComparisonModal({ cards, catalogueRewardRates, details, onClose, onRemo
       ? (benchmark.filter(value => value <= rate).length / benchmark.length) * 100
       : 50
     const band = percentile <= 25
-      ? { background: '#C93D3D', emoji: '😞😞', label: 'Bottom quarter of reward rates' }
+      ? { background: '#C93D3D', emoji: '😞😞', label: 'Bad effective reward rate' }
       : percentile <= 50
-        ? { background: '#D99817', emoji: '😞', label: 'Second quarter of reward rates' }
+        ? { background: '#D99817', emoji: '😞', label: 'Not so good effective reward rate' }
         : percentile <= 75
-          ? { background: '#69AE6A', emoji: '🙂', label: 'Upper-middle quarter of reward rates' }
-          : { background: '#087448', emoji: '😊😊', label: 'Top quarter of reward rates' }
+          ? { background: '#69AE6A', emoji: '🙂', label: 'Good effective reward Rate' }
+          : { background: '#087448', emoji: '😊😊', label: 'One of the best effective reward' }
     return <span aria-label={`${fmtRate(rate)}. ${band.label}.`} title={band.label} style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '5px 8px', borderRadius: 5, background: band.background, color: 'white', fontSize: 12, lineHeight: 1, fontWeight: 900, boxShadow: 'inset 0 -1px 0 rgba(0,0,0,.15)' }}><span>{fmtRate(rate)}</span><span aria-hidden="true" style={{ fontSize: 13, letterSpacing: -2 }}>{band.emoji}</span></span>
   }
   const thresholdTiers = (card: ApiCard, category: string): RewardThresholdTier[] => card.display_reward_tiers?.[category] || []
