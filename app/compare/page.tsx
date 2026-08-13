@@ -63,6 +63,7 @@ interface ApiCard {
   display_max_earning_per_card_aed: number
   display_min_monthly_spend_aed_on_card: number
   display_reward_tiers?: Record<string, RewardThresholdTier[]>
+  display_merchant_lists?: Record<string, string>
 }
 
 interface CardDetail {
@@ -1062,6 +1063,7 @@ function ComparisonModal({ cards, details, onClose, onRemove, showOptionalCatego
   showOptionalCategories: boolean
   onToggleOptionalSection: () => void
 }) {
+  const [activeMerchantDisclaimer, setActiveMerchantDisclaimer] = useState<string | null>(null)
   const fixed = [['dining', 'Dining'], ['grocery', 'Grocery'], ['travel', 'Travel'], ['all_spend', 'Base expense']] as const
   const optional = [['utility', 'Utility'], ['education', 'Education'], ['online', 'Online'], ['retail', 'Retail'], ['fuel', 'Fuel']] as const
   const categories = [...fixed, ...(showOptionalCategories ? optional : [])]
@@ -1082,6 +1084,15 @@ function ComparisonModal({ cards, details, onClose, onRemove, showOptionalCatego
     return value && value > 0 ? `cap AED ${Math.round(value).toLocaleString()}` : 'no category cap'
   }
   const thresholdTiers = (card: ApiCard, category: string): RewardThresholdTier[] => card.display_reward_tiers?.[category] || []
+  const merchantDisclaimer = (card: ApiCard, category: string) => {
+    const merchantList = card.display_merchant_lists?.[category]?.trim()
+    if (!merchantList) return null
+    const key = `${card.earnn_card_id}_${category}`
+    return <span style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }} onMouseEnter={() => setActiveMerchantDisclaimer(key)} onMouseLeave={() => setActiveMerchantDisclaimer(null)}>
+      <button type="button" aria-label={`Merchant restriction: only applicable at ${merchantList}`} title={`Only Applicable at ${merchantList}`} onFocus={() => setActiveMerchantDisclaimer(key)} onBlur={() => setActiveMerchantDisclaimer(null)} onClick={() => setActiveMerchantDisclaimer(activeMerchantDisclaimer === key ? null : key)} style={{ width: 15, height: 15, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: '50%', border: 'none', padding: 0, background: '#E9A928', color: '#0D1828', fontSize: 10, fontWeight: 900, lineHeight: 1, cursor: 'help' }}>!</button>
+      {activeMerchantDisclaimer === key && <Tooltip text={`Only Applicable at ${merchantList}`} />}
+    </span>
+  }
   const tierSpendRange = (tier: RewardThresholdTier): string => {
     const minimum = tier.min_monthly_spend_aed_on_card
     const maximum = tier.max_monthly_spend_aed_on_card
@@ -1101,10 +1112,11 @@ function ComparisonModal({ cards, details, onClose, onRemove, showOptionalCatego
           <strong style={{ color: '#0E3785', whiteSpace: 'nowrap' }}>{fmtRate(tier.aed_value_per_aed_spent)}</strong>
           <span style={{ color: '#60738F' }}>: {tierSpendRange(tier)}</span>
           <span style={{ color: '#7A8BA8', fontSize: 11 }}>({tier.max_earning_per_tier_in_aed !== null && tier.max_earning_per_tier_in_aed > 0 ? `cap AED ${Math.round(tier.max_earning_per_tier_in_aed).toLocaleString()}` : 'no category cap'})</span>
+          {index === tiers.length - 1 && merchantDisclaimer(card, category)}
         </div>)}
       </div>
     }
-    return <div style={{ display: 'inline-flex', alignItems: 'center', gap: 9, whiteSpace: 'nowrap' }}><strong style={{ color: '#0E3785' }}>{fmtRate(rate(card, category))}</strong><span style={{ color: '#7A8BA8', fontSize: 11 }}>({cap(card, category)})</span></div>
+    return <div style={{ display: 'inline-flex', alignItems: 'center', gap: 9, whiteSpace: 'nowrap' }}><strong style={{ color: '#0E3785' }}>{fmtRate(rate(card, category))}</strong><span style={{ color: '#7A8BA8', fontSize: 11 }}>({cap(card, category)})</span>{merchantDisclaimer(card, category)}</div>
   }
   const list = (items: string[] | undefined) => items && items.length ? <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 5 }}>{items.map((item, index) => <li key={index} style={{ lineHeight: 1.5, fontSize: 12 }}>• {item}</li>)}</ul> : <span style={{ color: '#9CA3AF', fontSize: 12 }}>Loading current card details…</span>
   const benefitRows = (card: ApiCard) => details[card.earnn_card_id]?.benefit_rows || []
