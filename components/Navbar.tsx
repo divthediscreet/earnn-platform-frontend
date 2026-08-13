@@ -38,7 +38,7 @@ export default function Navbar() {
             Analyse
           </Link>
           <Link href="/compare" style={{ padding: '8px 16px', borderRadius: 6, color: 'var(--earnn-text-muted)', fontSize: 15, fontWeight: 500, textDecoration: 'none' }}>
-            All UAE Cards
+            Compare
           </Link>
           <Link href="/chat" style={{ padding: '8px 16px', borderRadius: 6, color: 'var(--earnn-text-muted)', fontSize: 15, fontWeight: 500, textDecoration: 'none' }}>
             Ask Earnie

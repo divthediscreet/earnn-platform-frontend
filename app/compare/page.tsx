@@ -62,6 +62,7 @@ interface ApiCard {
   display_tier_cap_all_spend: number
   display_max_earning_per_card_aed: number
   display_min_monthly_spend_aed_on_card: number
+  display_reward_tiers?: Record<string, RewardThresholdTier[]>
 }
 
 interface CardDetail {
@@ -81,6 +82,13 @@ interface CardBenefit {
   quantity_period: string | null
   requires_monthly_min_spend_on_card: boolean
   monthly_min_spend_aed_on_card: number | null
+}
+
+interface RewardThresholdTier {
+  min_monthly_spend_aed_on_card: number | null
+  max_monthly_spend_aed_on_card: number | null
+  aed_value_per_aed_spent: number
+  max_earning_per_tier_in_aed: number | null
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -391,13 +399,13 @@ export default function ComparePage() {
         <div style={{ position: 'absolute', inset: 0, opacity: 0.05, backgroundImage: 'linear-gradient(white 1px, transparent 1px), linear-gradient(90deg, white 1px, transparent 1px)', backgroundSize: '44px 44px' }} />
         <div style={{ position: 'relative', maxWidth: 860 }}>
           <div style={{ display: 'inline-block', fontSize: 11, fontWeight: 700, letterSpacing: '0.14em', color: '#C9A84C', textTransform: 'uppercase', marginBottom: 12 }}>
-            ANALYZE ALL UAE CREDIT CARDS
+            DISCOVER UAE CREDIT CARDS
           </div>
           <h1 style={{ fontSize: 'clamp(21px, 2.6vw, 28px)', fontWeight: 800, letterSpacing: '-0.025em', lineHeight: 1.25, marginBottom: 10, color: 'white' }}>
             Compare Real Earning Potential, Not Headline Rates
           </h1>
           <p style={{ fontSize: 15.5, color: 'rgba(255,255,255,0.78)', lineHeight: 1.7, marginBottom: 24 }}>
-            We estimate each UAE credit card&apos;s <strong>effective reward rate and earning potential</strong>, taking reward rules, caps and conditions into account, so you can see how cards may perform in practice.
+            We estimate each UAE credit card&apos;s <strong>effective reward rate</strong> and <strong>earning potential</strong>, taking reward rules, caps and conditions into account, so you can see how cards may perform in practice.
             <span style={{ display: 'block', marginTop: 10, fontWeight: 800, color: 'rgba(255,255,255,0.9)' }}>
               Select up to 3 cards to compare side by side.
             </span>
@@ -1058,8 +1066,8 @@ function ComparisonModal({ cards, details, onClose, onRemove, showOptionalCatego
   const optional = [['utility', 'Utility'], ['education', 'Education'], ['online', 'Online'], ['retail', 'Retail'], ['fuel', 'Fuel']] as const
   const categories = [...fixed, ...(showOptionalCategories ? optional : [])]
   const firstColumnWidth = 190
-  const label: React.CSSProperties = { width: firstColumnWidth, minWidth: firstColumnWidth, maxWidth: firstColumnWidth, padding: '16px 18px', fontSize: 10.5, fontWeight: 900, color: '#4C6183', textTransform: 'uppercase', letterSpacing: '.075em', verticalAlign: 'top', whiteSpace: 'normal', overflowWrap: 'anywhere', background: '#F7F9FE', borderRight: '1px solid #E5ECF8' }
-  const cell: React.CSSProperties = { padding: '16px 18px', fontSize: 13, color: '#10213B', verticalAlign: 'top', borderLeft: '1px solid #E5ECF8', lineHeight: 1.45 }
+  const label: React.CSSProperties = { width: firstColumnWidth, minWidth: firstColumnWidth, maxWidth: firstColumnWidth, padding: '16px 18px', fontSize: 10.5, fontWeight: 900, color: '#4C6183', textTransform: 'uppercase', letterSpacing: '.075em', verticalAlign: 'top', whiteSpace: 'normal', overflowWrap: 'anywhere', background: '#F7F9FE', borderRight: '1px solid #E5ECF8', borderBottom: '1px solid #CFDCEC' }
+  const cell: React.CSSProperties = { padding: '16px 18px', fontSize: 13, color: '#10213B', verticalAlign: 'top', borderLeft: '1px solid #E5ECF8', borderBottom: '1px solid #CFDCEC', lineHeight: 1.45 }
   const detailValue = (card: ApiCard, key: string): number | null => {
     const value = details[card.earnn_card_id]?.card?.[key]
     return typeof value === 'number' ? value : null
@@ -1072,6 +1080,31 @@ function ComparisonModal({ cards, details, onClose, onRemove, showOptionalCatego
     const directValue = card[`display_tier_cap_${category}` as keyof ApiCard]
     const value = typeof directValue === 'number' ? directValue : detailValue(card, `${category}_tier_cap_aed`)
     return value && value > 0 ? `cap AED ${Math.round(value).toLocaleString()}` : 'no category cap'
+  }
+  const thresholdTiers = (card: ApiCard, category: string): RewardThresholdTier[] => card.display_reward_tiers?.[category] || []
+  const tierSpendRange = (tier: RewardThresholdTier): string => {
+    const minimum = tier.min_monthly_spend_aed_on_card
+    const maximum = tier.max_monthly_spend_aed_on_card
+    const openEnded = maximum !== null && maximum >= 999999
+    if (minimum !== null && openEnded) return `AED ${Math.round(minimum).toLocaleString()}/mo and Above`
+    if ((minimum === null || minimum === 0) && maximum !== null) return `Up to AED ${Math.round(maximum).toLocaleString()}/mo`
+    if (minimum !== null && maximum !== null) return `AED ${Math.round(minimum).toLocaleString()}–${Math.round(maximum).toLocaleString()} / mo`
+    if (minimum !== null) return `AED ${Math.round(minimum).toLocaleString()}+ / mo`
+    if (maximum !== null) return `Up to AED ${Math.round(maximum).toLocaleString()} / mo`
+    return 'Any monthly spend'
+  }
+  const categoryRewardValue = (card: ApiCard, category: string) => {
+    const tiers = thresholdTiers(card, category)
+    if (tiers.length) {
+      return <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxWidth: 238 }}>
+        {tiers.map((tier, index) => <div key={`${tier.min_monthly_spend_aed_on_card}-${tier.max_monthly_spend_aed_on_card}-${tier.aed_value_per_aed_spent}-${index}`} style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '3px 7px', padding: '5px 7px', borderRadius: 6, background: '#F4F8FF', fontSize: 11.5, lineHeight: 1.3 }}>
+          <strong style={{ color: '#0E3785', whiteSpace: 'nowrap' }}>{fmtRate(tier.aed_value_per_aed_spent)}</strong>
+          <span style={{ color: '#60738F' }}>: {tierSpendRange(tier)}</span>
+          {tier.max_earning_per_tier_in_aed !== null && tier.max_earning_per_tier_in_aed > 0 && <span style={{ color: '#60738F' }}>(Cap AED {Math.round(tier.max_earning_per_tier_in_aed).toLocaleString()})</span>}
+        </div>)}
+      </div>
+    }
+    return <div style={{ display: 'inline-flex', alignItems: 'center', gap: 9, whiteSpace: 'nowrap' }}><strong style={{ color: '#0E3785' }}>{fmtRate(rate(card, category))}</strong><span style={{ color: '#7A8BA8', fontSize: 11 }}>({cap(card, category)})</span></div>
   }
   const list = (items: string[] | undefined) => items && items.length ? <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 5 }}>{items.map((item, index) => <li key={index} style={{ lineHeight: 1.5, fontSize: 12 }}>• {item}</li>)}</ul> : <span style={{ color: '#9CA3AF', fontSize: 12 }}>Loading current card details…</span>
   const benefitRows = (card: ApiCard) => details[card.earnn_card_id]?.benefit_rows || []
@@ -1119,7 +1152,7 @@ function ComparisonModal({ cards, details, onClose, onRemove, showOptionalCatego
     if (!items.length) return null
     return <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 5 }}>{items.map((item, index) => <li key={index} style={{ lineHeight: 1.5, fontSize: 12 }}>• {item}</li>)}</ul>
   }
-  const row = (text: string, render: (card: ApiCard) => React.ReactNode, shaded = false, labelContent: React.ReactNode = text) => <tr key={text} style={{ background: shaded ? '#FBFCFF' : 'white', borderTop: '1px solid #E7EDF8' }}><td style={label}>{labelContent}</td>{cards.map(card => <td key={card.earnn_card_id} style={cell}>{render(card)}</td>)}</tr>
+  const row = (text: string, render: (card: ApiCard) => React.ReactNode, shaded = false, labelContent: React.ReactNode = text) => <tr key={text} style={{ background: shaded ? '#FBFCFF' : 'white' }}><td style={label}>{labelContent}</td>{cards.map(card => <td key={card.earnn_card_id} style={cell}>{render(card)}</td>)}</tr>
   const sectionHeading = (title: string, eyebrow: string) => <tr><td colSpan={cards.length + 1} style={{ padding: 0, borderTop: '1px solid #DCE6F6' }}><div style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 10, background: 'linear-gradient(90deg, #EEF3FF 0%, #F9FBFF 72%, #FFFFFF 100%)' }}><span style={{ width: 8, height: 8, borderRadius: '50%', background: '#C9A84C', boxShadow: '0 0 0 5px rgba(201,168,76,.13)' }} /><span style={{ color: '#0E3785', fontSize: 15, fontWeight: 900, letterSpacing: '-.01em' }}>{title}</span><span style={{ color: '#7A8BA8', fontSize: 11.5, fontWeight: 600 }}>{eyebrow}</span></div></td></tr>
 
   return <div role="dialog" aria-modal="true" aria-label="Compare selected cards" onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 300, padding: 'clamp(12px, 3vw, 32px)', background: 'rgba(5,18,43,.72)', backdropFilter: 'blur(7px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -1142,7 +1175,7 @@ function ComparisonModal({ cards, details, onClose, onRemove, showOptionalCatego
           {row('Expected monthly reward', card => <strong style={{ color: '#00A67E' }}>AED {Math.round((card.expected_annual_return_aed || 0) / 12).toLocaleString()}</strong>, true)}
           {row('NAV', card => <strong style={{ color: '#0E3785' }}>AED {Math.round(card.nav_aed || 0).toLocaleString()}</strong>, false, <ComparisonMetricLabel label="NAV" text="Expected yearly rewards minus the true annual fee (after waivers)." />)}
           {sectionHeading('Rewards', 'Rates, caps and earning thresholds')}
-          {categories.map(([key, text], index) => row(text, card => <><strong style={{ color: '#0E3785' }}>{fmtRate(rate(card, key))}</strong><span style={{ display: 'block', marginTop: 3, color: '#7A8BA8', fontSize: 11 }}>({cap(card, key)})</span></>, index % 2 === 0))}
+          {categories.map(([key, text], index) => row(text, card => categoryRewardValue(card, key), index % 2 === 0))}
           <tr style={{ height: 42, background: '#F7F9FE', borderTop: '1px solid #E3EAF6', borderBottom: '1px solid #E3EAF6' }}><td style={{ ...label, padding: '9px 14px' }}><button onClick={onToggleOptionalSection} aria-expanded={showOptionalCategories} style={{ display: 'inline-flex', alignItems: 'center', gap: 7, border: 'none', padding: 0, background: 'transparent', color: '#0E3785', cursor: 'pointer', fontSize: 10.5, fontWeight: 900, textAlign: 'left', textTransform: 'uppercase', letterSpacing: '.06em' }}><span style={{ display: 'inline-flex', width: 17, height: 17, alignItems: 'center', justifyContent: 'center', borderRadius: 5, background: '#0E3785', color: 'white', fontSize: 15, lineHeight: 1 }}>{showOptionalCategories ? '−' : '+'}</span>{showOptionalCategories ? 'Hide extra categories' : 'Show more categories'}</button></td><td colSpan={cards.length} style={{ ...cell, padding: 0, background: '#FFFFFF' }} /></tr>
           {row('Max capping at card', card => { const value = card.display_max_earning_per_card_aed ?? detailValue(card, 'max_earning_per_card_in_aed'); return value && value > 0 ? `AED ${Math.round(value).toLocaleString()} / mo` : 'No card cap recorded' })}
           {row('Min spend required', card => { const value = card.display_min_monthly_spend_aed_on_card ?? detailValue(card, 'min_monthly_spend_aed_on_card'); return value && value > 0 ? `AED ${Math.round(value).toLocaleString()} / mo` : 'No minimum spend recorded' }, true)}
