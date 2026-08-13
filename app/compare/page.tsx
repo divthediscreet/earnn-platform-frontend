@@ -53,8 +53,20 @@ interface ApiCard {
 interface CardDetail {
   card: Record<string, unknown>
   benefits: string[]
+  // Optional while older API deployments return only the legacy `benefits` list.
+  benefit_rows?: CardBenefit[]
   best_for: string[]
   card_disclaimer: string[]
+}
+
+interface CardBenefit {
+  benefit_category_normalised: string | null
+  benefit_category: string | null
+  featured_display_message: string | null
+  quantity_per_period: number | null
+  quantity_period: string | null
+  requires_monthly_min_spend_on_card: boolean
+  monthly_min_spend_aed_on_card: number | null
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -162,6 +174,11 @@ export default function ComparePage() {
   const [prefTravel,   setPrefTravel]   = useState(false)
   const [prefWelcome,  setPrefWelcome]  = useState(false)
   const [compareIds, setCompareIds] = useState<string[]>([])
+  const [compareOpen, setCompareOpen] = useState(false)
+  const [showOptionalRewardCategories, setShowOptionalRewardCategories] = useState(false)
+  const [optionalRewardCategories, setOptionalRewardCategories] = useState<Set<string>>(new Set([
+    'utility', 'education', 'online', 'retail', 'fuel',
+  ]))
   const [hoverNav, setHoverNav]     = useState<string | null>(null)
   const [expanded, setExpanded]     = useState<string | null>(null)
   const [comingSoon, setComingSoon] = useState(false)
@@ -249,9 +266,10 @@ export default function ComparePage() {
     setCompareIds(prev => {
       if (prev.includes(id)) return prev.filter(x => x !== id)
       if (prev.length >= 3) return prev
+      loadDetail(id)
       return [...prev, id]
     })
-  }, [])
+  }, [loadDetail])
 
   const compareCards = compareIds.map(id => cards.find(c => c.earnn_card_id === id)!).filter(Boolean)
 
@@ -455,7 +473,7 @@ export default function ComparePage() {
             detailLoading={detailLoading === card.earnn_card_id}
             inCompare={compareIds.includes(card.earnn_card_id)}
             compareFull={compareIds.length >= 3 && !compareIds.includes(card.earnn_card_id)}
-            onToggleCompare={(e) => { e?.stopPropagation(); setComingSoon(true) }}
+            onToggleCompare={(e) => toggleCompare(card.earnn_card_id, e)}
             expanded={expanded === card.earnn_card_id}
             onExpand={() => handleExpand(card.earnn_card_id)}
             onHover={() => loadDetail(card.earnn_card_id)}
@@ -481,26 +499,41 @@ export default function ComparePage() {
         </div>
       )}
 
-      {/* ── COMPARISON TABLE ─────────────────────────────────────────────── */}
+      {/* ── PERSISTENT COMPARE ACTION ─────────────────────────────────────── */}
       {compareCards.length > 0 && (
-        <div style={{ marginTop: 56 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18, flexWrap: 'wrap', gap: 10 }}>
-            <h2 style={{ fontSize: 22, fontWeight: 800, color: '#0E3785' }}>
-              ⚖️ Comparing {compareCards.length} card{compareCards.length > 1 ? 's' : ''}{' '}
-              <span style={{ color: '#5A6A85', fontWeight: 500, fontSize: 14 }}>(up to 3)</span>
-            </h2>
-            <button onClick={() => setCompareIds([])} style={{ fontSize: 13, fontWeight: 600, color: '#5A6A85', background: '#EEF3FF', border: 'none', borderRadius: 8, padding: '8px 16px', cursor: 'pointer' }}>
-              Clear all
-            </button>
-          </div>
-          <ComparisonTable
-            cards={compareCards}
-            details={details}
-            onRemove={(id) => toggleCompare(id)}
-            hoverNav={hoverNav}
-            setHoverNav={setHoverNav}
-          />
+        <div style={{ position: 'fixed', right: 28, bottom: 28, zIndex: 150 }}>
+          <button onClick={() => setCompareOpen(true)} style={{
+            display: 'flex', alignItems: 'center', gap: 10, background: '#0E3785', color: 'white',
+            border: 'none', borderRadius: 100, padding: '14px 20px', cursor: 'pointer',
+            boxShadow: '0 14px 34px rgba(14,55,133,0.34)', fontSize: 14, fontWeight: 800,
+          }}>
+            ⚖️ Compare {compareCards.length} card{compareCards.length === 1 ? '' : 's'}
+            <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 7px', borderRadius: 100, background: 'rgba(255,255,255,0.18)' }}>up to 3</span>
+          </button>
         </div>
+      )}
+
+      {compareOpen && compareCards.length > 0 && (
+        <ComparisonModal
+          cards={compareCards}
+          details={details}
+          onClose={() => setCompareOpen(false)}
+          onRemove={(id) => toggleCompare(id)}
+          optionalCategories={optionalRewardCategories}
+          showOptionalCategories={showOptionalRewardCategories}
+          onToggleOptionalSection={() => {
+            setShowOptionalRewardCategories(open => !open)
+            if (!showOptionalRewardCategories) {
+              setOptionalRewardCategories(new Set(['utility', 'education', 'online', 'retail', 'fuel']))
+            }
+          }}
+          onToggleOptionalCategory={(category) => setOptionalRewardCategories(previous => {
+            const next = new Set(previous)
+            if (next.has(category)) next.delete(category)
+            else next.add(category)
+            return next
+          })}
+        />
       )}
 
       {/* Coming soon toast */}
@@ -591,14 +624,17 @@ function CardTile({ card, detail, detailLoading, inCompare, compareFull, onToggl
           )}
         </div>
 
-        {/* View & Apply button — coming soon */}
-        <button onClick={(e) => { e.stopPropagation(); onToggleCompare(e) }} style={{
+        {/* Card-selection action for the persistent comparison view. */}
+        <button onClick={(e) => { e.stopPropagation(); onToggleCompare(e) }} disabled={compareFull} style={{
           flexShrink: 0, display: 'flex', alignItems: 'center', gap: 6,
-          padding: '8px 16px', borderRadius: 100, border: 'none',
-          cursor: 'pointer', background: '#EEF3FF', color: '#0E3785',
-          fontSize: 12, fontWeight: 700
+          padding: '8px 14px', borderRadius: 100,
+          border: inCompare ? '1px solid #0E3785' : '1px solid #D6E0F5',
+          cursor: compareFull ? 'not-allowed' : 'pointer',
+          background: inCompare ? '#0E3785' : '#EEF3FF',
+          color: inCompare ? 'white' : compareFull ? '#9DAEC8' : '#0E3785',
+          fontSize: 12, fontWeight: 800, opacity: compareFull ? 0.7 : 1,
         }}>
-          View &amp; Apply
+          {inCompare ? '✓ Selected' : compareFull ? '3 selected' : '⚖️ Compare'}
         </button>
       </div>
 
@@ -915,6 +951,97 @@ function ComparisonTable({ cards, details, onRemove, hoverNav, setHoverNav }: {
 // ─────────────────────────────────────────────────────────────────────────────
 // SMALL HELPERS
 // ─────────────────────────────────────────────────────────────────────────────
+function ComparisonModal({ cards, details, onClose, onRemove, optionalCategories, showOptionalCategories, onToggleOptionalSection, onToggleOptionalCategory }: {
+  cards: ApiCard[]
+  details: Record<string, CardDetail>
+  onClose: () => void
+  onRemove: (id: string) => void
+  optionalCategories: Set<string>
+  showOptionalCategories: boolean
+  onToggleOptionalSection: () => void
+  onToggleOptionalCategory: (category: string) => void
+}) {
+  const fixed = [['dining', 'Dining'], ['grocery', 'Grocery'], ['travel', 'Travel'], ['all_spend', 'Base expense']] as const
+  const optional = [['utility', 'Utility'], ['education', 'Education'], ['online', 'Online'], ['retail', 'Retail'], ['fuel', 'Fuel']] as const
+  const categories = [...fixed, ...(showOptionalCategories ? optional.filter(([key]) => optionalCategories.has(key)) : [])]
+  const label: React.CSSProperties = { padding: '14px 18px', fontSize: 11.5, fontWeight: 800, color: '#5A6A85', textTransform: 'uppercase', letterSpacing: '.04em', verticalAlign: 'top', whiteSpace: 'nowrap' }
+  const cell: React.CSSProperties = { padding: '14px 18px', fontSize: 13, color: '#0D1828', verticalAlign: 'top', borderLeft: '1px solid #EEF3FF' }
+  const detailValue = (card: ApiCard, key: string): number | null => {
+    const value = details[card.earnn_card_id]?.card?.[key]
+    return typeof value === 'number' ? value : null
+  }
+  const rate = (card: ApiCard, category: string): number => {
+    const listValue = card[`display_reward_rate_${category}` as keyof ApiCard]
+    return typeof listValue === 'number' ? listValue : detailValue(card, `${category}_actual_rate`) ?? detailValue(card, `effective_reward_rate_${category}`) ?? 0
+  }
+  const cap = (card: ApiCard, category: string): string => {
+    const value = detailValue(card, `${category}_tier_cap_aed`)
+    return value && value > 0 ? `cap AED ${Math.round(value).toLocaleString()}` : 'no category cap'
+  }
+  const list = (items: string[] | undefined) => items && items.length ? <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 5 }}>{items.map((item, index) => <li key={index} style={{ lineHeight: 1.5, fontSize: 12 }}>• {item}</li>)}</ul> : <span style={{ color: '#9CA3AF', fontSize: 12 }}>Loading current card details…</span>
+  const benefitRows = (card: ApiCard) => details[card.earnn_card_id]?.benefit_rows || []
+  const hasStructuredBenefits = (card: ApiCard) => Array.isArray(details[card.earnn_card_id]?.benefit_rows)
+  const isLounge = (benefit: CardBenefit) => benefit.benefit_category_normalised === 'airport_lounge_access'
+  const isCinema = (benefit: CardBenefit) => benefit.benefit_category?.toLowerCase() === 'cinema'
+  const loungeRows = (card: ApiCard) => benefitRows(card).filter(isLounge)
+  const cinemaRows = (card: ApiCard) => benefitRows(card).filter(isCinema)
+  const otherBenefits = (card: ApiCard) => benefitRows(card).filter(benefit => !isLounge(benefit) && !isCinema(benefit) && Boolean(benefit.featured_display_message))
+  const spendCondition = (benefit: CardBenefit) => benefit.requires_monthly_min_spend_on_card
+    ? benefit.monthly_min_spend_aed_on_card && benefit.monthly_min_spend_aed_on_card > 0
+      ? `min spend AED ${Math.round(benefit.monthly_min_spend_aed_on_card).toLocaleString()}/mo`
+      : 'min spend required'
+    : 'no min spend needed'
+  const loungeValue = (benefit: CardBenefit) => benefit.quantity_per_period && benefit.quantity_per_period >= 999999
+    ? `Unlimited lounge access (${spendCondition(benefit)})`
+    : benefit.quantity_per_period != null
+      ? `${benefit.quantity_per_period} lounge visit${benefit.quantity_per_period === 1 ? '' : 's'} / year (${spendCondition(benefit)})`
+      : `Lounge access (${spendCondition(benefit)})`
+  const cinemaValue = (benefit: CardBenefit) => `${benefit.featured_display_message || 'Cinema benefit'} (${spendCondition(benefit)})`
+  const otherBenefitList = (card: ApiCard) => {
+    const detail = details[card.earnn_card_id]
+    const rows = otherBenefits(card)
+    if (!detail) return <span style={{ color: '#9CA3AF', fontSize: 12 }}>Loading current card details…</span>
+    // The deployed API may temporarily be the older response shape. Continue
+    // showing its existing featured messages; after the backend update, the
+    // structured category data allows lounge/cinema to be excluded exactly.
+    if (!hasStructuredBenefits(card)) return list(detail.benefits)
+    if (!rows.length) return <span style={{ color: '#9CA3AF', fontSize: 12 }}>No other top benefits available</span>
+    return <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 5 }}>{rows.map((row, index) => <li key={index} style={{ lineHeight: 1.5, fontSize: 12 }}>• {row.featured_display_message}</li>)}</ul>
+  }
+  const row = (text: string, render: (card: ApiCard) => React.ReactNode, shaded = false) => <tr key={text} style={{ background: shaded ? '#F8FAFF' : 'white' }}><td style={label}>{text}</td>{cards.map(card => <td key={card.earnn_card_id} style={cell}>{render(card)}</td>)}</tr>
+
+  return <div role="dialog" aria-modal="true" aria-label="Compare selected cards" onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 300, padding: 24, background: 'rgba(13,24,40,.6)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+    <div onClick={event => event.stopPropagation()} style={{ width: 'min(1240px, 100%)', maxHeight: '92vh', overflow: 'auto', borderRadius: 22, background: '#F8FAFF', boxShadow: '0 28px 80px rgba(0,0,0,.35)' }}>
+      <div style={{ position: 'sticky', top: 0, zIndex: 2, padding: '18px 24px', background: '#0E3785', color: 'white', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div><div style={{ fontSize: 10.5, letterSpacing: '.12em', fontWeight: 800, color: '#C9A84C', textTransform: 'uppercase' }}>Card comparison</div><div style={{ marginTop: 4, fontSize: 22, fontWeight: 800 }}>Compare {cards.length} selected card{cards.length === 1 ? '' : 's'}</div></div>
+        <button onClick={onClose} aria-label="Close comparison" style={{ width: 34, height: 34, borderRadius: 8, border: '1px solid rgba(255,255,255,.25)', background: 'rgba(255,255,255,.1)', color: 'white', cursor: 'pointer', fontSize: 20 }}>×</button>
+      </div>
+      <div style={{ padding: 20 }}><div style={{ overflowX: 'auto', borderRadius: 16, overflowY: 'hidden', border: '1px solid #D6E0F5', background: 'white' }}><table style={{ minWidth: 700, width: '100%', borderCollapse: 'collapse' }}>
+        <thead><tr style={{ background: '#F0F4FF' }}><th style={{ ...label, textAlign: 'left' }}>Card</th>{cards.map(card => <th key={card.earnn_card_id} style={{ ...cell, minWidth: 220, textAlign: 'left' }}><div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}><div><div style={{ color: '#5A6A85', fontSize: 11 }}>{card.bank_name}</div><div style={{ marginTop: 3, fontWeight: 800 }}>{card.card_name}</div></div><button onClick={() => onRemove(card.earnn_card_id)} aria-label={`Remove ${card.card_name}`} style={{ width: 25, height: 25, border: 'none', borderRadius: 6, background: '#E7EDFA', color: '#0E3785', cursor: 'pointer', fontWeight: 800 }}>×</button></div></th>)}</tr></thead>
+        <tbody>
+          {row('earnn score', card => <strong style={{ color: scoreColor(card.earnn_score), fontSize: 15 }}>{fmtScore(card.earnn_score)}</strong>, true)}
+          {row('Overall expected reward rate', card => <strong style={{ color: '#0E3785' }}>{fmtRate(card.effective_reward_rate)}</strong>)}
+          {row('Fee', card => { const fee = effectiveFeeAed(card); return <strong style={{ color: fee === 0 ? '#00A67E' : '#C95B00' }}>{fee === 0 ? 'Lifetime free' : `AED ${Math.round(fee).toLocaleString()} / yr`}</strong> }, true)}
+          {row('Expected yearly reward', card => <strong style={{ color: '#00A67E' }}>AED {Math.round(card.expected_annual_return_aed || 0).toLocaleString()}</strong>)}
+          {row('Expected monthly reward', card => <strong style={{ color: '#00A67E' }}>AED {Math.round((card.expected_annual_return_aed || 0) / 12).toLocaleString()}</strong>, true)}
+          {row('NAV', card => <strong style={{ color: '#0E3785' }}>AED {Math.round(card.nav_aed || 0).toLocaleString()}</strong>)}
+          <tr><td colSpan={cards.length + 1} style={{ padding: '18px 18px 8px', color: '#0E3785', background: '#F8FAFF', fontSize: 15, fontWeight: 900 }}>Rewards</td></tr>
+          {categories.map(([key, text], index) => row(text, card => <><strong style={{ color: '#0E3785' }}>{fmtRate(rate(card, key))}</strong><span style={{ display: 'block', marginTop: 3, color: '#7A8BA8', fontSize: 11 }}>({cap(card, key)})</span></>, index % 2 === 0))}
+          <tr style={{ background: '#F8FAFF' }}><td style={label}>More reward categories</td><td colSpan={cards.length} style={cell}><button onClick={onToggleOptionalSection} style={{ border: '1px solid #C8D5EF', borderRadius: 8, background: 'white', color: '#0E3785', padding: '7px 11px', cursor: 'pointer', fontWeight: 800, fontSize: 12 }}>{showOptionalCategories ? 'Hide optional categories ↑' : 'Show more categories ↓'}</button>{showOptionalCategories && <span style={{ display: 'inline-flex', flexWrap: 'wrap', gap: 10, marginLeft: 14 }}>{optional.map(([key, text]) => <label key={key} style={{ cursor: 'pointer', fontSize: 12 }}><input type="checkbox" checked={optionalCategories.has(key)} onChange={() => onToggleOptionalCategory(key)} style={{ accentColor: '#0E3785', marginRight: 5 }} />{text}</label>)}</span>}</td></tr>
+          {row('Max capping at card', card => { const value = detailValue(card, 'max_earning_per_card_in_aed'); return value && value > 0 ? `AED ${Math.round(value).toLocaleString()} / mo` : 'No card cap recorded' })}
+          {row('Min spend required', card => { const value = detailValue(card, 'min_monthly_spend_aed_on_card'); return value && value > 0 ? `AED ${Math.round(value).toLocaleString()} / mo` : 'No minimum spend recorded' }, true)}
+          <tr><td colSpan={cards.length + 1} style={{ padding: '18px 18px 8px', color: '#0E3785', background: '#F8FAFF', fontSize: 15, fontWeight: 900 }}>Card details</td></tr>
+          {row('Lounge access', card => { const rows = loungeRows(card); return !details[card.earnn_card_id] ? <span style={{ color: '#9CA3AF', fontSize: 12 }}>Loading current card details…</span> : rows.length ? <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>{rows.map((benefit, index) => <span key={index}>{loungeValue(benefit)}</span>)}</div> : <span style={{ color: '#9CA3AF', fontSize: 12 }}>No benefit available</span> }, true)}
+          {row('Cinema benefit', card => { const rows = cinemaRows(card); return !details[card.earnn_card_id] ? <span style={{ color: '#9CA3AF', fontSize: 12 }}>Loading current card details…</span> : rows.length ? <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>{rows.map((benefit, index) => <span key={index}>{cinemaValue(benefit)}</span>)}</div> : <span style={{ color: '#9CA3AF', fontSize: 12 }}>No benefit available</span> })}
+          {row('Other top benefits', otherBenefitList, true)}
+          {row('Best for', card => list(details[card.earnn_card_id]?.best_for))}
+          {row('Things to note', card => list(details[card.earnn_card_id]?.card_disclaimer), true)}
+        </tbody>
+      </table></div></div>
+    </div>
+  </div>
+}
+
 function NavTooltip({ id, hoverNav, setHoverNav }: { id: string; hoverNav: string | null; setHoverNav: (v: string | null) => void }) {
   const key = `earn_${id}`
   return (
