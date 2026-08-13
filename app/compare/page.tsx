@@ -1096,11 +1096,11 @@ function ComparisonModal({ cards, details, onClose, onRemove, showOptionalCatego
   const categoryRewardValue = (card: ApiCard, category: string) => {
     const tiers = thresholdTiers(card, category)
     if (tiers.length) {
-      return <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxWidth: 238 }}>
-        {tiers.map((tier, index) => <div key={`${tier.min_monthly_spend_aed_on_card}-${tier.max_monthly_spend_aed_on_card}-${tier.aed_value_per_aed_spent}-${index}`} style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '3px 7px', padding: '5px 7px', borderRadius: 6, background: '#F4F8FF', fontSize: 11.5, lineHeight: 1.3 }}>
+      return <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+        {tiers.map((tier, index) => <div key={`${tier.min_monthly_spend_aed_on_card}-${tier.max_monthly_spend_aed_on_card}-${tier.aed_value_per_aed_spent}-${index}`} style={{ display: 'flex', alignItems: 'center', flexWrap: 'nowrap', gap: 7, padding: '5px 7px', borderRadius: 6, background: '#F4F8FF', fontSize: 11.5, lineHeight: 1.3, whiteSpace: 'nowrap' }}>
           <strong style={{ color: '#0E3785', whiteSpace: 'nowrap' }}>{fmtRate(tier.aed_value_per_aed_spent)}</strong>
           <span style={{ color: '#60738F' }}>: {tierSpendRange(tier)}</span>
-          {tier.max_earning_per_tier_in_aed !== null && tier.max_earning_per_tier_in_aed > 0 && <span style={{ color: '#60738F' }}>(Cap AED {Math.round(tier.max_earning_per_tier_in_aed).toLocaleString()})</span>}
+          <span style={{ color: '#7A8BA8', fontSize: 11 }}>({tier.max_earning_per_tier_in_aed !== null && tier.max_earning_per_tier_in_aed > 0 ? `cap AED ${Math.round(tier.max_earning_per_tier_in_aed).toLocaleString()}` : 'no category cap'})</span>
         </div>)}
       </div>
     }
