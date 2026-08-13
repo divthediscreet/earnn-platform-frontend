@@ -1089,8 +1089,8 @@ function ComparisonModal({ cards, details, onClose, onRemove, showOptionalCatego
     if (!merchantList) return null
     const key = `${card.earnn_card_id}_${category}`
     return <span style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }} onMouseEnter={() => setActiveMerchantDisclaimer(key)} onMouseLeave={() => setActiveMerchantDisclaimer(null)}>
-      <button type="button" aria-label={`Merchant restriction: only applicable at ${merchantList}`} title={`Only Applicable at ${merchantList}`} onFocus={() => setActiveMerchantDisclaimer(key)} onBlur={() => setActiveMerchantDisclaimer(null)} onClick={() => setActiveMerchantDisclaimer(activeMerchantDisclaimer === key ? null : key)} style={{ width: 15, height: 15, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: '50%', border: 'none', padding: 0, background: '#E9A928', color: '#0D1828', fontSize: 10, fontWeight: 900, lineHeight: 1, cursor: 'help' }}>!</button>
-      {activeMerchantDisclaimer === key && <Tooltip text={`Only Applicable at ${merchantList}`} />}
+      <button type="button" aria-label={`Merchant restriction: only applicable at ${merchantList}`} onFocus={() => setActiveMerchantDisclaimer(key)} onBlur={() => setActiveMerchantDisclaimer(null)} onClick={() => setActiveMerchantDisclaimer(activeMerchantDisclaimer === key ? null : key)} style={{ width: 15, height: 15, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: '50%', border: 'none', padding: 0, background: '#E9A928', color: '#0D1828', fontSize: 10, fontWeight: 900, lineHeight: 1, cursor: 'help' }}>!</button>
+      {activeMerchantDisclaimer === key && <Tooltip text={`Only Applicable at ${merchantList}`} wide />}
     </span>
   }
   const tierSpendRange = (tier: RewardThresholdTier): string => {
@@ -1334,14 +1334,14 @@ function MultiSelectDropdown({ label, options, selected, onToggle, openKey, open
 }
 
 // Generic tooltip — positions BELOW the element (safe, never clipped by sibling tiles)
-function Tooltip({ text }: { text: string }) {
+function Tooltip({ text, wide = false }: { text: string; wide?: boolean }) {
   return (
     <span style={{
       position: 'absolute', top: '120%', left: '50%', transform: 'translateX(-50%)',
       background: '#0D1828', color: 'white', fontSize: 12, lineHeight: 1.6, fontWeight: 400,
-      padding: '10px 14px', borderRadius: 10, width: 240, zIndex: 200,
+      padding: '10px 14px', borderRadius: 10, width: wide ? 'max-content' : 240, maxWidth: wide ? 'min(560px, calc(100vw - 32px))' : 240, zIndex: 200,
       boxShadow: '0 8px 24px rgba(0,0,0,0.25)', textAlign: 'center', fontStyle: 'normal',
-      pointerEvents: 'none'
+      pointerEvents: 'none', whiteSpace: 'normal'
     }}>{text}</span>
   )
 }
