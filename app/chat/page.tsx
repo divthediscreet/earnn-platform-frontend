@@ -26,15 +26,13 @@ interface Message {
 
 const SUGGESTED = [
   'Best card for dining at restaurants (not delivery)?',
-  'Compare FAB Miles & ENBD Skywards card',
-  'Free for life cards with good rewards?',
-  'Best card to use abroad with no FX fee?',
   'Card for AED 8,000 salary in UAE?',
+  'Best card to use on Amazon?',
+  'Best card to use abroad with no FX fee?',
   'Which card earns most at Carrefour?',
   'Best welcome bonus card right now?',
-  'Islamic card with dining rewards?',
-  'Best card combo — 2-card wallet?',
-  'Compare FAB Miles vs ENBD Skywards',
+  'Free for life cards with good rewards?',
+  'Compare ENBD Noon and Mashreq Noon cards?',
 ]
 
 const EMPTY_PROFILE: SessionProfile = {
@@ -306,15 +304,23 @@ export default function ChatPage() {
 
       {/* Suggested questions — only at start */}
       {messages.length === 1 && (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 20, flexShrink: 0 }}>
+        <div style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          gap: 8,
+          marginBottom: 20,
+          flexShrink: 0,
+          width: '100%',
+        }}>
           {SUGGESTED.map(q => (
             <button
               key={q}
               onClick={() => send(q)}
               style={{
-                padding: '8px 14px', background: '#EEF3FF',
+                padding: '8px 12px', background: '#EEF3FF',
                 border: '1px solid #D6E0F5', borderRadius: 100,
                 fontSize: 13, fontWeight: 500, color: '#0E3785', cursor: 'pointer',
+                textAlign: 'center', flex: '1 1 auto', maxWidth: '100%',
               }}
             >
               {q}
