@@ -18,6 +18,7 @@ interface ScoredCard {
   is_islamic: boolean
   network: string
   card_family?: string | null
+  card_summary_tag?: string
   category_monthly_rewards: Record<string, number>
   category_effective_rates: Record<string, number>
 }
@@ -50,7 +51,7 @@ const CAT_LABELS: Record<string, string> = {
   dining: 'Dining', grocery: 'Grocery', travel: 'Travel', fuel: 'Fuel',
   online: 'Online Shopping', international: 'International', entertainment: 'Entertainment',
   retail: 'Retail', telecom: 'Telecom', transport: 'Transport',
-  utility: 'Utilities', education: 'Education', miscellaneous: 'Other', all_spend: 'All Spends',
+  utility: 'Utilities', education: 'Education', miscellaneous: 'Other Miscellaneous', all_spend: 'All Spends',
 }
 
 const CAT_EMOJI: Record<string, string> = {
@@ -140,6 +141,49 @@ function CardFan({ cardIds, names, size = 'lg' }: { cardIds: string[]; names?: s
 
 function cardName(id: string, cards: ScoredCard[]) {
   return cards.find(c => c.earnn_card_id === id)?.card_name ?? id
+}
+
+type WalletCategoryEntry = { key: string; route: RouteEntry; isCapped: boolean }
+
+type WalletCardSummary = {
+  cardId: string
+  sc: ScoredCard | undefined
+  catEntries: WalletCategoryEntry[]
+  totalMonthly: number
+  totalSpendOnCard: number
+  topCats: string
+  sharePct: number
+}
+
+function buildWalletCardSummaries(rec: WalletEntry, scoredCards: ScoredCard[]): WalletCardSummary[] {
+  const totalMonthlyRewards = Math.round(rec.gross_annual_aed / 12)
+
+  return rec.card_ids.map(cardId => {
+    const sc = scoredCards.find(c => c.earnn_card_id === cardId)
+    const catEntries: WalletCategoryEntry[] = []
+    for (const [catKey, routes] of Object.entries(rec.category_routing)) {
+      const idx = routes.findIndex(r => r.card_id === cardId)
+      if (idx === -1) continue
+      const route = routes[idx]
+      if (route.annual_aed <= 0) continue
+      catEntries.push({ key: catKey, route, isCapped: routes.length > 1 && idx === 0 })
+    }
+    catEntries.sort((a, b) => b.route.annual_aed - a.route.annual_aed)
+    const totalMonthly = Math.round(catEntries.reduce((sum, entry) => sum + entry.route.annual_aed, 0) / 12)
+    const totalSpendOnCard = Math.round(catEntries.reduce((sum, entry) => sum + entry.route.monthly_spend_chunk, 0))
+    const topCats = catEntries.slice(0, 2).map(entry => CAT_LABELS[entry.key]).join(' & ')
+    const sharePct = totalMonthlyRewards > 0 ? Math.round((totalMonthly / totalMonthlyRewards) * 100) : 0
+    return { cardId, sc, catEntries, totalMonthly, totalSpendOnCard, topCats, sharePct }
+  })
+}
+
+function shortCardName(name: string) {
+  return name.replace(/\s+(?:credit\s+card|card)$/i, '')
+}
+
+function heroRole(categories: WalletCategoryEntry[]) {
+  const labels = categories.slice(0, 2).map(({ key }) => key === 'all_spend' ? 'Everything else' : CAT_LABELS[key])
+  return labels.join(' & ') || 'Your spending'
 }
 
 function calcCoverage(cardIds: string[], scoredCards: ScoredCard[], userSpend: Record<string, number>, total: number) {
@@ -313,6 +357,40 @@ function CardDetailPopup({ cardId, onClose }: { cardId: string; onClose: () => v
   }, [cardId])
 
   const card = detail?.card as Record<string, unknown> | undefined
+  const feeValue = (value: unknown): number | null => {
+    if (value === null || value === undefined || value === '') return null
+    const numeric = typeof value === 'number' ? value : Number(value)
+    return Number.isFinite(numeric) ? numeric : null
+  }
+  const feeDisplay = (cardData: Record<string, unknown>) => {
+    const firstYearFee = feeValue(cardData.annual_fee_year1_aed)
+    const laterYearFee = feeValue(cardData.annual_fee_from_year2_aed)
+    const freeForLife = cardData.free_for_life === true || String(cardData.free_for_life).toLowerCase() === 'true'
+    const firstYearFree = cardData.annual_fee_year1_free === true || String(cardData.annual_fee_year1_free).toLowerCase() === 'true'
+    const waiverAvailable = cardData.annual_fee_waiver_available === true || String(cardData.annual_fee_waiver_available).toLowerCase() === 'true'
+    const waiverSpend = feeValue(cardData.annual_fee_waiver_spend_aed)
+    const amount = (fee: number) => `AED ${fmt(fee)}`
+    const waiver = waiverAvailable && waiverSpend !== null && waiverSpend > 0
+      ? `(Waived on annual spend of AED ${fmt(waiverSpend)})`
+      : null
+
+    if (freeForLife) return { lines: ['Free for life'], waiver: null }
+    if (firstYearFree) {
+      return {
+        lines: [
+          'First year: Free',
+          laterYearFee === null ? 'From year 2: Fee not specified' : `From year 2: ${amount(laterYearFee)} / year`,
+        ],
+        waiver,
+      }
+    }
+    if (firstYearFee !== null && laterYearFee !== null && firstYearFee !== laterYearFee) {
+      return { lines: [`First year: ${amount(firstYearFee)}`, `From year 2: ${amount(laterYearFee)} / year`], waiver }
+    }
+    const annualFee = laterYearFee ?? firstYearFee
+    return { lines: [annualFee === null ? 'Fee not specified' : `AED ${fmt(annualFee)} / year`], waiver }
+  }
+  const fee = card ? feeDisplay(card) : null
 
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 1100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
@@ -339,8 +417,11 @@ function CardDetailPopup({ cardId, onClose }: { cardId: string; onClose: () => v
                 <div style={{ display: 'flex', gap: 12, marginTop: 10 }}>
                   <div>
                     <div style={{ fontSize: 11, color: '#5A6A85', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Annual Fee</div>
-                    <div style={{ fontSize: 15, fontWeight: 700, color: '#C0392B' }}>
-                      {Number(card.annual_fee_aed) === 0 ? 'Free' : `AED ${fmt(Number(card.annual_fee_aed))}`}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 2, marginTop: 3 }}>
+                      {fee?.lines.map((line, index) => (
+                        <div key={line} style={{ fontSize: index === 0 ? 15 : 12, fontWeight: index === 0 ? 700 : 600, color: line.includes('Free') ? '#00A67E' : '#C0392B' }}>{line}</div>
+                      ))}
+                      {fee?.waiver && <div style={{ fontSize: 10, color: '#5A6A85', fontWeight: 500 }}>{fee.waiver}</div>}
                     </div>
                   </div>
                 </div>
@@ -394,7 +475,7 @@ function buildHeroCards(walletData: WalletResponse, scoredCards: ScoredCard[]): 
   const singleCards = [...scoredCards]
     .sort((a, b) => a.card_ranking - b.card_ranking)
     .filter(c => {
-      const fam = (c as Record<string, unknown>).card_family as string | null | undefined
+      const fam = c.card_family
       if (!fam) return true  // no family → always include
       if (seenFamilies.has(fam)) return false
       seenFamilies.add(fam)
@@ -495,6 +576,9 @@ function Screen1Hero({ scoredCards, walletData, onNext, onExplore }: {
 }) {
   const [heroIdx, setHeroIdx] = useState(0)
   const [showWhy, setShowWhy] = useState(false)
+  // The category playbook is the clearest first view; users can switch to the
+  // original card-by-card explanation when they want its full detail.
+  const [whyView, setWhyView] = useState<'category' | 'card'>('category')
   const [detailCardId, setDetailCardId] = useState<string | null>(null)
   const sectionRef = useRef<HTMLElement>(null)
   const whyRef = useRef<HTMLDivElement>(null)
@@ -507,11 +591,13 @@ function Screen1Hero({ scoredCards, walletData, onNext, onExplore }: {
   const total = walletData.total_monthly
   const coverage = calcCoverage(rec.card_ids, scoredCards, walletData.user_spend, total)
   const names = rec.card_ids.map(id => cardName(id, scoredCards))
+  const walletCardSummaries = buildWalletCardSummaries(rec.walletEntry, scoredCards)
 
-  const hero1HasFewerCards = heroCards.length > 1 && heroCards[0].n_cards < heroCards[1].n_cards
-  const hero1Label = hero1HasFewerCards ? '#1 Recommended · Optimized Rewards' : '#1 Recommended · Maximum Rewards'
-  const hero2Label = hero1HasFewerCards ? '#2 More Rewards · Little More Effort' : '#2 Best Balance · Low Effort'
-  const badgeLabels = [hero1Label, hero2Label, '#3 Keep It Simple · Zero Complexity']
+  const portfolioTabs = [
+    'Recommended · Maximum Rewards',
+    'Best Balance · Low Effort',
+    'Keep It Simple · Minimum Effort',
+  ]
 
   return (
     <section ref={sectionRef} className="space-y-6">
@@ -520,45 +606,33 @@ function Screen1Hero({ scoredCards, walletData, onNext, onExplore }: {
           Your spending is unique. So is your card strategy.
         </h1>
         <div className="space-y-0.5 text-base text-muted-foreground sm:text-lg">
-          <p>Based on your monthly spending of <span className="font-semibold text-foreground">AED {fmt(total)}</span> across <span className="font-semibold text-foreground">{Object.values(walletData.user_spend).filter(v => v > 0).length}</span> categories,</p>
-          <p>Earnn&apos;s AI engine simulated millions of reward scenarios across UAE credit cards to uncover your highest-value strategy.</p>
+          <p>Based on your <span className="font-semibold text-foreground">AED {fmt(total)} monthly spend across {Object.values(walletData.user_spend).filter(v => v > 0).length} categories</span>, we tested millions of UAE card combinations to find your highest-value wallet.</p>
         </div>
       </div>
 
       {/* Hero card carousel */}
-      <div style={{ position: 'relative' }}>
-        {/* Badge + nav arrows */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: '#0D1828', letterSpacing: '0.02em' }}>
-            {badgeLabels[heroIdx]}
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            {/* Dot indicators */}
-            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-              {heroCards.map((_, i) => (
-                <button key={i} onClick={() => { setHeroIdx(i); setShowWhy(false) }} style={{
-                  width: i === heroIdx ? 24 : 8, height: 8, borderRadius: 4,
-                  background: i === heroIdx ? '#0E3785' : '#C8D6F0',
-                  border: 'none', cursor: 'pointer', padding: 0,
-                  transition: 'all 0.2s',
-                }} />
-              ))}
-            </div>
-            {/* Arrow buttons */}
-            <button onClick={() => { setHeroIdx(i => Math.max(0, i - 1)); setShowWhy(false) }}
-              disabled={heroIdx === 0}
-              style={{ width: 36, height: 36, borderRadius: '50%', border: '1px solid #C8D6F0', background: '#EEF3FF', color: '#0E3785', cursor: heroIdx === 0 ? 'not-allowed' : 'pointer', opacity: heroIdx === 0 ? 0.35 : 1, fontSize: 20, fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              ‹
-            </button>
-            <button onClick={() => { setHeroIdx(i => Math.min(heroCards.length - 1, i + 1)); setShowWhy(false) }}
-              disabled={heroIdx === heroCards.length - 1}
-              style={{ width: 36, height: 36, borderRadius: '50%', border: '1px solid #C8D6F0', background: '#EEF3FF', color: '#0E3785', cursor: heroIdx === heroCards.length - 1 ? 'not-allowed' : 'pointer', opacity: heroIdx === heroCards.length - 1 ? 0.35 : 1, fontSize: 20, fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              ›
-            </button>
+      <div className="-mt-3" style={{ position: 'relative' }}>
+        {/* Named portfolio choices replace the unlabeled carousel controls. */}
+        <div style={{ marginBottom: 10 }}>
+          <div style={{ fontSize: 10, fontWeight: 700, color: '#5A6A85', letterSpacing: '0.08em', marginBottom: 6 }}>CHOOSE YOUR CARD STRATEGY</div>
+          <div role="tablist" aria-label="Recommended card strategies" style={{ display: 'grid', gridTemplateColumns: `repeat(${heroCards.length}, minmax(0, 1fr))`, gap: 8 }}>
+            {heroCards.map((_, i) => {
+              const selected = i === heroIdx
+              return (
+                <button key={portfolioTabs[i]} type="button" role="tab" aria-selected={selected} onClick={() => { setHeroIdx(i); setShowWhy(false) }} style={{
+                  minHeight: 42, borderRadius: 10, border: `1px solid ${selected ? '#0E3785' : '#D6E0F5'}`,
+                  background: selected ? '#0E3785' : '#F8FAFF', color: selected ? '#FFFFFF' : '#395170',
+                  padding: '7px 10px', fontSize: 11, lineHeight: 1.25, fontWeight: selected ? 700 : 600,
+                  cursor: 'pointer', transition: 'all 0.2s',
+                }}>
+                  {portfolioTabs[i]}
+                </button>
+              )
+            })}
           </div>
         </div>
 
-        <div className="relative overflow-hidden rounded-3xl p-5 pt-0 text-primary-foreground shadow-card sm:p-8 sm:pt-0 sm:pb-6"
+        <div className="relative overflow-hidden rounded-3xl p-5 pt-0 pb-3 text-primary-foreground shadow-card sm:p-8 sm:pt-0 sm:pb-3"
           style={{ background: 'linear-gradient(110deg,#091e42 0%,#0A2A66 35%,#143a7a 70%,#1b4080 100%)' }}>
           <div aria-hidden className="pointer-events-none absolute -right-32 -top-32 h-96 w-96 rounded-full opacity-20"
             style={{ background: 'radial-gradient(circle, #00A870 0%, transparent 70%)' }} />
@@ -577,25 +651,29 @@ function Screen1Hero({ scoredCards, walletData, onNext, onExplore }: {
                 </div>
               </div>
               <div>
-                <div className="text-sm text-primary-foreground/70">Monthly Money Back</div>
+                <div className="text-sm text-primary-foreground/70">POTENTIAL MONTHLY REWARDS</div>
                 <div className="mt-1 flex items-baseline gap-2 tabular">
                   <span className="font-display text-5xl font-bold sm:text-6xl" style={{ color: '#F5D76E' }}>AED {fmt(Math.round(rec.gross_annual_aed / 12))}</span>
                   <span className="text-base" style={{ color: 'rgba(245,215,110,0.75)' }}>/ month</span>
                 </div>
                 <div className="mt-2 inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium" style={{ background: 'rgba(255,255,255,0.10)', border: '1px solid rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.70)' }}>
-                  🟢 Optimized across <span className="font-semibold text-emerald">{coverage}%</span> of your spending
+                  <span className="font-semibold text-emerald">{coverage}%</span> of your spend earns boosted rewards
                 </div>
               </div>
 
               <div>
                 <div className="text-sm text-primary-foreground/70 mb-3 mt-5">Recommended Cards</div>
                 <ul className="flex flex-col gap-1.5">
-                  {names.slice(0, 4).map((name, i) => (
-                    <li key={i}>
-                      <button onClick={() => setDetailCardId(rec.card_ids[i])}
-                        className="flex items-center gap-2 rounded-xl px-2 py-1.5 w-full text-left transition hover:bg-white/10">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" width={16} height={16} style={{ flexShrink: 0, color: 'rgba(255,255,255,0.55)' }}><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/><path d="M6 15h.01M10 15h4"/></svg>
-                        <span className="text-[13px] text-primary-foreground/90 truncate leading-tight">{name}</span>
+                  {walletCardSummaries.slice(0, 4).map(({ cardId, sc, catEntries, totalMonthly }) => (
+                    <li key={cardId}>
+                      <button onClick={() => setDetailCardId(cardId)}
+                        className="flex w-full items-center gap-2 rounded-xl px-2 py-1.5 text-left transition hover:bg-white/10">
+                        <span style={{ fontSize: 17, lineHeight: 1, flexShrink: 0 }}>{(catEntries[0] && CAT_EMOJI[catEntries[0].key]) || '💳'}</span>
+                        <span className="min-w-0 flex-1 text-[13px] leading-tight text-primary-foreground/90">
+                          <span className="font-semibold">{shortCardName(sc?.card_name ?? cardId)}</span>
+                          <span className="text-primary-foreground/60"> — {heroRole(catEntries)}</span>
+                        </span>
+                        <span className="shrink-0 text-[12px] font-bold tabular" style={{ color: '#6EF0BF' }}>+AED {fmt(totalMonthly)}/mo</span>
                       </button>
                     </li>
                   ))}
@@ -603,21 +681,24 @@ function Screen1Hero({ scoredCards, walletData, onNext, onExplore }: {
               </div>
             </div>
 
-            <div className="relative flex flex-col items-center justify-between gap-6">
-              <div style={{ marginTop: 16, transform: rec.n_cards <= 2 ? 'translateY(24px)' : 'none' }}>
+            <div className="relative flex flex-col items-center justify-between gap-4">
+              <div style={{ marginTop: 8, transform: rec.n_cards <= 2 ? 'translateY(16px)' : 'none' }}>
                 <CardFan cardIds={rec.card_ids.slice(0, 4)} names={names} size="lg" />
               </div>
-              <button onClick={onNext}
-                className="group inline-flex items-center gap-2.5 rounded-2xl px-5 py-3 text-sm font-semibold transition-all hover:brightness-110 active:scale-95"
-                style={{ background: '#2D8C6A', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', boxShadow: '0 2px 12px rgba(45,140,106,0.35)' }}>
-                <img src="/wallet-icon.png" alt="" width={20} height={20} style={{ width: 20, height: 20, objectFit: 'contain', opacity: 0.9 }} />
-                Customize Card Wallet
-              </button>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 7 }}>
+                <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.65)' }}>Want to try a different cards?</span>
+                <button onClick={onNext}
+                  className="group inline-flex items-center gap-2.5 rounded-2xl px-5 py-3 text-sm font-semibold transition-all hover:brightness-110 active:scale-95"
+                  style={{ background: '#2D8C6A', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', boxShadow: '0 2px 12px rgba(45,140,106,0.35)' }}>
+                  <img src="/wallet-icon.png" alt="" width={20} height={20} style={{ width: 20, height: 20, objectFit: 'contain', opacity: 0.9 }} />
+                  Customize Your Wallet
+                </button>
+              </div>
             </div>
           </div>
 
           {/* Stats row */}
-          <div className="mt-4 grid grid-cols-2 gap-3 border-t border-primary-foreground/10 pt-4 sm:grid-cols-4">
+          <div className="mt-2 grid grid-cols-2 gap-2.5 border-t border-primary-foreground/10 pt-2 sm:grid-cols-4">
             {[
               { label: 'Annual Rewards',  value: `AED ${fmt(rec.gross_annual_aed)}`,      emerald: false, sub: 'Total cashback & benefits', icon: (
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" width={20} height={20}>
@@ -629,7 +710,7 @@ function Screen1Hero({ scoredCards, walletData, onNext, onExplore }: {
                   <rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/>
                 </svg>
               )},
-              { label: 'Net Annual Value', value: `AED ${fmt(rec.net_annual_value_aed)}`, emerald: true,  sub: 'What you earn after fees', icon: (
+              { label: 'Net Value',       value: `AED ${fmt(rec.net_annual_value_aed)}/year`, emerald: true,  sub: 'Rewards & benefits after card fees', icon: (
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" width={20} height={20}>
                   <polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/>
                 </svg>
@@ -646,13 +727,13 @@ function Screen1Hero({ scoredCards, walletData, onNext, onExplore }: {
                 style={{
                   position: 'relative', background: 'rgba(255,255,255,0.07)',
                   border: '1px solid rgba(255,255,255,0.10)', borderRadius: 12,
-                  padding: '10px 14px', display: 'flex', flexDirection: 'column', gap: 4,
+                  padding: '6px 10px', display: 'flex', flexDirection: 'column', gap: 1,
                 }}>
                 <div className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: 'rgba(255,255,255,0.45)' }}>{s.label}</div>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
                   <div className="font-display text-lg font-bold tabular" style={{ color: s.emerald ? '#00E5A0' : '#fff', textShadow: s.emerald ? '0 0 12px rgba(0,229,160,0.4)' : 'none' }}>{s.value}</div>
                   <div style={{
-                    width: 30, height: 30, borderRadius: '50%', flexShrink: 0,
+                    width: 26, height: 26, borderRadius: '50%', flexShrink: 0,
                     background: s.emerald ? 'rgba(0,166,126,0.20)' : 'rgba(255,255,255,0.10)',
                     border: `1px solid ${s.emerald ? 'rgba(0,166,126,0.35)' : 'rgba(255,255,255,0.15)'}`,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -661,7 +742,7 @@ function Screen1Hero({ scoredCards, walletData, onNext, onExplore }: {
                     {s.icon}
                   </div>
                 </div>
-                <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)' }}>{s.sub}</div>
+                <div style={{ fontSize: 9, lineHeight: 1.25, color: 'rgba(255,255,255,0.35)' }}>{s.sub}</div>
                 {s.label === 'Annual Rewards' && rewardsHover && (
                   <div style={{ position: 'absolute', bottom: 'calc(100% + 8px)', left: 0, right: 0, background: '#0D1828', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 8, padding: '8px 12px', zIndex: 50, fontSize: 11, color: 'rgba(255,255,255,0.70)', lineHeight: 1.5, pointerEvents: 'none' }}>
                     Earnn model optimizes every dirham of spend by assigning purchases to the card that earns the highest rewards first, then seamlessly allocating any remaining spend to the next best option, maximizing returns without double counting.
@@ -691,8 +772,10 @@ function Screen1Hero({ scoredCards, walletData, onNext, onExplore }: {
           }, 50)
           else setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 50)
         }}
-          className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-card px-5 py-2.5 text-sm font-semibold text-primary shadow-soft transition hover:bg-primary/5">
-          {showWhy ? '▲ Hide reasoning' : '▼ See why we chose these cards'}
+          className="inline-flex min-w-[340px] items-center justify-center gap-2 rounded-xl border px-6 py-2.5 text-sm font-bold shadow-card transition hover:brightness-110"
+          style={{ background: '#2D8C6A', borderColor: '#2D8C6A', color: '#FFFFFF' }}>
+          <span>{showWhy ? 'Hide card recommendations' : 'See why these cards are recommended?'}</span>
+          <span aria-hidden="true" style={{ fontSize: 13, lineHeight: 1 }}>{showWhy ? '▲' : '▼'}</span>
         </button>
       </div>
 
@@ -700,35 +783,34 @@ function Screen1Hero({ scoredCards, walletData, onNext, onExplore }: {
       <div ref={whyRef as React.RefObject<HTMLDivElement>}>
         {showWhy && (
           <div className="mt-4 space-y-4">
-            {/* How we calculated this */}
-            <div className="rounded-2xl border border-border/60 bg-card px-5 py-4 shadow-soft">
-              <div className="flex items-center gap-2 mb-1">
-                <span className="font-semibold text-sm text-primary">How Earnn optimized it</span>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" width={14} height={14} className="text-muted-foreground"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4m0-4h.01"/></svg>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
+              <div style={{ fontSize: 13, color: '#5A6A85', fontWeight: 600 }}>
+                {rec.walletEntry.n_cards} card{rec.walletEntry.n_cards > 1 ? 's' : ''} in your optimal wallet
               </div>
-              <p className="text-xs text-muted-foreground mb-4">We use your spending data to find the simplest way to maximize your rewards.</p>
-              <div className="grid grid-cols-4 gap-3">
+              <div role="tablist" aria-label="Recommendation view" style={{ display: 'flex', gap: 3, padding: 3, background: '#EEF3FF', borderRadius: 10, flexShrink: 0 }}>
                 {[
-                  { icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" width={20} height={20}><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>, title: 'Analyzed your spending pattern', color: '#4D9FFF', bg: '#EEF6FF' },
-                  { icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" width={20} height={20}><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/><path d="M6 15h.01M10 15h4"/></svg>, title: 'Matched top cards for each category', color: '#00A67E', bg: '#E6F7F2' },
-                  { icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" width={20} height={20}><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>, title: 'Considered fees, caps & real value', color: '#F5A623', bg: '#FEF6E6' },
-                  { icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" width={20} height={20}><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>, title: 'Picked the simplest strategy for max value', color: '#8B5CF6', bg: '#F3EEFF' },
-                ].map((item, i) => (
-                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <div style={{ position: 'relative', flexShrink: 0, width: 40, height: 40 }}>
-                      <div style={{ width: 40, height: 40, borderRadius: 10, background: item.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', color: item.color }}>
-                        {item.icon}
-                      </div>
-                      <div style={{ position: 'absolute', bottom: -4, right: -4, width: 16, height: 16, borderRadius: '50%', background: '#00A67E', border: '2px solid #fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <svg viewBox="0 0 12 12" fill="none" width={8} height={8}><polyline points="2,6 5,9 10,3" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                      </div>
-                    </div>
-                    <div className="text-xs font-semibold text-primary leading-snug">{item.title}</div>
-                  </div>
-                ))}
+                  { id: 'category' as const, label: 'Category view' },
+                  { id: 'card' as const, label: 'Card-level view' },
+                ].map(tab => {
+                  const selected = whyView === tab.id
+                  return (
+                    <button key={tab.id} type="button" role="tab" aria-selected={selected} onClick={() => setWhyView(tab.id)} style={{
+                      border: 'none', borderRadius: 7, background: selected ? '#FFFFFF' : 'transparent', color: selected ? '#0E3785' : '#5A6A85',
+                      boxShadow: selected ? '0 1px 4px rgba(14,55,133,0.12)' : 'none', padding: '7px 11px', cursor: 'pointer', fontSize: 11, fontWeight: 700,
+                    }}>
+                      {tab.label}
+                    </button>
+                  )
+                })}
               </div>
             </div>
-            <WhyTheseCards scoredCards={scoredCards} walletData={walletData} forcedRec={rec.walletEntry} subMsg={rec.subMsg} heroIdx={heroIdx} />
+
+            {whyView === 'card' && <>
+            {/* Existing detailed view — retained unchanged as the first option. */}
+            <WhyTheseCards scoredCards={scoredCards} walletData={walletData} forcedRec={rec.walletEntry} subMsg={rec.subMsg} heroIdx={heroIdx} showWalletLabel={false} />
+            </>}
+
+            {whyView === 'category' && <CardPlaybook scoredCards={scoredCards} walletData={walletData} rec={rec.walletEntry} compact />}
           </div>
         )}
       </div>
@@ -740,7 +822,7 @@ function Screen1Hero({ scoredCards, walletData, onNext, onExplore }: {
 
 // ─── Why These Cards — card-first layout matching earnn wallet UI ─────────────
 
-function WhyTheseCards({ scoredCards, walletData, forcedRec, subMsg, heroIdx }: { scoredCards: ScoredCard[]; walletData: WalletResponse; forcedRec?: WalletEntry; subMsg?: string; heroIdx?: number }) {
+function WhyTheseCards({ scoredCards, walletData, forcedRec, subMsg, heroIdx, showWalletLabel = true }: { scoredCards: ScoredCard[]; walletData: WalletResponse; forcedRec?: WalletEntry; subMsg?: string; heroIdx?: number; showWalletLabel?: boolean }) {
   const rec = forcedRec ?? (() => {
     const sorted = [...walletData.wallets].sort((a, b) => a.n_cards - b.n_cards)
     let best = sorted[0]
@@ -753,27 +835,8 @@ function WhyTheseCards({ scoredCards, walletData, forcedRec, subMsg, heroIdx }: 
   const userSpend = walletData.user_spend
   const totalMonthlyRewards = Math.round(rec.gross_annual_aed / 12)
 
-  // Build per-card view: invert routing from category→cards to card→categories
-  const cardData = rec.card_ids.map(cardId => {
-    const sc = scoredCards.find(c => c.earnn_card_id === cardId)
-    type CatEntry = { key: string; route: RouteEntry; isCapped: boolean }
-    const catEntries: CatEntry[] = []
-    for (const [catKey, routes] of Object.entries(rec.category_routing)) {
-      const idx = routes.findIndex(r => r.card_id === cardId)
-      if (idx === -1) continue
-      const route = routes[idx]
-      if (route.annual_aed <= 0) continue
-      // capped = this card is first in a multi-card route (hit its cap, spend spilled over)
-      const isCapped = routes.length > 1 && idx === 0
-      catEntries.push({ key: catKey, route, isCapped })
-    }
-    catEntries.sort((a, b) => b.route.annual_aed - a.route.annual_aed)
-    const totalMonthly = Math.round(catEntries.reduce((s, e) => s + e.route.annual_aed, 0) / 12)
-    const totalSpendOnCard = Math.round(catEntries.reduce((s, e) => s + e.route.monthly_spend_chunk, 0))
-    const topCats = catEntries.slice(0, 2).map(e => CAT_LABELS[e.key]).join(' & ')
-    const sharePct = totalMonthlyRewards > 0 ? Math.round((totalMonthly / totalMonthlyRewards) * 100) : 0
-    return { cardId, sc, catEntries, totalMonthly, totalSpendOnCard, topCats, sharePct }
-  })
+  // Same routing-derived ownership and reward figures used in the hero summary.
+  const cardData = buildWalletCardSummaries(rec, scoredCards)
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -781,9 +844,9 @@ function WhyTheseCards({ scoredCards, walletData, forcedRec, subMsg, heroIdx }: 
       {/* Summary strip */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
         {[
-          { label: 'Your Monthly Spend',   value: `AED ${fmt(walletData.total_monthly)}`,        valueColor: '#0D1828', bg: '#F8FAFF', border: '#D6E0F5' },
-          { label: 'Your Monthly Rewards', value: `AED ${fmt(totalMonthlyRewards)}`,              valueColor: '#00A67E', bg: '#F8FAFF', border: '#D6E0F5' },
-          { label: 'You earn',             value: `AED ${fmt(rec.net_annual_value_aed)} / year`,  valueColor: '#0E3785', bg: '#EEF9F4', border: '#B3E8D4' },
+          { label: 'MONTHLY SPEND',       value: `AED ${fmt(walletData.total_monthly)}`,          valueColor: '#0D1828', bg: '#F8FAFF', border: '#D6E0F5' },
+          { label: 'POTENTIAL REWARDS',   value: `AED ${fmt(totalMonthlyRewards)} / mo`,           valueColor: '#00A67E', bg: '#F8FAFF', border: '#D6E0F5' },
+          { label: 'NET VALUE',           value: `AED ${fmt(rec.net_annual_value_aed)} / year`,   valueColor: '#0E3785', bg: '#EEF9F4', border: '#B3E8D4' },
         ].map((s, i) => (
           <div key={i} style={{ background: s.bg, border: `1px solid ${s.border}`, borderRadius: 12, padding: '12px 16px' }}>
             <div style={{ fontSize: 11, color: '#5A6A85', fontWeight: 600, marginBottom: 4 }}>{s.label}</div>
@@ -792,10 +855,9 @@ function WhyTheseCards({ scoredCards, walletData, forcedRec, subMsg, heroIdx }: 
         ))}
       </div>
 
-      {/* n-cards label */}
-      <div style={{ fontSize: 13, color: '#5A6A85', fontWeight: 500 }}>
+      {showWalletLabel && <div style={{ fontSize: 13, color: '#5A6A85', fontWeight: 500 }}>
         {rec.n_cards} card{rec.n_cards > 1 ? 's' : ''} in your optimal wallet
-      </div>
+      </div>}
 
       {/* Per-card blocks */}
       {cardData.map(({ cardId, sc, catEntries, totalMonthly, totalSpendOnCard, topCats, sharePct }) => (
@@ -908,6 +970,146 @@ function WhyTheseCards({ scoredCards, walletData, forcedRec, subMsg, heroIdx }: 
 }
 
 // ─── Screen 2 — Why these cards (kept as standalone step if needed) ────────────
+
+type PlaybookCategory = {
+  key: string
+  routes: RouteEntry[]
+  monthlySpend: number
+  monthlyReward: number
+}
+
+function playbookLabel(key: string) {
+  return key === 'all_spend' ? 'Everyday & Other Spending' : (CAT_LABELS[key] || key)
+}
+
+function buildPlaybookCategories(rec: WalletEntry): PlaybookCategory[] {
+  return Object.entries(rec.category_routing)
+    .map(([key, routes]) => {
+      const earningRoutes = routes.filter(route => route.annual_aed > 0 && route.monthly_spend_chunk > 0)
+      return {
+        key,
+        routes: earningRoutes,
+        monthlySpend: earningRoutes.reduce((sum, route) => sum + route.monthly_spend_chunk, 0),
+        monthlyReward: earningRoutes.reduce((sum, route) => sum + route.annual_aed, 0) / 12,
+      }
+    })
+    .filter(category => category.routes.length > 0)
+    .sort((a, b) => b.monthlySpend - a.monthlySpend || b.monthlyReward - a.monthlyReward)
+}
+
+function CardPlaybook({ scoredCards, walletData, rec, compact = false }: { scoredCards: ScoredCard[]; walletData: WalletResponse; rec: WalletEntry; compact?: boolean }) {
+  const categories = buildPlaybookCategories(rec)
+  const primaryCategories = categories.slice(0, 4)
+  const secondaryCategories = categories.slice(4)
+  const monthlyRewards = Math.round(rec.gross_annual_aed / 12)
+  const cardFor = (cardId: string) => scoredCards.find(card => card.earnn_card_id === cardId)
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 10 }}>
+        {[
+          { label: 'MONTHLY SPEND', value: `AED ${fmt(walletData.total_monthly)}`, color: '#0D1828', bg: '#F8FAFF', border: '#D6E0F5' },
+          { label: 'POTENTIAL REWARDS', value: `AED ${fmt(monthlyRewards)} / mo`, color: '#00A67E', bg: '#F8FAFF', border: '#D6E0F5' },
+          { label: 'NET VALUE', value: `AED ${fmt(rec.net_annual_value_aed)} / year`, color: '#0E3785', bg: '#EEF9F4', border: '#B3E8D4' },
+        ].map(item => (
+          <div key={item.label} style={{ background: item.bg, border: `1px solid ${item.border}`, borderRadius: 12, padding: '12px 16px' }}>
+            <div style={{ fontSize: 11, color: '#5A6A85', fontWeight: 600, marginBottom: 4 }}>{item.label}</div>
+            <div style={{ fontSize: item.label === 'NET VALUE' ? 17 : 19, fontWeight: 700, color: item.color, lineHeight: 1.2 }}>{item.value}</div>
+          </div>
+        ))}
+      </div>
+
+      <div>
+        <div style={{ margin: '3px 0 8px', fontSize: 12, fontWeight: 700, color: '#5A6A85', letterSpacing: '0.06em' }}>WHERE TO USE EACH CARD</div>
+        <div className={compact ? 'grid grid-cols-1 gap-3 lg:grid-cols-2' : undefined} style={compact ? { alignItems: 'start' } : { display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {primaryCategories.map(category => {
+            const label = playbookLabel(category.key)
+            const isSplit = category.routes.length > 1
+            return (
+              <section key={category.key} style={{ border: '1px solid #D6E0F5', borderRadius: 16, overflow: 'hidden', background: '#FFFFFF' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14, padding: '13px 16px', background: '#F7F9FF', borderBottom: '1px solid #E6EEFC' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 9, minWidth: 0 }}>
+                    <span style={{ width: 32, height: 32, display: 'grid', placeItems: 'center', borderRadius: 9, background: '#E9F0FF', fontSize: 17, flexShrink: 0 }}>{CAT_EMOJI[category.key] || '💳'}</span>
+                    <div style={{ minWidth: 0, fontSize: 14, fontWeight: 700, color: '#0D1828' }}>{label}</div>
+                  </div>
+                  <div style={{ flexShrink: 0, textAlign: 'right' }}>
+                    <div style={{ fontSize: 10, color: '#7485A3', fontWeight: 700 }}>CATEGORY SPEND</div>
+                    <div style={{ marginTop: 2, fontSize: 13, color: '#0D1828', fontWeight: 700 }}>AED {fmt(category.monthlySpend)} / month</div>
+                  </div>
+                </div>
+
+                <div style={{ padding: '4px 16px 14px' }}>
+                  {category.routes.map((route, index) => {
+                    const card = cardFor(route.card_id)
+                    const isFirst = index === 0
+                    const isLast = index === category.routes.length - 1
+                    const routeHeading = isFirst ? `First AED ${fmt(route.monthly_spend_chunk)} / month` : isLast ? `Remaining AED ${fmt(route.monthly_spend_chunk)} / month` : `Next AED ${fmt(route.monthly_spend_chunk)} / month`
+                    return (
+                      <div key={`${route.card_id}-${index}`}>
+                        {index > 0 && <div style={{ margin: '8px 0 3px' }}>
+                          <div style={{ padding: '5px 9px', borderRadius: 7, background: '#FFF7E3', border: '1px solid #FDE2A2', color: '#A85A00', fontSize: 10, fontWeight: 800, letterSpacing: '0.06em' }}>REWARD CAPPING REACHED</div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 5, padding: '7px 9px', borderRadius: 8, background: '#EEF3FF', color: '#0E3785' }}>
+                            <span style={{ fontSize: 19, lineHeight: 1 }}>↓</span>
+                            <span style={{ fontSize: 12, fontWeight: 800 }}>Then switch to</span>
+                          </div>
+                        </div>}
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 12, alignItems: 'center', padding: '11px 0' }}>
+                          <div style={{ minWidth: 0 }}>
+                            {isSplit && <div style={{ fontSize: 10, color: '#5A6A85', letterSpacing: '0.07em', fontWeight: 700, textTransform: 'uppercase' }}>{routeHeading}</div>}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginTop: 6 }}>
+                              <img src={getCardImageUrl(route.card_id)} alt="" style={{ width: 52, height: 33, objectFit: 'cover', borderRadius: 5, boxShadow: '0 2px 7px rgba(0,0,0,0.16)', flexShrink: 0 }} onError={event => { (event.target as HTMLImageElement).src = '/card-dummy.svg' }} />
+                              <div style={{ minWidth: 0 }}>
+                                <div style={{ fontSize: 14, fontWeight: 700, color: '#0D1828', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{shortCardName(card?.card_name ?? route.card_name ?? route.card_id)}</div>
+                                {card?.bank_name && <div style={{ marginTop: 1, fontSize: 11, color: '#5A6A85' }}>{card.bank_name}</div>}
+                              </div>
+                            </div>
+                          </div>
+                          <div style={{ paddingLeft: 12, borderLeft: '1px solid #E6EEFC', textAlign: 'right', flexShrink: 0 }}>
+                            <div style={{ fontSize: 10, color: '#7485A3', fontWeight: 700 }}>YOU COULD EARN</div>
+                            <div style={{ marginTop: 3, fontSize: 17, lineHeight: 1.1, color: '#00A67E', fontWeight: 700 }}>AED {fmt(Math.round(route.annual_aed / 12))}</div>
+                            <div style={{ marginTop: 2, fontSize: 10, color: '#7485A3' }}>/ month</div>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+
+                {isSplit && <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, padding: '10px 16px', background: '#F0FBF7', borderTop: '1px solid #D6F2E6' }}>
+                  <span style={{ fontSize: 12, color: '#287257', fontWeight: 700 }}>Total {label} rewards</span>
+                  <span style={{ fontSize: 16, color: '#00A67E', fontWeight: 700 }}>AED {fmt(Math.round(category.monthlyReward))} / month</span>
+                </div>}
+              </section>
+            )
+          })}
+        </div>
+      </div>
+
+      {secondaryCategories.length > 0 && <div style={{ border: '1px solid #D6E0F5', borderRadius: 16, padding: '15px 16px', background: '#FBFCFF' }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: '#0D1828' }}>Other Remaining Categories</div>
+        <div style={{ marginTop: 3, fontSize: 11, color: '#5A6A85' }}>Use these cards for your smaller monthly spending areas too.</div>
+        <div style={{ marginTop: 12, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 8 }}>
+          {secondaryCategories.map(category => {
+            const cardNames = category.routes.map(route => shortCardName(cardFor(route.card_id)?.card_name ?? route.card_name ?? route.card_id)).join(' → ')
+            return <div key={category.key} style={{ display: 'grid', gridTemplateColumns: '26px minmax(0, 1fr) auto', gap: 7, alignItems: 'center', padding: '9px 8px', background: '#FFFFFF', borderRadius: 9, border: '1px solid #EDF1FA' }}>
+              <span style={{ fontSize: 15 }}>{CAT_EMOJI[category.key] || '💳'}</span>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: '#0D1828' }}>{playbookLabel(category.key)}</div>
+                <div style={{ marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 10, color: '#5A6A85' }}>Use {cardNames}</div>
+              </div>
+              <div style={{ fontSize: 12, color: '#00A67E', fontWeight: 700, whiteSpace: 'nowrap' }}>AED {fmt(Math.round(category.monthlyReward))}</div>
+            </div>
+          })}
+        </div>
+      </div>}
+
+      <div style={{ borderRadius: 14, padding: '16px 18px', color: '#FFFFFF', background: '#2D8C6A', textAlign: 'center' }}>
+        <div style={{ fontSize: 17, fontWeight: 700 }}>You could potentially earn AED {fmt(monthlyRewards)}/month</div>
+        <div style={{ marginTop: 4, fontSize: 11, color: 'rgba(255,255,255,0.78)' }}>Use the recommended card for each category to maximize your estimated rewards.</div>
+      </div>
+    </div>
+  )
+}
 
 function Screen2Why({ scoredCards, walletData, onBack, onNext }: {
   scoredCards: ScoredCard[]; walletData: WalletResponse; onBack: () => void; onNext: () => void
@@ -1116,10 +1318,12 @@ function Screen4Wallet({ scoredCards, walletData, wallet, setWallet, onBack, onN
   wallet: string[]; setWallet: (w: string[]) => void; onBack: () => void; onNext: () => void
 }) {
   const [q, setQ] = useState('')
+  const [detailCardId, setDetailCardId] = useState<string | null>(null)
   const [activeFilter, setActiveFilter] = useState<string | null>(null)
   const [pgScore, setPgScore] = useState<CustomScore | null>(null)
   const [pgLoading, setPgLoading] = useState(false)
   const [pgError, setPgError] = useState(false)
+  const [spendSplitView, setSpendSplitView] = useState<'card' | 'category'>('card')
   const [refreshTick, setRefreshTick] = useState(0)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const walletRef = useRef(wallet)
@@ -1133,7 +1337,7 @@ function Screen4Wallet({ scoredCards, walletData, wallet, setWallet, onBack, onN
   useEffect(() => {
     const tags: Record<string, string> = {}
     scoredCards.forEach(c => {
-      const tag = (c as Record<string, unknown>).card_summary_tag as string | undefined
+      const tag = c.card_summary_tag
       if (tag) tags[c.earnn_card_id] = tag
     })
     setCardTags(tags)
@@ -1243,11 +1447,16 @@ function Screen4Wallet({ scoredCards, walletData, wallet, setWallet, onBack, onN
 
   return (
     <section className="space-y-6">
-      <SectionHeader
-        eyebrow="Advanced"
-        title="Build Your Wallet"
-        subtitle="Experiment with cards and see how your rewards change in real time."
-      />
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <SectionHeader
+          eyebrow="Advanced"
+          title="Build Your Wallet"
+          subtitle="Experiment with cards and see how your rewards change in real time."
+        />
+        <button onClick={onNext} className="inline-flex shrink-0 items-center gap-2 self-start rounded-full bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground transition hover:opacity-90 sm:self-auto">
+          See my final plan →
+        </button>
+      </div>
 
       {/* Low-value card warning */}
       {warningReady && pgScore && inWallet.length > 1 && (() => {
@@ -1439,8 +1648,21 @@ function Screen4Wallet({ scoredCards, walletData, wallet, setWallet, onBack, onN
 
           {/* Spend split */}
           <div className="rounded-3xl border border-border/60 bg-card shadow-soft flex flex-col min-h-0 flex-1">
-            <div className="flex-shrink-0 flex items-center gap-2 text-sm font-semibold text-primary px-5 py-4 border-b border-border/60 rounded-t-3xl bg-card">
-              💳 Spend Split by Card
+            <div className="flex-shrink-0 flex items-center justify-between gap-3 text-sm font-semibold text-primary px-5 py-4 border-b border-border/60 rounded-t-3xl bg-card">
+              <span>💳 Spend Split by Card</span>
+              <div role="tablist" aria-label="Spend split view" style={{ display: 'flex', gap: 2, padding: 3, borderRadius: 9, background: '#EEF3FF', flexShrink: 0 }}>
+                {[
+                  { id: 'card' as const, label: 'Card view' },
+                  { id: 'category' as const, label: 'Category view' },
+                ].map(view => {
+                  const selected = spendSplitView === view.id
+                  return <button key={view.id} type="button" role="tab" aria-selected={selected} onClick={() => setSpendSplitView(view.id)} style={{
+                    border: 'none', borderRadius: 6, padding: '5px 7px', cursor: 'pointer', fontSize: 10, fontWeight: 700,
+                    background: selected ? '#FFFFFF' : 'transparent', color: selected ? '#0E3785' : '#5A6A85',
+                    boxShadow: selected ? '0 1px 3px rgba(14,55,133,0.12)' : 'none',
+                  }}>{view.label}</button>
+                })}
+              </div>
             </div>
             <div className="p-5 pt-4 overflow-y-auto flex-1">
               {wallet.length === 0 ? (
@@ -1450,6 +1672,82 @@ function Screen4Wallet({ scoredCards, walletData, wallet, setWallet, onBack, onN
               ) : (() => {
                 const userSpend = walletData.user_spend
                 const totalMonthlyRewards = Math.round(pgScore.gross_annual_aed / 12)
+
+                // Category view and card view deliberately share the exact same
+                // live custom-wallet routing response.
+                const categoryData = Object.entries(pgScore.category_routing)
+                  .map(([key, routes]) => {
+                    const earningRoutes = routes.filter(route => route.annual_aed > 0 && route.monthly_spend_chunk > 0)
+                    return {
+                      key,
+                      routes: earningRoutes,
+                      monthlySpend: earningRoutes.reduce((sum, route) => sum + route.monthly_spend_chunk, 0),
+                      monthlyReward: earningRoutes.reduce((sum, route) => sum + route.annual_aed, 0) / 12,
+                    }
+                  })
+                  .filter(category => category.routes.length > 0)
+                  .sort((a, b) => b.monthlySpend - a.monthlySpend || b.monthlyReward - a.monthlyReward)
+
+                if (spendSplitView === 'category') {
+                  return (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                      {categoryData.map(category => {
+                        const label = playbookLabel(category.key)
+                        const isSplit = category.routes.length > 1
+                        return (
+                          <section key={category.key} style={{ border: '1px solid #D6E0F5', borderRadius: 14, overflow: 'hidden', background: '#FFFFFF' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '10px 12px', background: '#F7F9FF', borderBottom: '1px solid #E6EEFC' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+                                <span style={{ width: 28, height: 28, display: 'grid', placeItems: 'center', borderRadius: 8, background: '#E9F0FF', fontSize: 15, flexShrink: 0 }}>{CAT_EMOJI[category.key] || '💳'}</span>
+                                <span style={{ minWidth: 0, fontSize: 13, fontWeight: 700, color: '#0D1828' }}>{label}</span>
+                              </div>
+                              <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                                <div style={{ fontSize: 9, color: '#7485A3', fontWeight: 700 }}>CATEGORY SPEND</div>
+                                <div style={{ marginTop: 1, fontSize: 12, color: '#0D1828', fontWeight: 700 }}>AED {fmt(category.monthlySpend)} / mo</div>
+                              </div>
+                            </div>
+
+                            <div style={{ padding: '3px 12px 9px' }}>
+                              {category.routes.map((route, index) => {
+                                const card = scoredCards.find(sc => sc.earnn_card_id === route.card_id)
+                                const routeLabel = index === 0
+                                  ? (isSplit ? `First AED ${fmt(route.monthly_spend_chunk)} / month` : 'Use this card')
+                                  : index === category.routes.length - 1
+                                    ? `Remaining AED ${fmt(route.monthly_spend_chunk)} / month`
+                                    : `Next AED ${fmt(route.monthly_spend_chunk)} / month`
+                                return (
+                                  <div key={`${route.card_id}-${index}`}>
+                                    {index > 0 && <div style={{ margin: '6px 0 3px' }}>
+                                      <div style={{ padding: '4px 7px', borderRadius: 6, background: '#FFF7E3', border: '1px solid #FDE2A2', color: '#A85A00', fontSize: 9, fontWeight: 800, letterSpacing: '0.05em' }}>REWARD CAPPING REACHED</div>
+                                      <div style={{ marginTop: 4, color: '#0E3785', fontSize: 11, fontWeight: 800 }}>↓ Then switch to</div>
+                                    </div>}
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto', gap: 10, alignItems: 'center', padding: '8px 0' }}>
+                                      <div style={{ minWidth: 0 }}>
+                                        <div style={{ fontSize: 9, color: '#7485A3', letterSpacing: '0.06em', fontWeight: 700, textTransform: 'uppercase' }}>{routeLabel}</div>
+                                        <div style={{ marginTop: 3, fontSize: 13, color: '#0D1828', fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{shortCardName(card?.card_name ?? route.card_name ?? route.card_id)}</div>
+                                        {card?.bank_name && <div style={{ marginTop: 1, fontSize: 10, color: '#5A6A85' }}>{card.bank_name}</div>}
+                                      </div>
+                                      <div style={{ paddingLeft: 10, borderLeft: '1px solid #E6EEFC', textAlign: 'right', flexShrink: 0 }}>
+                                        <div style={{ fontSize: 9, color: '#7485A3', fontWeight: 700 }}>YOU COULD EARN</div>
+                                        <div style={{ marginTop: 2, fontSize: 14, color: '#00A67E', fontWeight: 700 }}>AED {fmt(Math.round(route.annual_aed / 12))}</div>
+                                        <div style={{ fontSize: 9, color: '#7485A3' }}>/ month</div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                )
+                              })}
+                            </div>
+
+                            {isSplit && <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '8px 12px', background: '#F0FBF7', borderTop: '1px solid #D6F2E6' }}>
+                              <span style={{ fontSize: 11, color: '#287257', fontWeight: 700 }}>Total {label} rewards</span>
+                              <span style={{ fontSize: 13, color: '#00A67E', fontWeight: 700 }}>AED {fmt(Math.round(category.monthlyReward))} / month</span>
+                            </div>}
+                          </section>
+                        )
+                      })}
+                    </div>
+                  )
+                }
 
                 // Build per-card view from routing
                 const cardData = wallet.map(cardId => {
@@ -1612,6 +1910,7 @@ function Screen4Wallet({ scoredCards, walletData, wallet, setWallet, onBack, onN
           </div>
         </div>
       )}
+      {detailCardId && <CardDetailPopup cardId={detailCardId} onClose={() => setDetailCardId(null)} />}
     </section>
   )
 }
@@ -1673,7 +1972,7 @@ function Screen5Final({ scoredCards, walletData, wallet, onBack }: {
     const body = encodeURIComponent(
       `Here's my earnn.money recommended wallet:\n\n${cards.map(c => `• ${c.card_name} — AED ${Math.round(c.expected_annual_return_aed)}/yr`).join('\n')}\n\nEstimated annual rewards: AED ${Math.round(gross)}\nNet after fees: AED ${Math.round(net)}\n\nGenerated at earnn.money`
     )
-    window.open(`mailto:?subject=${subject}&body=${body}`)
+    alert('Functionality coming soon')
   }
 
   return (
@@ -1732,7 +2031,7 @@ function Screen5Final({ scoredCards, walletData, wallet, onBack }: {
                         .sort(([, a], [, b]) => b - a)
                         .slice(0, 4)
                         .map(([cat, rate]) => {
-                          const tierCapped = d?.[`is_tier_capped_${cat}`]
+                          const tierCapped = d?.[`is_tier_capped_${cat}`] === true || d?.[`is_tier_capped_${cat}`] === 'true'
                           const tierCapAed = tierCapped && d?.[`${cat}_tier_cap_aed`] ? Number(d[`${cat}_tier_cap_aed`]) : null
                           return (
                             <span key={cat} className="inline-flex items-center gap-0.5 rounded-md bg-surface-2 px-1.5 py-0.5 text-[12px] text-muted-foreground whitespace-nowrap">

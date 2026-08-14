@@ -93,6 +93,13 @@ export function getCardImageUrl(earnnCardId: string) {
 // ── Chatbot (Module 1) ────────────────────────────────────────────────────────
 export interface ChatMessage { role: 'user' | 'assistant'; content: string }
 
+export type AnswerProvenance =
+  | 'earnn_grounded'
+  | 'earnn_interpreted'
+  | 'web_grounded'
+  | 'llm_unverified'
+  | 'technical_failure'
+
 export interface MerchantQuery {
   merchant:  string
   category:  string
@@ -207,6 +214,7 @@ export async function sendChatMessage(
     discovery_hints: DiscoveryHint[]
     session_id:      string
     turn_number:     number
+    answer_provenance: AnswerProvenance
   }>
 }
 

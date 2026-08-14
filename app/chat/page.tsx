@@ -4,7 +4,9 @@ import { useRouter } from 'next/navigation'
 import {
   chatFailureMessage, sendChatMessage, rateResponse,
   SessionProfile, MerchantQuery, BenefitsWanted, ChatMessage as ApiChatMessage, DiscoveryHint,
+  AnswerProvenance,
 } from '@/lib/api'
+import { provenanceIndicator } from '@/lib/answer-provenance'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 
@@ -16,6 +18,7 @@ interface Message {
   cards_found?:     number
   turn_number?:     number
   discovery_hints?: DiscoveryHint[]
+  answer_provenance?: AnswerProvenance
   rating?:          1 | -1 | null   // null = not yet rated
 }
 
@@ -23,7 +26,7 @@ interface Message {
 
 const SUGGESTED = [
   'Best card for dining at restaurants (not delivery)?',
-  'Which cards earn Emirates Skywards miles?',
+  'Compare FAB Miles & ENBD Skywards card',
   'Free for life cards with good rewards?',
   'Best card to use abroad with no FX fee?',
   'Card for AED 8,000 salary in UAE?',
@@ -151,7 +154,7 @@ export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([
     {
       role: 'assistant',
-      text: "Hi! I'm Earnie — earnn's UAE credit card expert. Ask me anything: best card for dining, lounge access, miles, Islamic cards, fee comparisons. I know all 155+ UAE cards. 🇦🇪",
+      text: "Hi! I'm Earnie. Ask me anything about UAE credit cards, from best cards for your spending to fees, cashback, lounge access and benefits.",
     },
   ])
   const [input, setInput]             = useState('')
@@ -198,14 +201,16 @@ export default function ChatPage() {
         cards_found:      res.cards_found,
         turn_number:      res.turn_number,
         discovery_hints:  res.discovery_hints?.length ? res.discovery_hints : undefined,
+        answer_provenance: res.answer_provenance,
         rating:           null,
       }])
 
-      historyRef.current = [
+      const nextHistory: ApiChatMessage[] = [
         ...historyRef.current,
         { role: 'user',      content: userMsg },
         { role: 'assistant', content: assistantText },
-      ].slice(-12)
+      ]
+      historyRef.current = nextHistory.slice(-12)
 
       if (res.extracted_facts && Object.keys(res.extracted_facts).length > 0) {
         setSessionProfile(prev => {
@@ -288,11 +293,14 @@ export default function ChatPage() {
     }}>
       {/* Header */}
       <div style={{ marginBottom: 24, flexShrink: 0 }}>
-        <h1 style={{ fontSize: 28, fontWeight: 800, color: '#0E3785', marginBottom: 4 }}>
-          Ask Earnie
+        <h1 style={{ fontSize: 28, fontWeight: 800, color: '#0E3785', marginBottom: 4, letterSpacing: '0.03em' }}>
+          ASK EARNIE
         </h1>
-        <p style={{ color: '#5A6A85', fontSize: 15 }}>
-          AI-powered UAE credit card expert · 155+ cards · Real-time database
+        <div style={{ color: '#0D1828', fontSize: 17, fontWeight: 700, marginBottom: 4 }}>
+          Your UAE Credit Card Expert
+        </div>
+        <p style={{ color: '#5A6A85', fontSize: 15, margin: 0 }}>
+          Compare cards, understand rewards, or find the right card for how you spend.
         </p>
       </div>
 
@@ -346,7 +354,17 @@ export default function ChatPage() {
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                       fontSize: 11, color: 'white', fontWeight: 700,
                     }}>e</div>
-                    <span style={{ fontSize: 12, fontWeight: 700, color: '#0E3785' }}>Earnie</span>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: '#0E3785' }}>Earnie 👋</span>
+                    {msg.answer_provenance && (
+                      <span
+                        aria-label={provenanceIndicator(msg.answer_provenance).label}
+                        title={provenanceIndicator(msg.answer_provenance).label}
+                        style={{
+                          width: 8, height: 8, borderRadius: '50%', display: 'inline-block',
+                          background: provenanceIndicator(msg.answer_provenance).color,
+                        }}
+                      />
+                    )}
                     {(msg.cards_found ?? 0) > 0 && (
                       <span style={{ fontSize: 11, color: '#5A6A85', marginLeft: 4 }}>
                         {msg.cards_found} cards matched

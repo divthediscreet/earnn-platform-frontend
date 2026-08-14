@@ -1,8 +1,13 @@
 'use client'
 import { useState, useRef, useEffect } from 'react'
-import { chatFailureMessage, sendChatMessage } from '@/lib/api'
+import { AnswerProvenance, chatFailureMessage, sendChatMessage } from '@/lib/api'
+import { provenanceIndicator } from '@/lib/answer-provenance'
 
-interface Message { role: 'user' | 'assistant'; text: string }
+interface Message {
+  role: 'user' | 'assistant'
+  text: string
+  answer_provenance?: AnswerProvenance
+}
 
 export default function ChatWidget() {
   const [open, setOpen] = useState(false)
@@ -22,7 +27,9 @@ export default function ChatWidget() {
     setLoading(true)
     try {
       const res = await sendChatMessage(text.trim())
-      setMessages(prev => [...prev, { role: 'assistant', text: res.answer }])
+      setMessages(prev => [...prev, {
+        role: 'assistant', text: res.answer, answer_provenance: res.answer_provenance,
+      }])
     } catch (error) {
       setMessages(prev => [...prev, { role: 'assistant', text: chatFailureMessage(error) }])
     } finally { setLoading(false) }
@@ -68,7 +75,19 @@ export default function ChatWidget() {
                   color: m.role === 'user' ? 'white' : '#0D1828',
                   border: m.role === 'assistant' ? '1px solid #D6E0F5' : 'none',
                   whiteSpace: 'pre-wrap'
-                }}>{m.text}</div>
+                }}>
+                  {m.role === 'assistant' && m.answer_provenance && (
+                    <span
+                      aria-label={provenanceIndicator(m.answer_provenance).label}
+                      title={provenanceIndicator(m.answer_provenance).label}
+                      style={{
+                        width: 8, height: 8, borderRadius: '50%', display: 'inline-block',
+                        marginRight: 6, background: provenanceIndicator(m.answer_provenance).color,
+                      }}
+                    />
+                  )}
+                  {m.text}
+                </div>
               </div>
             ))}
             {loading && (

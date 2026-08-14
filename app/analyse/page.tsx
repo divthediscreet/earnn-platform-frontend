@@ -201,24 +201,25 @@ function getWittyMessage(spend: Record<string, number>, annualLoss: number): { e
   const pct = top ? (top[1] / total) * 100 : 0
   const cat = top?.[0] || ''
 
-  const msgs: Record<string, { emoji: string; line1: string; line2: string }> = {
-    dining:        { emoji: '🍕', line1: "Seems like you hate cooking.",                               line2: "Your card is eating your rewards for free." },
-    grocery:       { emoji: '🛒', line1: "Feeding a small army, or just really into meal prep?",       line2: "Your card isn't doing its job at the checkout." },
-    travel:        { emoji: '✈️', line1: "Passport full. Rewards empty.",                              line2: "All those flights and hotels — your card is just along for the ride." },
-    fuel:          { emoji: '⛽', line1: "You've single-handedly kept ENOC in business.",              line2: "Your car gets premium fuel. Your rewards? Running on empty." },
-    online:        { emoji: '📦', line1: "The delivery guy knows your name.",                          line2: "Your card has no idea how to reward that." },
-    international: { emoji: '🌍', line1: "Spending in currencies your card barely understands.",       line2: "Foreign transaction fees aren't the only thing draining you." },
-    entertainment: { emoji: '🎬', line1: "VOX, Reel, Global Village — you live for the experience.",  line2: "Your card is sitting in the dark with zero rewards." },
-    retail:        { emoji: '🛍️', line1: "Shopping is your cardio.",                                  line2: "Too bad your card skips rewards day." },
-    telecom:       { emoji: '📱', line1: "Always connected. Except to the right credit card.",         line2: "Etisalat and du love you. Your rewards? Dial tone." },
-    transport:     { emoji: '🚕', line1: "Careem rating: ⭐⭐⭐⭐⭐. Your card's reward rating: 😐",   line2: "All those rides, nothing to show for it." },
-    utility:       { emoji: '💡', line1: "Lights on, AC running, DEWA bill climbing.",                line2: "Your card treats it like it doesn't count." },
-    education:     { emoji: '📚', line1: "Investing in brains. Except the one choosing your card.",   line2: "Your tuition fees deserve better." },
-    miscellaneous: { emoji: '🎲', line1: "A little bit of everything.",                               line2: "Your card rewards? Also a little bit of nothing." },
+  const msgs: Record<string, { emoji: string; wittyLines: [string, string]; line2: string }> = {
+    dining:        { emoji: '🍽️', wittyLines: ["Your kitchen gets a lot of nights off. 🍽️", "Dine in, dine out, order in… mostly the last two? 🍔"], line2: "Dining is where you're missing the most rewards." },
+    grocery:       { emoji: '🛒', wittyLines: ["That's one seriously stocked fridge. 🛒", "Your grocery cart has been getting a workout. 🥑"], line2: "Grocery is where you're missing the most rewards." },
+    travel:        { emoji: '✈️', wittyLines: ["Your passport has been busy. ✈️", "Your suitcase barely gets time to unpack. 🧳"], line2: "Travel is where you're missing the most rewards." },
+    fuel:          { emoji: '⛽', wittyLines: ["Your car definitely gets out a lot. ⛽", "Are you in sales, or just memorising the UAE road map? 🚗"], line2: "Fuel is where you're missing the most rewards." },
+    online:        { emoji: '📦', wittyLines: ["Your delivery driver probably knows you by now. 📦", "Your delivery guy deserves a loyalty card. 📦"], line2: "Online shopping is where you're missing the most rewards." },
+    international: { emoji: '🌍', wittyLines: ["Your wallet has been travelling too. 🌍", "AED, USD, EUR… your card has been around. 💱"], line2: "International spend is where you're missing the most rewards." },
+    entertainment: { emoji: '🎬', wittyLines: ["Staying in clearly isn't your thing. 🎬", "Your weekends seem pretty well booked. 🍿"], line2: "Entertainment is where you're missing the most rewards." },
+    retail:        { emoji: '🛍️', wittyLines: ["Shopping might actually be your cardio. 🛍️", "Your wardrobe has been getting some serious attention. 👕"], line2: "Retail shopping is where you're missing the most rewards." },
+    telecom:       { emoji: '📱', wittyLines: ["You definitely like staying connected. 📱", "Etisalat and du must love having you around. 📶"], line2: "Telecom is where you're missing the most rewards." },
+    transport:     { emoji: '🚕', wittyLines: ["You've been keeping Careem busy. 🚕", "Someone's spending a lot of time in the back seat. 🚗"], line2: "Transport is where you're missing the most rewards." },
+    utility:       { emoji: '❄️', wittyLines: ["That AC isn't taking any days off. ❄️", "DEWA must really like having you as a customer. 💡"], line2: "Utilities are where you're missing the most rewards." },
+    education:     { emoji: '🎓', wittyLines: ["That's a serious investment in brainpower. 🎓", "Someone's taking education very seriously. 📚"], line2: "Education is where you're missing the most rewards." },
+    miscellaneous: { emoji: '💳', wittyLines: ["A little here, a little there… it adds up. 💳", "A bit of this. A bit of that. A lot altogether. 💳"], line2: "Everyday spending is where you're missing the most rewards." },
   }
 
-  const msg = msgs[cat] || { emoji: '💸', line1: 'Interesting spending pattern.', line2: "Your card has no idea how to reward it." }
-  return msg
+  const msg = msgs[cat]
+  if (!msg) return { emoji: '💸', line1: 'Interesting spending pattern.', line2: "Your card has no idea how to reward it." }
+  return { emoji: msg.emoji, line1: msg.wittyLines[Math.floor(Math.random() * msg.wittyLines.length)], line2: msg.line2 }
 }
 
 function ComparisonPopup({ data, onContinue }: {
@@ -407,7 +408,7 @@ function ComparisonPopup({ data, onContinue }: {
           {data.categoryGaps.filter(g => g.diff > 0 || g.current > 0).length > 0 && (
             <div style={{ margin: '10px 14px 0', background: '#fffbf0', border: '0.5px solid #fcd34d', borderRadius: 10, padding: '10px 14px', flexShrink: 0 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 8 }}>
-                <span style={{ fontSize: 10, fontWeight: 600, color: '#b45309', letterSpacing: '.06em' }}>WHY? YOUR CARD EARNS:</span>
+                <span style={{ fontSize: 10, fontWeight: 600, color: '#b45309', letterSpacing: '.06em' }}>WHERE YOU&apos;RE MISSING REWARDS AGAINST CURRENT CARD</span>
                 <span style={{ fontSize: 10, color: '#9ca3af' }}>vs what&apos;s possible</span>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 58px 64px', borderTop: '0.5px solid #fcd34d' }}>
@@ -1336,7 +1337,7 @@ function AnalyseContent() {
 
           {error && <div style={{ background: '#FFF3F0', border: '1px solid #FFD0C8', borderRadius: 8, padding: '10px 14px', color: '#C0392B', fontSize: 13, marginBottom: 14 }}>⚠️ {error}</div>}
 
-          <button onClick={handleUpload} disabled={!uploadReady || loading} style={{
+          <button onClick={() => handleUpload()} disabled={!uploadReady || loading} style={{
             width: '100%', padding: '13px', fontSize: 14, fontWeight: 700, border: 'none', borderRadius: 10, transition: 'all 0.2s',
             background: uploadReady ? '#0E3785' : '#D6E0F5',
             color: uploadReady ? 'white' : '#9DAEC8',

@@ -4,10 +4,10 @@
  * Design: vibrant financial intelligence style
  */
 
-import { Document, Page, Text, View, StyleSheet, Image, pdf } from '@react-pdf/renderer'
+import { Document, Page, Text, View, StyleSheet, Image as PdfImage, pdf } from '@react-pdf/renderer'
+import { getCardImageUrl } from '@/lib/api'
 
-const RAILWAY = 'https://earnn-platform-production.up.railway.app'
-const cardImg  = (id: string) => `${RAILWAY}/api/cards/images/${id}`
+const cardImg = (id: string) => getCardImageUrl(id)
 
 // ── Palette ────────────────────────────────────────────────────────────────────
 const C = {
@@ -142,6 +142,7 @@ export interface ReportProps {
   cards:Card[]; wallet:any; userSpend:Record<string,number>; totalMonthly:number
   categoryRouting:Record<string,Route[]>; generatedDate:string
   net:number; gross:number; fees:number
+  cardImages?: Record<string, string>
 }
 
 // ── Footer component ───────────────────────────────────────────────────────────
@@ -156,14 +157,14 @@ function Footer({ page }: { page: number }) {
 }
 
 // ── Page 1 — Summary ──────────────────────────────────────────────────────────
-function Page1({ cards, userSpend, totalMonthly, gross, fees, net, generatedDate }: ReportProps) {
+function Page1({ cards, userSpend, totalMonthly, gross, fees, net, generatedDate, cardImages = {} }: ReportProps) {
   const totalAnnual = totalMonthly * 12
   const rate = totalAnnual > 0 ? ((gross / totalAnnual) * 100).toFixed(2) : '0'
   const topCats = Object.entries(userSpend).filter(([,v])=>v>0).sort(([,a],[,b])=>b-a).slice(0,5)
     .map(([k,v])=>`${CAT[k]||k}: AED ${fmt(v)}`).join('  ·  ')
 
   return (
-    <Page size="A4" style={S.page}>
+    <Page size="A4" style={S.page} wrap={false}>
       {/* Header */}
       <View style={S.header}>
         <View>
@@ -230,7 +231,9 @@ function Page1({ cards, userSpend, totalMonthly, gross, fees, net, generatedDate
               .filter(([,r])=>r>0).sort(([,a],[,b])=>b-a).slice(0,4)
             return (
               <View key={c.earnn_card_id} style={S.cardTile}>
-                <Image src={cardImg(c.earnn_card_id)} style={S.cardImg} />
+                {cardImages[c.earnn_card_id]
+                  ? <PdfImage src={cardImages[c.earnn_card_id]} style={S.cardImg} />
+                  : <View style={[S.cardImg, { backgroundColor: C.light }]} />}
                 <View style={S.cardBody}>
                   <Text style={S.cardName}>{c.card_name}</Text>
                   <Text style={S.cardBank}>{c.bank_name ?? ''}</Text>
@@ -300,7 +303,7 @@ function Page1({ cards, userSpend, totalMonthly, gross, fees, net, generatedDate
 }
 
 // ── Page 2 — Spend Allocation ─────────────────────────────────────────────────
-function Page2({ cards, userSpend, totalMonthly, categoryRouting, gross, generatedDate }: ReportProps) {
+function Page2({ cards, userSpend, totalMonthly, categoryRouting, gross, generatedDate, cardImages = {} }: ReportProps) {
   const cats = Object.keys(categoryRouting).filter(k=>{
     const routes = categoryRouting[k]
     return routes && routes.length>0 && (userSpend[k]??0)>0
@@ -419,7 +422,9 @@ function Page2({ cards, userSpend, totalMonthly, categoryRouting, gross, generat
             const col = colors[i%colors.length]
             return (
               <View key={card.earnn_card_id} style={{flex:1,backgroundColor:'#F8FAFF',borderRadius:6,overflow:'hidden',borderWidth:0.5,borderColor:C.border}}>
-                <Image src={cardImg(card.earnn_card_id)} style={{width:'100%',height:50,objectFit:'cover'}}/>
+                {cardImages[card.earnn_card_id]
+                  ? <PdfImage src={cardImages[card.earnn_card_id]} style={{width:'100%',height:50,objectFit:'cover'}}/>
+                  : <View style={{width:'100%',height:50,backgroundColor:C.light}}/>}
                 <View style={{height:3,backgroundColor:col}}/>
                 <View style={{padding:8}}>
                   <Text style={{fontSize:7,fontFamily:'Helvetica-Bold',color:C.navy,marginBottom:2,lineHeight:1.3}}>{card.card_name}</Text>
@@ -465,7 +470,43 @@ function EarnnReport(props: ReportProps) {
 
 // ── Download — wait for full blob before triggering ───────────────────────────
 export async function downloadEarnnReport(props: ReportProps) {
-  const blob = await pdf(<EarnnReport {...props}/>).toBlob()
+  const toPngDataUrl = async (url: string): Promise<string | null> => {
+    try {
+      const response = await fetch(url)
+      if (!response.ok) return null
+      const objectUrl = URL.createObjectURL(await response.blob())
+      try {
+        const image = document.createElement('img')
+        await new Promise<void>((resolve, reject) => {
+          image.onload = () => resolve()
+          image.onerror = () => reject(new Error('Card image failed to load'))
+          image.src = objectUrl
+        })
+        if (!image.naturalWidth || !image.naturalHeight) return null
+        const canvas = document.createElement('canvas')
+        canvas.width = image.naturalWidth
+        canvas.height = image.naturalHeight
+        const context = canvas.getContext('2d')
+        if (!context) return null
+        context.drawImage(image, 0, 0)
+        return canvas.toDataURL('image/png')
+      } finally {
+        URL.revokeObjectURL(objectUrl)
+      }
+    } catch {
+      return null
+    }
+  }
+
+  // react-pdf accepts PNG/JPEG, not the WebP card assets served by the API.
+  // Preload through the frontend proxy and convert them before document layout.
+  const images = await Promise.all(props.cards.map(async card => [
+    card.earnn_card_id,
+    await toPngDataUrl(cardImg(card.earnn_card_id)),
+  ] as const))
+  const cardImages = Object.fromEntries(images.filter(([, image]) => Boolean(image))) as Record<string, string>
+
+  const blob = await pdf(<EarnnReport {...props} cardImages={cardImages}/>).toBlob()
   // Wait for full generation before triggering download
   const url = URL.createObjectURL(blob)
   const a   = document.createElement('a')
