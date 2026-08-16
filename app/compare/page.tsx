@@ -95,14 +95,18 @@ interface RewardThresholdTier {
 // ─────────────────────────────────────────────────────────────────────────────
 // CONSTANTS
 // ─────────────────────────────────────────────────────────────────────────────
-// Score-based gradient: dark green (100) → dark red (0)
+// Fixed score bands are shared by every Earnn Score presentation.
+function scoreBand(score: number): { color: string; label: string } {
+  const value = Math.max(0, Math.min(100, score))
+  if (value >= 75) return { color: '#159B61', label: 'Excellent' }
+  if (value >= 65) return { color: '#85C84A', label: 'Good' }
+  if (value >= 55) return { color: '#F4C842', label: 'Average' }
+  if (value >= 40) return { color: '#F78C32', label: 'Below average' }
+  return { color: '#E94B3C', label: 'Low' }
+}
+
 function scoreColor(score: number): string {
-  // Clamp 0-100, then lerp HSL: 142° green → 0° red
-  const t = Math.max(0, Math.min(100, score)) / 100
-  const hue = Math.round(t * 142)          // 0=red, 142=green
-  const sat  = 72
-  const light = 28 + (1 - t) * 8          // slightly lighter at bottom
-  return `hsl(${hue}, ${sat}%, ${light}%)`
+  return scoreBand(score).color
 }
 
 const RATE_PILLS = [
@@ -445,7 +449,7 @@ export default function ComparePage() {
             fontSize: 15, fontWeight: 800, textDecoration: 'none',
             boxShadow: '0 8px 28px rgba(201,168,76,0.35)'
           }}>
-            🎯 Personalized My Portfolio →
+            🎯 Personalize These Results →
           </Link>
         </div>
       </div>}
@@ -531,7 +535,7 @@ export default function ComparePage() {
 
           {/* Find best cards by category */}
           <div style={{ ...filterGroupStyle, flex: 1.4 }}>
-            <span style={leftFilterLabelStyle}>Find Best Cards</span>
+            <span style={leftFilterLabelStyle}>Best For</span>
             <select value={sortCat} onChange={e => { setSortCat(e.target.value); setPage(1) }} style={filterSelectStyle}>
               <option value="">Best Overall Cards</option>
               {RATE_PILLS.map(c => <option key={c.key} value={c.key.replace('display_reward_rate_', '')}>Best {c.name} Cards</option>)}
@@ -581,7 +585,7 @@ export default function ComparePage() {
                       {rewardCurrencyOptions.map(option => <option key={option} value={option}>{option.replace(/_/g, ' ')}</option>)}
                     </select>
                   </label>
-                  <label style={popupFilterLabelStyle}>Find Best Cards
+                  <label style={popupFilterLabelStyle}>Best For
                     <select value={sortCat} onChange={e => { setSortCat(e.target.value); setPage(1) }} style={popupControlStyle}>
                       <option value="">Best Overall Cards</option>
                       {RATE_PILLS.map(category => <option key={category.key} value={category.key.replace('display_reward_rate_', '')}>Best {category.name} Cards</option>)}
@@ -769,7 +773,7 @@ function CardTile({ card, detail, detailLoading, inCompare, compareFull, onToggl
           onClick={e => e.stopPropagation()}
         >
           <span style={{ fontSize: 15, fontWeight: 800 }}>⭐ {fmtScore(card.earnn_score)}</span>
-          <span style={{ fontSize: 10, fontWeight: 700, opacity: 0.85 }}>{card.rating_band}</span>
+          <span style={{ fontSize: 10, fontWeight: 700, opacity: 0.9 }}>{scoreBand(card.earnn_score).label}</span>
           {hoverNav === `score_${card.earnn_card_id}` && (
             <InlineTooltip text="earnn Score is hyper-personalised — it varies based on your spending pattern. This score reflects how well this card works for you." />
           )}
@@ -814,7 +818,7 @@ function CardTile({ card, detail, detailLoading, inCompare, compareFull, onToggl
         {/* Rate bars — 2 columns × 4 rows, fixed positions */}
         <div style={{ flex: 1, padding: '13px 16px', display: 'grid', gridTemplateColumns: 'minmax(0, 7fr) minmax(0, 3fr)', columnGap: 16, rowGap: 12, minWidth: 0 }}>
           <div style={{ minWidth: 0, paddingRight: 16, borderRight: '1px solid #EEF3FF' }}>
-            <div style={{ fontSize: 10.5, fontWeight: 800, color: '#0E3785', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 7 }}>Top earn rates</div>
+            <div style={{ fontSize: 10.5, fontWeight: 800, color: '#0E3785', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 7 }}>Top reward rates</div>
             {topEarnRates.length > 0 ? (
               <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 4 }}>
                 {topEarnRates.map((item, index) => <li key={index} style={{ fontSize: 12, color: '#0D1828', lineHeight: 1.35 }}>• {item}</li>)}
@@ -844,19 +848,19 @@ function CardTile({ card, detail, detailLoading, inCompare, compareFull, onToggl
         {/* Divider */}
         <div style={{ width: 1, background: '#EEF3FF', margin: '12px 0' }} />
 
-        {/* Earn Up To — hero number */}
+        {/* Estimated annual reward — hero number */}
         <div
           style={{ flexShrink: 0, width: 130, padding: '14px 10px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 3, position: 'relative', cursor: 'help' }}
           onMouseEnter={() => setHoverNav(navKey)} onMouseLeave={() => setHoverNav(null)}
           onClick={e => e.stopPropagation()}
         >
-          <span style={{ fontSize: 10.5, fontWeight: 700, color: '#5A6A85', textTransform: 'uppercase', letterSpacing: '0.04em', borderBottom: '1.5px dotted #9CA3AF' }}>Earn Up To</span>
+          <span style={{ fontSize: 10, fontWeight: 800, color: '#5A6A85', textTransform: 'uppercase', letterSpacing: '0.055em', borderBottom: '1.5px dotted #9CA3AF' }}>Est. annual reward</span>
           <span style={{ fontSize: 22, fontWeight: 800, color: '#00A67E', lineHeight: 1.1 }}>
             AED {Math.round(card.expected_annual_return_aed).toLocaleString()}
           </span>
-          <span style={{ fontSize: 10.5, color: '#9CA3AF' }}>per year</span>
+          <span style={{ fontSize: 8.5, color: '#9CA3AF', textAlign: 'center', lineHeight: 1.3 }}>based on avg UAE spend</span>
           {hoverNav === navKey && (
-            <InlineTooltip text="Calculating how much you could potentially earn annually — based on your spending pattern across all categories." />
+            <InlineTooltip text="Estimated annual rewards using Earnn's average UAE spending profile across all categories, before annual fees." />
           )}
         </div>
 
@@ -982,7 +986,7 @@ function ComparisonTable({ cards, details, onRemove, hoverNav, setHoverNav }: {
                   <span style={{
                     display: 'inline-block', padding: '5px 12px', borderRadius: 100, fontSize: 13, fontWeight: 800,
                     background: scoreColor(c.earnn_score) + '22', color: scoreColor(c.earnn_score)
-                  }}>{fmtScore(c.earnn_score)} · {c.rating_band}</span>
+                  }}>{fmtScore(c.earnn_score)} · {scoreBand(c.earnn_score).label}</span>
                 </td>
               ))}
             </tr>
@@ -1229,14 +1233,14 @@ function ComparisonModal({ cards, catalogueRewardRates, details, onClose, onRemo
         <colgroup><col style={{ width: firstColumnWidth }} />{cards.map(card => <col key={card.earnn_card_id} />)}</colgroup>
         <thead><tr style={{ background: '#FFFFFF' }}><th style={{ ...label, textAlign: 'left', background: '#F0F4FC', borderBottom: '1px solid #DCE6F6' }}><div style={{ color: '#0E3785', fontSize: 11, fontWeight: 900 }}>SELECTED<br />CARDS</div><div style={{ marginTop: 5, color: '#7385A5', fontSize: 10, fontWeight: 700, textTransform: 'none', letterSpacing: 0 }}>{cards.length} of 3 selected</div></th>{cards.map(card => <th key={card.earnn_card_id} style={{ ...cell, minWidth: 0, textAlign: 'left', background: '#FFFFFF', borderBottom: '1px solid #DCE6F6' }}><div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}><div style={{ display: 'flex', alignItems: 'center', gap: 11, minWidth: 0 }}><div style={{ padding: 4, flexShrink: 0, borderRadius: 9, background: '#F2F6FF', border: '1px solid #DFE8F8' }}><img src={getCardImageUrl(card.earnn_card_id)} alt={card.card_name} width={70} height={44} loading="lazy" onError={(event) => { (event.target as HTMLImageElement).src = '/card-dummy.svg' }} style={{ display: 'block', borderRadius: 5, objectFit: 'cover' }} /></div><div><div style={{ color: '#6A7D9E', fontSize: 10.5, fontWeight: 700 }}>{card.bank_name}</div><div style={{ marginTop: 3, color: '#10213B', fontWeight: 900, fontSize: 13, lineHeight: 1.25 }}>{card.card_name}</div></div></div><button onClick={() => onRemove(card.earnn_card_id)} aria-label={`Remove ${card.card_name}`} style={{ flexShrink: 0, width: 27, height: 27, border: '1px solid #D9E3F4', borderRadius: 8, background: '#F5F8FE', color: '#45628E', cursor: 'pointer', fontWeight: 900 }}>×</button></div></th>)}</tr></thead>
         <tbody>
-          {row('earnn score', card => <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}><ScoreGauge score={card.earnn_score} /><div><strong style={{ display: 'block', color: scoreColor(card.earnn_score), fontSize: 24, letterSpacing: '-.04em', lineHeight: 1 }}>{fmtScore(card.earnn_score)}</strong><span style={{ display: 'block', marginTop: 3, color: '#7184A4', fontSize: 10.5, fontWeight: 800, letterSpacing: '.04em' }}>/ 100</span></div></div>, true, <ComparisonMetricLabel label="earnn score" text="earnn Score is hyper-personalised — it varies based on your spending pattern. This score reflects how well this card works for you." />)}
+          {row('earnn score', card => <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}><ScoreGauge score={card.earnn_score} /><div><strong style={{ display: 'block', color: scoreColor(card.earnn_score), fontSize: 24, letterSpacing: '-.04em', lineHeight: 1 }}>{fmtScore(card.earnn_score)}</strong><span style={{ display: 'block', marginTop: 3, color: scoreColor(card.earnn_score), fontSize: 10.5, fontWeight: 900, letterSpacing: '.04em' }}>{scoreBand(card.earnn_score).label} · / 100</span></div></div>, true, <ComparisonMetricLabel label="earnn score" text="earnn Score is hyper-personalised — it varies based on your spending pattern. This score reflects how well this card works for you." />)}
           {row('Best for', card => bestForSection(card, 'Best for'))}
           {row('Highlight', card => bestForSection(card, 'Highlight'), true)}
           {row('Overall expected reward rate', rewardRateBadge)}
           {row('Fee', card => { const fee = effectiveFeeAed(card); return <strong style={{ color: fee === 0 ? '#00A67E' : '#C95B00' }}>{fee === 0 ? 'Lifetime free' : `AED ${Math.round(fee).toLocaleString()} / yr`}</strong> }, true)}
           {row('Expected yearly reward', card => <strong style={{ color: '#00A67E' }}>AED {Math.round(card.expected_annual_return_aed || 0).toLocaleString()}</strong>, false, <ComparisonMetricLabel label="Expected yearly reward" text="Estimated annual rewards based on the standard UAE spending profile used for this comparison, before annual fees." />)}
           {row('Expected monthly reward', card => <strong style={{ color: '#00A67E' }}>AED {Math.round((card.expected_annual_return_aed || 0) / 12).toLocaleString()}</strong>, true)}
-          {row('NAV', card => <strong style={{ color: '#0E3785' }}>AED {Math.round(card.nav_aed || 0).toLocaleString()}</strong>, false, <ComparisonMetricLabel label="NAV" text="Expected yearly rewards minus the true annual fee (after waivers)." />)}
+          {row('Net annual value', card => <strong style={{ color: '#0E3785' }}>AED {Math.round(card.nav_aed || 0).toLocaleString()}</strong>, false, <ComparisonMetricLabel label="Net annual value" text="Expected yearly rewards minus the true annual fee (after waivers)." />)}
           {sectionHeading('Rewards', 'Rates, caps and earning thresholds')}
           {categories.map(([key, text], index) => row(text, card => categoryRewardValue(card, key), index % 2 === 0))}
           <tr style={{ height: 42, background: '#F7F9FE', borderTop: '1px solid #E3EAF6', borderBottom: '1px solid #E3EAF6' }}><td style={{ ...label, padding: '9px 14px' }}><button onClick={onToggleOptionalSection} aria-expanded={showOptionalCategories} style={{ display: 'inline-flex', alignItems: 'center', gap: 7, border: 'none', padding: 0, background: 'transparent', color: '#0E3785', cursor: 'pointer', fontSize: 10.5, fontWeight: 900, textAlign: 'left', textTransform: 'uppercase', letterSpacing: '.06em' }}><span style={{ display: 'inline-flex', width: 17, height: 17, alignItems: 'center', justifyContent: 'center', borderRadius: 5, background: '#0E3785', color: 'white', fontSize: 15, lineHeight: 1 }}>{showOptionalCategories ? '−' : '+'}</span>{showOptionalCategories ? 'Hide extra categories' : 'Show more categories'}</button></td><td colSpan={cards.length} style={{ ...cell, padding: 0, background: '#FFFFFF' }} /></tr>

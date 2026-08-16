@@ -939,40 +939,39 @@ function AnalyseContent() {
 
       {/* HERO — same message as home page */}
       <section style={{
-        background: 'linear-gradient(135deg, rgba(14,55,133,0.92) 0%, rgba(10,40,96,0.93) 60%, rgba(7,24,64,0.95) 100%), url(/cover-page.png)',
-        backgroundSize: 'cover', backgroundPosition: 'center',
-        color: 'white', padding: '22px 24px 18px', textAlign: 'center', position: 'relative', overflow: 'hidden'
+        background: 'linear-gradient(135deg, #0E3785 0%, #092962 100%)',
+        color: 'white', padding: '34px 24px 30px', textAlign: 'center', position: 'relative', overflow: 'hidden'
       }}>
         <div style={{ position: 'absolute', inset: 0, opacity: 0.04, backgroundImage: 'linear-gradient(white 1px, transparent 1px), linear-gradient(90deg, white 1px, transparent 1px)', backgroundSize: '48px 48px' }} />
-        <div style={{ maxWidth: 800, margin: '0 auto', position: 'relative' }}>
-          <div style={{ display: 'inline-block', background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: 100, padding: '5px 16px', fontSize: 12, fontWeight: 600, letterSpacing: '0.05em', marginBottom: 14 }}>
+        <div style={{ maxWidth: 780, margin: '0 auto', position: 'relative' }}>
+          <div style={{ display: 'inline-block', background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: 99, padding: '5px 13px', fontSize: 11, fontWeight: 700, letterSpacing: '0.04em', marginBottom: 12 }}>
             UAE&apos;s smartest credit card rewards engine
           </div>
-          <h1 style={{ fontSize: 'clamp(36px, 6vw, 64px)', fontWeight: 800, lineHeight: 1.1, marginBottom: 14, color: 'white' }}>
-            How Much Reward<br />Are You<br /><span style={{ color: '#FFD700' }}>Missing Every Year?</span>
+          <div style={{ color: '#FFD76A', fontSize: 11, fontWeight: 800, letterSpacing: '0.16em', marginBottom: 8 }}>ANALYSE YOUR SPENDING</div>
+          <h1 style={{ fontSize: 'clamp(30px, 4vw, 42px)', fontWeight: 800, lineHeight: 1.1, margin: '0 0 10px', color: 'white', letterSpacing: '-0.04em' }}>
+            Find Your Reward Gap
           </h1>
-          <p style={{ fontSize: 'clamp(15px, 2vw, 17px)', color: 'rgba(255,255,255,0.8)', lineHeight: 1.6, maxWidth: 780, margin: '0 auto' }}>
-            Upload your UAE credit card statement, we show you exactly which card earns you the most rewards based on your actual spending.
+          <p style={{ fontSize: 'clamp(14px, 1.8vw, 16px)', color: 'rgba(255,255,255,0.82)', lineHeight: 1.55, maxWidth: 660, margin: '0 auto' }}>
+            Upload a statement or tell us how you spend. Earnn will find the card strategy that could reward you better.
           </p>
 
         </div>
 
       </section>
 
-    <div style={{ maxWidth: 860, margin: '0 auto', padding: '24px 24px' }}>
-      {/* Header */}
+    <div style={{ maxWidth: 1160, margin: '0 auto', padding: '24px 24px 44px' }}>
+      {/* Existing privacy guarantees */}
       <div style={{ textAlign: 'center', marginBottom: 20 }}>
-        <h1 style={{ fontSize: 'clamp(28px, 4vw, 40px)', fontWeight: 800, color: '#0E3785', marginBottom: 12 }}>
-          Analyse Your Spending
-        </h1>
-        {/* Trust tiles */}
-        <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'nowrap', marginTop: 12 }}>
-          {[
-            { icon: '🛡️', label: 'No bank login required' },
-            { icon: '✂️', label: 'Card details automatically redacted' },
-            { icon: '🇦🇪', label: 'UAE-hosted & encrypted' },
-            { icon: '🗑️', label: 'Statement deleted after analysis' },
-          ].map((t, i) => (
+        <div className="analyse-trust-strip" style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap', marginTop: 2 }}>
+          {(mode === 'upload'
+            ? [
+                { icon: '🛡️', label: 'No bank login required' },
+                { icon: '✂️', label: 'Card details automatically redacted' },
+                { icon: '🇦🇪', label: 'UAE-hosted & encrypted' },
+                { icon: '🗑️', label: 'Statement deleted after analysis' },
+              ]
+            : [{ icon: '🔒', label: 'No bank login · No card details required' }]
+          ).map((t, i) => (
             <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#EEF3FF', border: '1px solid #D6E0F5', borderRadius: 6, padding: '5px 12px' }}>
               <span style={{ fontSize: 13, flexShrink: 0 }}>{t.icon}</span>
               <span style={{ fontSize: 11, fontWeight: 600, color: '#0E3785', whiteSpace: 'nowrap' }}>{t.label}</span>
@@ -1237,22 +1236,31 @@ function AnalyseContent() {
       {/* Mode Toggle */}
       {!showReview && (
       <>
-      <div style={{ display: 'flex', background: '#EEF3FF', borderRadius: 12, padding: 4, maxWidth: 480, margin: '0 auto 20px' }}>
+      <style>{`
+        @keyframes analyseRecommendedFlash {
+          0%, 100% { opacity: .45; text-shadow: none; }
+          50% { opacity: 1; text-shadow: 0 0 8px rgba(255, 215, 106, .72); }
+        }
+      `}</style>
+      <div className="analyse-method-switch" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4, background: '#EEF3FF', border: '1px solid #D6E0F5', borderRadius: 12, padding: 4, maxWidth: 500, margin: '0 auto 16px' }}>
         {(['upload', 'manual'] as const).map(m => (
           <button key={m} onClick={() => { setMode(m); setError(''); if (m === 'manual') setTimeout(() => manualSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50) }} style={{
-            flex: 1, padding: '12px 0', borderRadius: 9, border: 'none', cursor: 'pointer', fontSize: 15, fontWeight: 600,
+            minHeight: 42, padding: '7px 12px', borderRadius: 8, border: 'none', cursor: 'pointer', textAlign: 'center', fontSize: 13, fontWeight: 700,
             background: mode === m ? '#0E3785' : 'transparent',
             color: mode === m ? 'white' : '#5A6A85',
             transition: 'all 0.2s'
           }}>
             {m === 'upload' ? '📄 Upload Statement' : '✏️ Manual Entry'}
+            <span style={{ display: 'block', marginTop: 1, fontSize: 9, lineHeight: 1.1, fontWeight: 800, letterSpacing: m === 'upload' ? '0.08em' : '0', color: m === 'upload' ? '#FFD76A' : mode === m ? 'rgba(255,255,255,0.72)' : '#7A8CA8', animation: m === 'upload' ? 'analyseRecommendedFlash 1.35s ease-in-out infinite' : undefined }}>
+              {m === 'upload' ? 'RECOMMENDED' : 'Don’t want to upload?'}
+            </span>
           </button>
         ))}
       </div>
 
       {/* UPLOAD PATH */}
       {mode === 'upload' && (
-        <div style={{ background: 'white', borderRadius: 16, border: '0.5px solid #D6E0F5', padding: '20px 24px', boxShadow: '0 2px 12px rgba(14,55,133,0.06)' }}>
+        <div style={{ maxWidth: 760, margin: '0 auto', background: 'white', borderRadius: 16, border: '0.5px solid #D6E0F5', padding: '18px 20px', boxShadow: '0 2px 12px rgba(14,55,133,0.06)' }}>
 
           {/* File row */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
@@ -1263,7 +1271,7 @@ function AnalyseContent() {
               onClick={() => fileRef.current?.click()}
               style={{
                 flex: 1, display: 'flex', alignItems: 'center', gap: 12,
-                padding: '10px 16px', borderRadius: 10, cursor: 'pointer',
+                padding: '20px 18px', borderRadius: 12, cursor: 'pointer',
                 border: `1.5px dashed ${dragging ? '#0E3785' : file ? '#00A67E' : '#C8D4E8'}`,
                 background: dragging ? '#EEF3FF' : file ? '#F0FDF8' : '#F8FAFF',
                 transition: 'all 0.2s',
@@ -1278,7 +1286,7 @@ function AnalyseContent() {
                   </>
                 ) : (
                   <>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: '#0E3785' }}>Upload credit card statement</div>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: '#0E3785' }}>Drop your credit card statement here</div>
                     <div style={{ fontSize: 11, color: '#9DAEC8' }}>PDF · ENBD, FAB, ADCB, RAK, HSBC, Citi</div>
                   </>
                 )}
@@ -1332,7 +1340,7 @@ function AnalyseContent() {
           {/* Privacy note */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 16 }}>
             <span style={{ fontSize: 12, flexShrink: 0 }}>🔒</span>
-            <span style={{ fontSize: 11, color: '#9DAEC8' }}>Bank-grade encryption · we never store your statement or personal information</span>
+            <span style={{ fontSize: 11, color: '#9DAEC8' }}>Encrypted during processing · statement deleted after analysis</span>
           </div>
 
           {error && <div style={{ background: '#FFF3F0', border: '1px solid #FFD0C8', borderRadius: 8, padding: '10px 14px', color: '#C0392B', fontSize: 13, marginBottom: 14 }}>⚠️ {error}</div>}
@@ -1351,6 +1359,226 @@ function AnalyseContent() {
       {/* MANUAL PATH */}
       {mode === 'manual' && (
         <div>
+          {(() => {
+            const profileItems = CATEGORIES
+              .map(category => ({ ...category, value: parseFloat(spend[category.key] || '0') || 0 }))
+              .filter(category => category.value > 0)
+              .sort((a, b) => b.value - a.value)
+            const largestSpend = Math.max(...profileItems.map(category => category.value), 1)
+
+            return (
+              <>
+                <div ref={manualSectionRef} className="analyse-manual-intro">
+                  <div>
+                    <div className="analyse-eyebrow">BUILD YOUR SPENDING PROFILE</div>
+                    <h2>Tell us how you spend each month</h2>
+                    <p>Enter only what applies to you. Leave the rest blank.</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => { setSpend({}); setMerchantPrefs({}); setError('') }}
+                    className="analyse-reset-button"
+                  >
+                    Reset amounts
+                  </button>
+                </div>
+
+                <section className="analyse-setup-card">
+                  <div className="analyse-setup-heading">
+                    <div className="analyse-eyebrow">A LITTLE ABOUT YOU</div>
+                    <p>This helps us check which cards you could be eligible for.</p>
+                  </div>
+                  <div className="analyse-setup-fields">
+                    <label className="analyse-salary-field">
+                      <span>Monthly salary</span>
+                      <div>
+                        <b>AED</b>
+                        <input
+                          type="number"
+                          inputMode="numeric"
+                          min="0"
+                          step="100"
+                          placeholder="e.g. 15,000"
+                          value={salary}
+                          onChange={event => setSalary(event.target.value)}
+                        />
+                      </div>
+                    </label>
+                    <div className="analyse-preference-field" aria-label="What matters most">
+                      <span>What matters most?</span>
+                      <div className="analyse-disabled-options">
+                        <span className="is-selected">✦ Best value</span>
+                        <span>💰 Cashback</span>
+                        <span>✈️ Miles <small>soon</small></span>
+                      </div>
+                    </div>
+                  </div>
+                </section>
+
+                <div className="analyse-builder-layout">
+                  <section>
+                    <div className="analyse-spend-heading">
+                      <div>
+                        <div className="analyse-eyebrow">YOUR MONTHLY SPENDING</div>
+                        <p>Add a monthly amount for each category.</p>
+                      </div>
+                    </div>
+                    <div className="analyse-category-grid">
+                      {CATEGORIES.map(category => {
+                        const value = parseFloat(spend[category.key] || '0') || 0
+                        const active = value > 0
+                        const merchantOptions = MERCHANT_OPTIONS[category.key]
+                        const selectedMerchants = merchantPrefs[category.key] || []
+                        return (
+                          <article key={category.key} className={`analyse-category-card ${active ? 'is-active' : ''}`}>
+                            <div className="analyse-category-topline">
+                              <div className="analyse-category-name">
+                                <span className="analyse-category-icon">{category.icon}</span>
+                                <div>
+                                  <h3>{category.label}</h3>
+                                  <p>{active ? 'Monthly spending' : category.hint}</p>
+                                </div>
+                              </div>
+                              <label className="analyse-aed-input">
+                                <span>AED</span>
+                                <input
+                                  type="number"
+                                  inputMode="numeric"
+                                  min="0"
+                                  max="30000"
+                                  step="100"
+                                  placeholder="0"
+                                  value={active ? value : ''}
+                                  onChange={event => {
+                                    const rawValue = event.target.value
+                                    const parsed = Math.min(30000, Math.max(0, parseFloat(rawValue) || 0))
+                                    setSpend(previous => ({ ...previous, [category.key]: rawValue === '' ? '' : String(parsed) }))
+                                  }}
+                                  aria-label={`${category.label} monthly spend in AED`}
+                                />
+                              </label>
+                            </div>
+                            {active && merchantOptions && (
+                              <div className="analyse-merchant-preferences">
+                                <span>Any favourites?</span>
+                                <div>
+                                  {merchantOptions.map(merchant => {
+                                    const selected = selectedMerchants.includes(merchant.key)
+                                    return (
+                                      <button
+                                        type="button"
+                                        key={merchant.key}
+                                        className={selected ? 'is-selected' : ''}
+                                        onClick={() => setMerchantPrefs(previous => {
+                                          const current = previous[category.key] || []
+                                          return {
+                                            ...previous,
+                                            [category.key]: current.includes(merchant.key)
+                                              ? current.filter(key => key !== merchant.key)
+                                              : [...current, merchant.key],
+                                          }
+                                        })}
+                                      >
+                                        {merchant.label}
+                                      </button>
+                                    )
+                                  })}
+                                </div>
+                              </div>
+                            )}
+                          </article>
+                        )
+                      })}
+                    </div>
+                  </section>
+
+                  <aside className="analyse-profile-summary">
+                    <div className="analyse-eyebrow">YOUR SPENDING</div>
+                    <div className="analyse-profile-total">AED {totalMonthly.toLocaleString('en-AE', { maximumFractionDigits: 0 })}</div>
+                    <div className="analyse-profile-month">/ month</div>
+                    {profileItems.length > 0 ? (
+                      <div className="analyse-profile-bars">
+                        {profileItems.slice(0, 6).map(category => (
+                          <div key={category.key}>
+                            <div><span>{category.icon} {category.label}</span><b>AED {category.value.toLocaleString('en-AE', { maximumFractionDigits: 0 })}</b></div>
+                            <span><i style={{ width: `${(category.value / largestSpend) * 100}%` }} /></span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="analyse-profile-empty">Your spending mix will appear here as you add amounts.</p>
+                    )}
+                    <div className="analyse-profile-count">{profileItems.length} categor{profileItems.length === 1 ? 'y' : 'ies'} added</div>
+                    {error && <div className="analyse-profile-error">⚠ {error}</div>}
+                    <button type="button" onClick={handleManual} disabled={totalMonthly <= 0 || loading} className="analyse-strategy-button">
+                      {loading ? 'Finding your strategy…' : 'Find My Card Strategy →'}
+                    </button>
+                  </aside>
+                </div>
+
+                <style>{`
+                  .analyse-manual-intro { display:flex; align-items:flex-end; justify-content:space-between; gap:20px; margin:26px 0 16px; scroll-margin-top:85px; }
+                  .analyse-eyebrow { color:#58709E; font-size:10px; font-weight:800; letter-spacing:.13em; }
+                  .analyse-manual-intro h2 { margin:5px 0 4px; color:#0D1828; font-size:25px; letter-spacing:-.035em; }
+                  .analyse-manual-intro p, .analyse-setup-heading p, .analyse-spend-heading p { margin:0; color:#5A6A85; font-size:13px; }
+                  .analyse-reset-button { background:transparent; border:0; color:#0E3785; font-size:13px; font-weight:700; cursor:pointer; padding:8px 0; }
+                  .analyse-setup-card { background:#fff; border:1px solid #D6E0F5; border-radius:18px; padding:18px 20px; display:grid; grid-template-columns:minmax(190px,.9fr) minmax(0,1.8fr); gap:24px; box-shadow:0 5px 18px rgba(14,55,133,.05); margin-bottom:22px; }
+                  .analyse-setup-heading p { margin-top:6px; max-width:220px; line-height:1.45; }
+                  .analyse-setup-fields { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; }
+                  .analyse-salary-field, .analyse-preference-field { border:1px solid #D6E0F5; background:#F8FAFF; border-radius:12px; padding:11px 13px; }
+                  .analyse-salary-field > span, .analyse-preference-field > span { display:block; color:#5A6A85; font-size:11px; font-weight:700; margin-bottom:8px; }
+                  .analyse-salary-field > div { display:flex; align-items:center; gap:7px; }
+                  .analyse-salary-field b { color:#0E3785; font-size:12px; }
+                  .analyse-salary-field input { width:100%; border:0; outline:0; background:transparent; color:#0D1828; font-size:16px; font-weight:750; }
+                  .analyse-disabled-options { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+                  .analyse-disabled-options span { color:#9DAEC8; background:#fff; border:1px solid #E2E8F4; border-radius:999px; padding:5px 8px; font-size:11px; }
+                  .analyse-disabled-options .is-selected { background:#E8EEF8; color:#0E3785; border-color:#B9C9E7; font-weight:750; }
+                  .analyse-disabled-options small { font-size:9px; }
+                  .analyse-builder-layout { display:grid; grid-template-columns:minmax(0,1fr) 292px; gap:22px; align-items:start; }
+                  .analyse-spend-heading { margin-bottom:12px; }
+                  .analyse-spend-heading p { margin-top:5px; }
+                  .analyse-category-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+                  .analyse-category-card { background:#fff; border:1px solid #E0E7F3; border-radius:14px; padding:14px; min-height:82px; transition:background .2s,border-color .2s,box-shadow .2s; }
+                  .analyse-category-card.is-active { background:#FAFCFF; border-color:#AFC5E9; box-shadow:0 5px 15px rgba(14,55,133,.07); }
+                  .analyse-category-topline { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+                  .analyse-category-name { display:flex; align-items:center; gap:9px; min-width:0; }
+                  .analyse-category-icon { width:34px; height:34px; display:grid; place-items:center; border-radius:10px; background:#EEF3FF; font-size:17px; flex:0 0 auto; }
+                  .analyse-category-card.is-active .analyse-category-icon { background:#E5EEFF; }
+                  .analyse-category-name h3 { margin:0; color:#0D1828; font-size:13px; line-height:1.25; }
+                  .analyse-category-name p { margin:3px 0 0; color:#7A8CA8; font-size:10px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:128px; }
+                  .analyse-aed-input { width:105px; display:flex; align-items:center; justify-content:flex-end; gap:4px; background:#F2F5FA; border-radius:9px; padding:7px 8px; flex:0 0 auto; }
+                  .analyse-category-card.is-active .analyse-aed-input { background:#E8EEF8; }
+                  .analyse-aed-input span { color:#58709E; font-size:10px; font-weight:750; }
+                  .analyse-aed-input input { min-width:0; width:64px; border:0; outline:0; background:transparent; text-align:right; color:#0E3785; font-size:14px; font-weight:800; }
+                  .analyse-aed-input:focus-within { outline:2px solid rgba(57,121,232,.32); background:#fff; }
+                  .analyse-aed-input input::placeholder { color:#7A8CA8; }
+                  .analyse-merchant-preferences { margin-top:12px; padding-top:10px; border-top:1px solid #E6ECF6; display:flex; gap:8px; align-items:flex-start; }
+                  .analyse-merchant-preferences > span { color:#5A6A85; font-size:10px; font-weight:700; white-space:nowrap; padding-top:4px; }
+                  .analyse-merchant-preferences > div { display:flex; flex-wrap:wrap; gap:5px; }
+                  .analyse-merchant-preferences button { appearance:none; border:1px solid #D6E0F5; color:#5A6A85; background:#fff; border-radius:999px; padding:4px 7px; font-size:10px; cursor:pointer; }
+                  .analyse-merchant-preferences button.is-selected { color:#0E3785; border-color:#0E3785; background:#E8EEF8; font-weight:750; }
+                  .analyse-profile-summary { position:sticky; top:94px; background:linear-gradient(160deg,#0E3785,#08255C); color:white; border-radius:18px; padding:19px; box-shadow:0 14px 28px rgba(10,40,96,.18); }
+                  .analyse-profile-summary .analyse-eyebrow { color:#AFC7F6; }
+                  .analyse-profile-total { font-size:28px; font-weight:850; letter-spacing:-.045em; margin-top:8px; }
+                  .analyse-profile-month { font-size:12px; color:#B9C9E7; margin-top:1px; }
+                  .analyse-profile-bars { display:grid; gap:10px; margin:20px 0; }
+                  .analyse-profile-bars > div > div { display:flex; justify-content:space-between; gap:8px; font-size:11px; color:#EAF0FF; margin-bottom:5px; }
+                  .analyse-profile-bars b { color:#FFD76A; }
+                  .analyse-profile-bars > div > span { display:block; height:5px; background:rgba(255,255,255,.17); border-radius:99px; overflow:hidden; }
+                  .analyse-profile-bars i { display:block; height:100%; border-radius:inherit; background:#55D5B7; transition:width .38s cubic-bezier(.2,.8,.2,1); }
+                  .analyse-profile-empty { color:#B9C9E7; font-size:12px; line-height:1.5; min-height:108px; margin:20px 0; }
+                  .analyse-profile-count { border-top:1px solid rgba(255,255,255,.16); padding-top:12px; color:#C9D7F2; font-size:11px; }
+                  .analyse-profile-error { margin-top:10px; background:rgba(255,219,214,.14); border:1px solid rgba(255,219,214,.35); border-radius:8px; padding:8px; color:#FFE3DF; font-size:11px; }
+                  .analyse-strategy-button { width:100%; margin-top:14px; padding:12px; border:0; border-radius:10px; background:#FFD76A; color:#092962; font-size:13px; font-weight:850; cursor:pointer; }
+                  .analyse-strategy-button:disabled { background:#7F95BD; color:#DCE6FA; cursor:not-allowed; }
+                  @media (max-width: 780px) { .analyse-setup-card, .analyse-builder-layout { grid-template-columns:1fr; } .analyse-profile-summary { position:static; } .analyse-method-switch { grid-template-columns:1fr !important; } }
+                  @media (max-width: 560px) { .analyse-category-grid, .analyse-setup-fields { grid-template-columns:1fr; } .analyse-manual-intro { align-items:flex-start; flex-direction:column; gap:4px; } }
+                `}</style>
+              </>
+            )
+          })()}
+
+          {false && <>
           {/* Heading */}
           <div ref={manualSectionRef} style={{ marginBottom: 28 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 6 }}>
@@ -1571,6 +1799,7 @@ function AnalyseContent() {
               </button>
             </div>
           </div>
+          </>}
         </div>
       )}
       </>

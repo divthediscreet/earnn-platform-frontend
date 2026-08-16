@@ -215,7 +215,34 @@ export async function sendChatMessage(
     session_id:      string
     turn_number:     number
     answer_provenance: AnswerProvenance
+    feedback_token:  string | null
   }>
+}
+
+export interface FeedbackSubmission {
+  source: 'chat_report' | 'general_widget'
+  message?: string
+  rating?: number | null
+  email?: string
+  phone?: string
+  page_path?: string
+  feedback_token?: string
+}
+
+export async function submitFeedback(feedback: FeedbackSubmission): Promise<{ ok: boolean; feedback_id?: string }> {
+  const res = await fetch(`${API_BASE}/api/feedback`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(feedback),
+  })
+  const payload: unknown = await res.json().catch(() => null)
+  const body = payload && typeof payload === 'object' ? payload as Record<string, unknown> : {}
+  if (!res.ok) {
+    throw new Error(
+      typeof body.detail === 'string' ? body.detail : 'We could not save your feedback right now. Please try again.',
+    )
+  }
+  return body as { ok: boolean; feedback_id?: string }
 }
 
 export async function rateResponse(

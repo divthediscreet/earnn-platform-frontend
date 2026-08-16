@@ -1,0 +1,8 @@
+.desktopNav{display:flex}.mobileMenuButton,.mobileNavMenu{display:none}
+@media(max-width:820px){
+  .desktopNav{display:none!important}
+  .mobileMenuButton{display:grid;place-items:center;width:42px;height:42px;border-radius:10px;border:1px solid var(--earnn-border);background:white;color:var(--earnn-blue);font-size:22px;cursor:pointer}
+  .mobileNavMenu{display:grid;gap:4px;padding:10px 20px 18px;border-top:1px solid var(--earnn-border);background:white;box-shadow:0 14px 28px rgba(14,55,133,.1)}
+  .mobileNavMenu a{padding:11px 12px;border-radius:8px;color:var(--earnn-text);text-decoration:none;font-size:14px;font-weight:600}
+  .mobileNavMenu .mobileNavCta{margin-top:5px;background:var(--earnn-blue);color:white;text-align:center}
+}

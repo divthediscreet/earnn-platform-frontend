@@ -2,7 +2,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import {
-  chatFailureMessage, sendChatMessage, rateResponse,
+  chatFailureMessage, sendChatMessage, submitFeedback, rateResponse,
   SessionProfile, MerchantQuery, BenefitsWanted, ChatMessage as ApiChatMessage, DiscoveryHint,
   AnswerProvenance,
 } from '@/lib/api'
@@ -19,20 +19,22 @@ interface Message {
   turn_number?:     number
   discovery_hints?: DiscoveryHint[]
   answer_provenance?: AnswerProvenance
-  rating?:          1 | -1 | null   // null = not yet rated
+  feedback_token?:   string | null
+  reported?:         boolean
+  rating?:          1 | -1 | null
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const SUGGESTED = [
-  'Best card for dining at restaurants (not delivery)?',
-  'Card for AED 8,000 salary in UAE?',
-  'Best card to use on Amazon?',
-  'Best card to use abroad with no FX fee?',
-  'Which card earns most at Carrefour?',
-  'Best welcome bonus card right now?',
-  'Free for life cards with good rewards?',
-  'Compare ENBD Noon and Mashreq Noon cards?',
+  '🍽️ Best card for dining at restaurants (not delivery)?',
+  '⚖️ Compare ENBD Noon and Mashreq Noon cards?',
+  '📦 Best card to use on Amazon?',
+  '✈️ Best card to use abroad with no FX fee?',
+  '🛒 Which card earns most at Carrefour?',
+  '🎁 Best welcome bonus card right now?',
+  '🆓 Free for life cards with good rewards?',
+  '💼 Card for AED 8,000 salary in UAE?',
 ]
 
 const EMPTY_PROFILE: SessionProfile = {
@@ -160,6 +162,12 @@ export default function ChatPage() {
   const [sessionProfile, setSessionProfile] = useState<SessionProfile>(EMPTY_PROFILE)
   const [walletNudgeShown, setWalletNudgeShown] = useState(false)
   const [showWalletNudge, setShowWalletNudge]   = useState(false)
+  const [reportingIndex, setReportingIndex] = useState<number | null>(null)
+  const [reportText, setReportText] = useState('')
+  const [reportEmail, setReportEmail] = useState('')
+  const [reportPhone, setReportPhone] = useState('')
+  const [reportSaving, setReportSaving] = useState(false)
+  const [reportError, setReportError] = useState('')
 
   const sessionIdRef  = useRef<string>(genSessionId())
   const historyRef    = useRef<ApiChatMessage[]>([])
@@ -200,7 +208,7 @@ export default function ChatPage() {
         turn_number:      res.turn_number,
         discovery_hints:  res.discovery_hints?.length ? res.discovery_hints : undefined,
         answer_provenance: res.answer_provenance,
-        rating:           null,
+        feedback_token:   res.feedback_token,
       }])
 
       const nextHistory: ApiChatMessage[] = [
@@ -274,6 +282,29 @@ export default function ChatPage() {
 
   // ── Wallet nudge ──────────────────────────────────────────────────────────
 
+  const submitChatReport = async () => {
+    if (reportingIndex === null || !reportText.trim() || reportSaving) return
+    const message = messages[reportingIndex]
+    if (!message?.feedback_token) return
+    setReportSaving(true)
+    setReportError('')
+    try {
+      await submitFeedback({
+        source: 'chat_report', message: reportText, email: reportEmail, phone: reportPhone,
+        page_path: '/chat', feedback_token: message.feedback_token,
+      })
+      setMessages(prev => prev.map((entry, index) => index === reportingIndex ? { ...entry, reported: true } : entry))
+      setReportingIndex(null)
+      setReportText('')
+      setReportEmail('')
+      setReportPhone('')
+    } catch (err) {
+      setReportError(err instanceof Error ? err.message : 'We could not save your report right now. Please try again.')
+    } finally {
+      setReportSaving(false)
+    }
+  }
+
   const handleWalletClick = () => {
     if (Object.keys(sessionProfile.spend).length > 0)
       sessionStorage.setItem('prefill_spend', JSON.stringify(sessionProfile.spend))
@@ -301,33 +332,6 @@ export default function ChatPage() {
           Compare cards, understand rewards, or find the right card for how you spend.
         </p>
       </div>
-
-      {/* Suggested questions — only at start */}
-      {messages.length === 1 && (
-        <div style={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          gap: 8,
-          marginBottom: 20,
-          flexShrink: 0,
-          width: '100%',
-        }}>
-          {SUGGESTED.map(q => (
-            <button
-              key={q}
-              onClick={() => send(q)}
-              style={{
-                padding: '8px 12px', background: '#EEF3FF',
-                border: '1px solid #D6E0F5', borderRadius: 100,
-                fontSize: 13, fontWeight: 500, color: '#0E3785', cursor: 'pointer',
-                textAlign: 'center', flex: '1 1 auto', maxWidth: '100%',
-              }}
-            >
-              {q}
-            </button>
-          ))}
-        </div>
-      )}
 
       {/* Messages */}
       <div style={{
@@ -455,7 +459,7 @@ export default function ChatPage() {
             ))}
 
             {/* ── Emoji rating — only on assistant turns that have a turn_number ── */}
-            {msg.role === 'assistant' && msg.turn_number !== undefined && (
+            {false && msg.role === 'assistant' && msg.turn_number !== undefined && (
               <div style={{
                 display: 'flex', alignItems: 'center', gap: 6,
                 marginTop: 4, marginLeft: 2,
@@ -506,8 +510,46 @@ export default function ChatPage() {
                 )}
               </div>
             )}
+
+            {msg.role === 'assistant' && msg.feedback_token && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 7, marginLeft: 2 }}>
+                {msg.reported ? (
+                  <span style={{ color: '#00856A', fontSize: 12, fontWeight: 600 }}>Report sent — thank you.</span>
+                ) : (
+                  <>
+                    <span style={{ color: '#697A99', fontSize: 12 }}>Not satisfied? Help us improve</span>
+                    <button
+                      onClick={() => { setReportingIndex(i); setReportError('') }}
+                      style={{ border: '1px solid #D6E0F5', background: 'white', color: '#0E3785', borderRadius: 7, padding: '4px 10px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
+                    >
+                      Report
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
           </div>
         ))}
+
+        {/* Suggested questions — shown beneath Earnie's initial greeting */}
+        {messages.length === 1 && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, flexShrink: 0, width: '100%' }}>
+            {SUGGESTED.map(q => (
+              <button
+                key={q}
+                onClick={() => send(q)}
+                style={{
+                padding: '8px 12px', background: '#EEF3FF',
+                border: '1px solid #D6E0F5', borderRadius: 100,
+                fontSize: 12.5, fontWeight: 500, color: '#0E3785', cursor: 'pointer',
+                textAlign: 'center', flex: '0 1 auto', maxWidth: '100%', whiteSpace: 'nowrap',
+                }}
+              >
+                {q}
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* Wallet nudge banner */}
         {showWalletNudge && (
@@ -590,7 +632,7 @@ export default function ChatPage() {
           style={{
             padding: '14px 24px',
             background: !input.trim() ? '#D6E0F5' : '#0E3785',
-            color:      !input.trim() ? '#5A6A85' : 'white',
+            color: !input.trim() ? '#5A6A85' : 'white',
             border: 'none', borderRadius: 12, fontSize: 15, fontWeight: 700,
             cursor: !input.trim() ? 'not-allowed' : 'pointer', flexShrink: 0,
           }}
@@ -598,6 +640,27 @@ export default function ChatPage() {
           Send →
         </button>
       </div>
+
+      {reportingIndex !== null && (
+        <div role="dialog" aria-modal="true" aria-label="Report chat answer" onClick={() => !reportSaving && setReportingIndex(null)} style={{ position: 'fixed', inset: 0, zIndex: 1200, background: 'rgba(13,24,40,0.55)', display: 'grid', placeItems: 'center', padding: 20 }}>
+          <div onClick={e => e.stopPropagation()} style={{ width: 'min(460px, 100%)', background: 'white', borderRadius: 16, padding: 22, boxShadow: '0 18px 60px rgba(0,0,0,0.25)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, alignItems: 'start' }}>
+              <div><h2 style={{ margin: 0, color: '#0D1828', fontSize: 20 }}>Help us improve</h2><p style={{ margin: '5px 0 16px', color: '#5A6A85', fontSize: 13 }}>Tell us what was wrong or what you expected instead.</p></div>
+              <button onClick={() => setReportingIndex(null)} disabled={reportSaving} aria-label="Close report" style={{ border: 'none', background: 'transparent', color: '#5A6A85', fontSize: 24, cursor: 'pointer' }}>×</button>
+            </div>
+            <textarea autoFocus value={reportText} onChange={e => setReportText(e.target.value)} rows={5} placeholder="Describe the issue…" style={{ width: '100%', padding: '11px 12px', border: '1.5px solid #D6E0F5', borderRadius: 10, fontSize: 14, fontFamily: 'inherit', resize: 'vertical' }} />
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 10 }}>
+              <input value={reportEmail} onChange={e => setReportEmail(e.target.value)} type="email" placeholder="Email (optional)" style={{ minWidth: 0, padding: '10px 11px', border: '1.5px solid #D6E0F5', borderRadius: 9, fontSize: 13 }} />
+              <input value={reportPhone} onChange={e => setReportPhone(e.target.value)} type="tel" placeholder="Phone (optional)" style={{ minWidth: 0, padding: '10px 11px', border: '1.5px solid #D6E0F5', borderRadius: 9, fontSize: 13 }} />
+            </div>
+            {reportError && <div role="alert" style={{ color: '#C0392B', fontSize: 12, marginTop: 9 }}>{reportError}</div>}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 16 }}>
+              <button onClick={() => setReportingIndex(null)} disabled={reportSaving} style={{ padding: '10px 14px', border: '1px solid #D6E0F5', borderRadius: 9, background: 'white', color: '#5A6A85', cursor: 'pointer' }}>Cancel</button>
+              <button onClick={submitChatReport} disabled={reportSaving || !reportText.trim()} style={{ padding: '10px 16px', border: 'none', borderRadius: 9, background: reportSaving || !reportText.trim() ? '#C2CCDD' : '#0E3785', color: 'white', fontWeight: 700, cursor: reportSaving || !reportText.trim() ? 'not-allowed' : 'pointer' }}>{reportSaving ? 'Sending…' : 'Send report'}</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <style>{`
         @keyframes bounce {

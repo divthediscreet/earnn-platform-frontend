@@ -2,9 +2,11 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { useState } from 'react'
+import styles from './Navbar.module.css'
 
 export default function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false)
+  const navLinkStyle = { padding: '8px 14px', borderRadius: 6, color: 'var(--earnn-text-muted)', fontSize: 15, fontWeight: 500, textDecoration: 'none' }
 
   return (
     <nav style={{
@@ -33,21 +35,36 @@ export default function Navbar() {
         </Link>
 
         {/* Desktop Nav */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }} className="desktop-nav">
-          <Link href="/analyse" style={{ padding: '8px 16px', borderRadius: 6, color: 'var(--earnn-text-muted)', fontSize: 15, fontWeight: 500, textDecoration: 'none', transition: 'color 0.2s' }}>
+        <div style={{ alignItems: 'center', gap: 6 }} className={styles.desktopNav}>
+          <Link href="/analyse" style={navLinkStyle}>
             Analyse
           </Link>
-          <Link href="/compare" style={{ padding: '8px 16px', borderRadius: 6, color: 'var(--earnn-text-muted)', fontSize: 15, fontWeight: 500, textDecoration: 'none' }}>
+          <Link href="/compare" style={navLinkStyle}>
             Compare
           </Link>
-          <Link href="/chat" style={{ padding: '8px 16px', borderRadius: 6, color: 'var(--earnn-text-muted)', fontSize: 15, fontWeight: 500, textDecoration: 'none' }}>
+          <Link href="/how-it-works" style={navLinkStyle}>
+            How Earnn Works
+          </Link>
+          <Link href="/chat" style={navLinkStyle}>
             Ask Earnie
           </Link>
           <Link href="/analyse" className="btn-primary" style={{ padding: '10px 24px', fontSize: 14, marginLeft: 8 }}>
             Get Started Free
           </Link>
         </div>
+        <button className={styles.mobileMenuButton} onClick={() => setMenuOpen(v => !v)} aria-label="Toggle navigation" aria-expanded={menuOpen}>
+          <i className={`ti ${menuOpen ? 'ti-x' : 'ti-menu-2'}`} />
+        </button>
       </div>
+      {menuOpen && (
+        <div className={styles.mobileNavMenu}>
+          <Link href="/analyse" onClick={() => setMenuOpen(false)}>Analyse</Link>
+          <Link href="/compare" onClick={() => setMenuOpen(false)}>Compare</Link>
+          <Link href="/how-it-works" onClick={() => setMenuOpen(false)}>How Earnn Works</Link>
+          <Link href="/chat" onClick={() => setMenuOpen(false)}>Ask Earnie</Link>
+          <Link href="/analyse" onClick={() => setMenuOpen(false)} className={styles.mobileNavCta}>Get Started Free</Link>
+        </div>
+      )}
     </nav>
   )
 }
