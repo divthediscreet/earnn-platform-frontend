@@ -4,7 +4,7 @@ import type { NextConfig } from "next";
 // production continues to use Railway unless Vercel explicitly overrides it.
 const backendOrigin = (
   process.env.EARNN_BACKEND_ORIGIN
-  ?? 'https://earnn-platform-production.up.railway.app'
+  || 'https://earnn-platform-production.up.railway.app'
 ).replace(/\/$/, '')
 
 const nextConfig: NextConfig = {
