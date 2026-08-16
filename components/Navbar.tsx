@@ -42,9 +42,6 @@ export default function Navbar() {
           <Link href="/compare" style={navLinkStyle}>
             Compare
           </Link>
-          <Link href="/how-it-works" style={navLinkStyle}>
-            How Earnn Works
-          </Link>
           <Link href="/chat" style={navLinkStyle}>
             Ask Earnie
           </Link>
@@ -60,7 +57,6 @@ export default function Navbar() {
         <div className={styles.mobileNavMenu}>
           <Link href="/analyse" onClick={() => setMenuOpen(false)}>Analyse</Link>
           <Link href="/compare" onClick={() => setMenuOpen(false)}>Compare</Link>
-          <Link href="/how-it-works" onClick={() => setMenuOpen(false)}>How Earnn Works</Link>
           <Link href="/chat" onClick={() => setMenuOpen(false)}>Ask Earnie</Link>
           <Link href="/analyse" onClick={() => setMenuOpen(false)} className={styles.mobileNavCta}>Get Started Free</Link>
         </div>
