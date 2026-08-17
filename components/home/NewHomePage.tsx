@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import Image, { type StaticImageData } from 'next/image'
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { fetchCards, getCardImageUrl } from '@/lib/api'
 import citiPremierImage from '@/assets/home-cards/citi-premier.webp'
 import shukranAdcbImage from '@/assets/home-cards/shukran-adcb.webp'
@@ -29,14 +29,6 @@ interface HomeCard {
   display_reward_rate_all_spend: number
   imageSrc?: StaticImageData
 }
-
-const spending = [
-  ['Education', '6,538', '100%'],
-  ['Everyday & Other', '5,921', '90%'],
-  ['Retail', '3,365', '52%'],
-  ['Online Shopping', '1,547', '26%'],
-  ['Telecom', '1,481', '24%'],
-]
 
 const makeHomeCard = (earnn_card_id: string, card_name: string, bank_name: string, bank_code: string, imageSrc: StaticImageData): HomeCard => ({
   earnn_card_id,
@@ -66,15 +58,6 @@ const HOME_FEATURED_CARDS = [
 const HOME_ONLINE_CARDS = [
   makeHomeCard('sib_01', 'SIB Cashback Titanium Covered Card', 'Sharjah Islamic Bank', 'SIB', sibCashbackTitaniumImage),
   makeHomeCard('eib_06', 'Emirates Islamic Amazon World Credit Card', 'Emirates Islamic Bank', 'EIB', eibAmazonWorldImage),
-]
-
-const allocationRoutes = [
-  { from: 1, to: 0 },
-  { from: 2, to: 1 },
-  { from: 0, to: 2 },
-  { from: 4, to: 3 },
-  { from: 3, to: 0 },
-  { from: 0, to: 3, spill: true },
 ]
 
 const friction = [
@@ -210,51 +193,7 @@ export default function NewHomePage() {
   const [rateMotionCycle, setRateMotionCycle] = useState(0)
   const reducedMotion = usePrefersReducedMotion()
   const [rateStoryRef, rateStoryVisible] = useInViewOnce<HTMLDivElement>()
-  const [allocationRef, allocationVisible] = useInViewOnce<HTMLDivElement>()
   const [chooseRef, chooseVisible] = useInViewOnce<HTMLElement>()
-  const spendPanelRef = useRef<HTMLElement | null>(null)
-  const walletPanelRef = useRef<HTMLElement | null>(null)
-  const spendRouteRefs = useRef<(HTMLDivElement | null)[]>([])
-  const walletRouteRefs = useRef<(HTMLDivElement | null)[]>([])
-  const [allocationPaths, setAllocationPaths] = useState<string[]>([])
-  const [allocationBox, setAllocationBox] = useState({ width: 0, height: 0 })
-
-  const measureAllocation = useCallback(() => {
-    const grid = allocationRef.current
-    if (!grid) return
-    const gridBox = grid.getBoundingClientRect()
-    const leftBox = spendPanelRef.current?.getBoundingClientRect()
-    const rightBox = walletPanelRef.current?.getBoundingClientRect()
-    const paths = allocationRoutes.map(route => {
-      const source = spendRouteRefs.current[route.from]?.getBoundingClientRect()
-      const target = walletRouteRefs.current[route.to]?.getBoundingClientRect()
-      if (!source || !target) return ''
-      const x1 = (leftBox?.right ?? source.right) - gridBox.left
-      const y1 = source.top + (source.height / 2) - gridBox.top
-      const x2 = (rightBox?.left ?? target.left) - gridBox.left
-      const y2 = target.top + (target.height / 2) - gridBox.top
-      const curve = Math.max((x2 - x1) * 0.62, 28)
-      return `M ${x1} ${y1} C ${x1 + curve} ${y1}, ${x2 - curve} ${y2}, ${x2} ${y2}`
-    })
-    setAllocationBox({ width: gridBox.width, height: gridBox.height })
-    setAllocationPaths(paths)
-  }, [allocationRef])
-
-  useLayoutEffect(() => {
-    measureAllocation()
-  }, [measureAllocation])
-
-  useEffect(() => {
-    const grid = allocationRef.current
-    if (!grid) return
-    const observer = new ResizeObserver(measureAllocation)
-    observer.observe(grid)
-    window.addEventListener('resize', measureAllocation)
-    return () => {
-      observer.disconnect()
-      window.removeEventListener('resize', measureAllocation)
-    }
-  }, [allocationRef, measureAllocation])
 
   useEffect(() => {
     let active = true
@@ -355,74 +294,40 @@ export default function NewHomePage() {
       </section>
 
       <section className={`${styles.section} ${styles.navySection} ${styles.rewardGapSection}`}>
-        <SectionTitle light eyebrow="Your reward gap" title="See Why You Could Be Missing Rewards" />
-        <div className={styles.gapIssueGrid}>
-          {[
-            ['🔀', 'Using Skywards for groceries?'],
-            ['🎯', 'Minimum spend threshold missed'],
-            ['💱', 'FX fees on every trip abroad'],
-            ['🛑', 'Cashback cap hit and forgotten'],
-          ].map(([icon, text]) => <div key={text} className={styles.gapIssue}><span>{icon}</span><b>{text}</b></div>)}
-        </div>
-        <div className={styles.gapGrid}>
-          <div className={styles.gapBox}><span>Your current cards</span><Money suffix="/mo">616</Money><div className={styles.meter}><i style={{ width: '55%' }} /></div></div>
-          <div className={styles.gapBridge}>
-            <svg viewBox="0 0 150 62" fill="none" aria-hidden="true"><path d="M4 50 C 48 50, 78 12, 146 12" /></svg>
-            <div className={styles.gapGain}><strong>+AED 500</strong><span>Potential reward gap</span></div>
+        <SectionTitle light eyebrow="Why you could be earning less" title={<>Your card&apos;s headline rate isn&apos;t<br />what you actually earn.</>} copy="Caps, minimum spends, fees and category restrictions can quietly reduce the rewards you actually receive." />
+        <div className={styles.rewardGapContent}>
+          <div className={styles.gapIssueGrid}>
+            {[
+              ['ti-arrows-exchange', 'Wrong card for the category', 'A great travel card may barely reward your groceries.'],
+              ['ti-target', 'Minimum spend missed', 'Miss the required monthly spend and boosted rewards may not apply.'],
+              ['ti-ban', 'Reward cap reached', 'Once the monthly cap is hit, additional spending may earn much less.'],
+              ['ti-plane', 'FX fees on overseas spending', 'Using the wrong card abroad can quietly reduce your overall value.'],
+            ].map(([icon, title, description]) => <div key={title} className={styles.gapIssue}><i className={`ti ${icon} ${styles.gapIssueIcon}`} /><b>{title}</b><span>{description}</span></div>)}
           </div>
-          <div className={`${styles.gapBox} ${styles.gapOptimized}`}><span>Optimized wallet</span><Money suffix="/mo">1,116</Money><div className={styles.meter}><i style={{ width: '100%' }} /></div></div>
+          <article className={styles.gapWalletCard}>
+            <div className={styles.gapWalletMetric}>
+              <span>Your current wallet</span>
+              <Money suffix="/mo">616</Money>
+              <div className={styles.gapWalletMeter}><i style={{ width: '55%' }} /></div>
+            </div>
+            <div className={styles.gapWalletGain}><strong>+AED 500</strong><span>Potential reward gap /mo</span></div>
+            <div className={`${styles.gapWalletMetric} ${styles.gapWalletOptimized}`}>
+              <span>Optimized potential</span>
+              <Money suffix="/mo">1,116</Money>
+              <div className={styles.gapWalletMeter}><i style={{ width: '100%' }} /></div>
+            </div>
+            <small>Figures shown are illustrative examples, not guaranteed returns.</small>
+          </article>
         </div>
         <Link href="/analyse" className={styles.rewardCta}>Find My Reward Gap <i className="ti ti-arrow-right" /></Link>
-      </section>
-
-      <section className={`${styles.section} ${styles.surface} ${styles.strategySection}`}>
-        <SectionTitle eyebrow="Not just another card ranking" title={<>One card isn&apos;t always the answer.<br /><span className={styles.blue}>The right strategy is.</span></>} copy="Earnn can combine cards so different parts of your spending are routed where they could earn the most value." />
-        <div ref={allocationRef} className={`${styles.allocationGrid} ${allocationVisible ? styles.allocationVisible : ''}`}>
-          {allocationBox.width > 0 && <svg className={styles.allocationRoutes} width={allocationBox.width} height={allocationBox.height} viewBox={`0 0 ${allocationBox.width} ${allocationBox.height}`} fill="none" aria-hidden="true">
-            {allocationPaths.map((path, index) => path ? <path key={`${allocationRoutes[index].from}-${allocationRoutes[index].to}-${index}`} d={path} pathLength={1} className={allocationRoutes[index].spill ? styles.spillRoute : styles.standardRoute} strokeDasharray={allocationRoutes[index].spill ? '0.045 0.055' : '1'} strokeDashoffset={allocationVisible ? 0 : 1} style={{ transitionDelay: `${index * 170}ms` }} /> : null)}
-          </svg>}
-          <article ref={spendPanelRef} className={styles.productPanel}>
-            <p className={styles.miniLabel}>Your spending</p>
-            <div className={styles.spendList}>{spending.map(([label, amount, width], index) => <div key={label} ref={node => { spendRouteRefs.current[index] = node }}><div><span>{label}</span><b>AED {amount}</b></div><i><em style={{ width }} /></i></div>)}</div>
-            <div className={styles.monthTotal}><span>Monthly spend</span><Money>19,794</Money></div>
-          </article>
-          <div className={styles.routeSpacer} aria-hidden="true" />
-          <article ref={walletPanelRef} className={styles.productPanel}>
-            <p className={styles.miniLabel}>Optimized wallet — what each card does</p>
-            <div className={styles.walletList}>{featured.map((card, index) => <div key={card.earnn_card_id} ref={node => { walletRouteRefs.current[index] = node }} className={styles.walletRow}><CardImage card={card} compact /><div><b>{card.card_name}</b><span>{['Everyday spending · Online','Retail · Transport','Education','Telecom · after cap'][index] || 'Optimized spend'}</span></div><strong>AED <AnimatedNumber value={306 - index * 19} active={allocationVisible} delay={650 + (index * 240)} reducedMotion={reducedMotion} /><small>/mo</small></strong></div>)}</div>
-            <div className={styles.walletSummary}><div><span>Potential monthly rewards</span><Money><AnimatedNumber value={1116} active={allocationVisible} delay={1700} duration={1100} reducedMotion={reducedMotion} /></Money></div><div><span>Estimated net annual value</span><Money suffix="/year"><AnimatedNumber value={12567} active={allocationVisible} delay={1900} duration={1200} reducedMotion={reducedMotion} /></Money></div></div>
-          </article>
-        </div>
-      </section>
-
-      <section className={`${styles.section} ${styles.capStrategySection}`}>
-        <SectionTitle className={styles.capSectionHeading} eyebrow="Smarter than ‘use this card’" title={<>Hit the Cap? <span className={styles.green}>Switch the Card.</span></>} copy="Earnn can redirect remaining spend to the next-best card when a reward limit is reached." />
-        <article className={styles.capCard}>
-          <div className={styles.categoryHeader}><i className="ti ti-package" /><div><b>Online Shopping</b><span>AED 7,000 / month</span></div></div>
-          <div className={styles.capFlow}>
-            <div className={styles.capFlowCard}>
-              <p className={styles.miniLabel}>First AED 3,000</p>
-              <div><CardImage card={onlinePrimaryCard} compact /><span><b>{onlinePrimaryCard?.card_name || 'Loading live card…'}</b><small>Potential reward</small><Money>244</Money></span></div>
-            </div>
-            <div className={styles.capSwitch}>
-              <span><i className="ti ti-alert-triangle" /> Reward capping reached</span>
-              <b>Then switch <i className="ti ti-arrow-right" /></b>
-            </div>
-            <div className={styles.capFlowCard}>
-              <p className={styles.miniLabel}>Remaining AED 4,000</p>
-              <div><CardImage card={onlineAlternateCard} compact /><span><b>{onlineAlternateCard?.card_name || 'Loading live card…'}</b><small>Potential reward</small><Money>216</Money></span></div>
-            </div>
-            <div className={styles.capFlowTotal}><span>Total potential rewards</span><Money suffix="/month">460</Money></div>
-          </div>
-        </article>
       </section>
 
       <section className={`${styles.section} ${styles.surface} ${styles.howItWorksSection}`}>
         <SectionTitle eyebrow="How it works" title="From statement to strategy in four steps." />
         <div className={styles.stepsGrid}>
           <article className={styles.productPanel}><p className={styles.eyebrow}>Step 01 — Upload</p><div className={styles.uploadMock}><i className="ti ti-file-description" /><div><b>statement-may.pdf</b><span><i /></span></div></div><h3>Upload your statement</h3><p>No bank login. No account linking. Just your statement.</p></article>
-          <article className={styles.productPanel}><p className={styles.eyebrow}>Step 02 — Understand</p><div className={styles.mapList}>{merchantMap.map(([merchant,category]) => <div key={merchant}><b>{merchant}</b><i className="ti ti-arrow-right" /><span>{category}</span></div>)}</div><h3>We understand your spending</h3><p>Earnn identifies where your money goes and how different reward rules apply.</p></article>
-          <article className={styles.productPanel}><p className={styles.eyebrow}>Step 03 — Optimize</p><div className={styles.optimizeMock}><div className={styles.optimizeCategories}>{['Education','Retail','Telecom','Online'].map(category => <span key={category}>{category}</span>)}</div><svg className={styles.optimizeFlow} viewBox="0 0 240 38" fill="none" aria-hidden="true"><path d="M24 3 C 24 27, 72 10, 88 35" /><path d="M88 3 C 88 24, 122 12, 132 35" /><path d="M152 3 C 152 24, 142 16, 132 35" /><path d="M216 3 C 216 27, 172 10, 176 35" /></svg><div className={styles.cardStack}>{featured.slice(0,3).map(card => <CardImage key={card.earnn_card_id} card={card} compact />)}</div><div><span>Potential rewards</span><Money suffix="/mo">1,116</Money></div></div><h3>Get your card playbook</h3><p>See which cards could work best, where to use them and what your spending could potentially earn.</p></article>
+          <article className={styles.productPanel}><p className={styles.eyebrow}>Step 02 — Understand</p><div className={styles.mapList}>{merchantMap.map(([merchant,category]) => <div key={merchant}><b>{merchant}</b><i className="ti ti-arrow-right" /><span>{category}</span></div>)}</div><h3>We understand your spending</h3><p className={styles.stepDescription}>Earnn categorizes your transactions and identifies the reward rules that matters you most.</p><ul className={styles.understandRules}><li>Merchant</li><li>Category</li><li>Caps</li><li>Minimum spend</li><li>Restrictions</li></ul></article>
+          <article className={styles.productPanel}><p className={styles.eyebrow}>Step 03 — Optimize</p><div className={styles.optimizeMock}><div className={styles.optimizeCategories}>{['Education','Retail','Telecom','Online'].map(category => <span key={category}>{category}</span>)}</div><svg className={styles.optimizeFlow} viewBox="0 0 240 38" fill="none" aria-hidden="true"><path d="M24 3 C 24 27, 72 10, 88 35" /><path d="M88 3 C 88 24, 122 12, 132 35" /><path d="M152 3 C 152 24, 142 16, 132 35" /><path d="M216 3 C 216 27, 172 10, 176 35" /></svg><div className={styles.cardStack}>{featured.slice(0,3).map(card => <CardImage key={card.earnn_card_id} card={card} compact />)}</div><div><span>Potential rewards</span><Money suffix="/mo">1,116</Money></div></div><h3>Find the right cards and know when to switch</h3><p>Earnn tests card combinations, routes each category to the card that could earn the most, and switches to the next-best option when a reward cap is hit.</p></article>
           <article ref={chooseRef} className={`${styles.productPanel} ${styles.chooseStep}`}>
             <p className={styles.eyebrow}>Step 04 — Choose</p>
             <div className={styles.chooseMock}>
@@ -439,7 +344,7 @@ export default function NewHomePage() {
               <div className={styles.chooseSwap}>Or swap any card ↻</div>
             </div>
             <h3>Make the strategy yours.</h3>
-            <p>Choose 2, 3 or 4 cards — or swap a card you prefer. See the impact instantly.</p>
+            <p>One card is never enough. Choose a set of 2, 3, or 4 cards and see your earnings increase instantly.</p>
           </article>
         </div>
       </section>
