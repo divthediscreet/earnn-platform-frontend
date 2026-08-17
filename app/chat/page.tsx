@@ -316,10 +316,25 @@ export default function ChatPage() {
   // ─────────────────────────────────────────────────────────────────────────
 
   return (
-    <div style={{
+    <div className="chat-page" style={{
       maxWidth: 860, margin: '0 auto', padding: '32px 24px',
-      display: 'flex', flexDirection: 'column', height: 'calc(100vh - 130px)',
+      display: 'flex', flexDirection: 'column', height: 'calc(100dvh - 130px)',
     }}>
+      <style>{`
+        @media (max-width: 640px) {
+          .chat-page { padding: 20px 16px calc(16px + env(safe-area-inset-bottom)) !important; }
+          .chat-page input, .chat-page textarea { font-size: 16px !important; }
+          .chat-page .mony-md { overflow-wrap: anywhere; }
+          .chat-page .mony-md table { display: block; max-width: 100%; overflow-x: auto; white-space: nowrap; -webkit-overflow-scrolling: touch; }
+          .chat-page .chat-message-bubble { max-width: 92% !important; }
+          .chat-page .chat-suggestions { gap: 7px !important; }
+          .chat-page .chat-suggestions > button { white-space: normal !important; min-height: 44px; text-align: left !important; }
+          .chat-page .chat-composer { min-width: 0; gap: 8px !important; }
+          .chat-page .chat-input { flex: 1 1 0% !important; width: 0; min-width: 0; }
+          .chat-page .chat-send-button { flex: 0 0 auto; padding: 14px 16px !important; }
+          .chat-page .chat-report-contact { grid-template-columns: 1fr !important; }
+        }
+      `}</style>
       {/* Header */}
       <div style={{ marginBottom: 24, flexShrink: 0 }}>
         <h1 style={{ fontSize: 28, fontWeight: 800, color: '#0E3785', marginBottom: 4, letterSpacing: '0.03em' }}>
@@ -344,7 +359,7 @@ export default function ChatPage() {
               display: 'flex',
               justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start',
             }}>
-              <div style={{
+              <div className="chat-message-bubble" style={{
                 maxWidth: '82%',
                 padding: '14px 18px',
                 borderRadius: msg.role === 'user'
@@ -533,7 +548,7 @@ export default function ChatPage() {
 
         {/* Suggested questions — shown beneath Earnie's initial greeting */}
         {messages.length === 1 && (
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, flexShrink: 0, width: '100%' }}>
+          <div className="chat-suggestions" style={{ display: 'flex', flexWrap: 'wrap', gap: 8, flexShrink: 0, width: '100%' }}>
             {SUGGESTED.map(q => (
               <button
                 key={q}
@@ -611,11 +626,11 @@ export default function ChatPage() {
       </div>
 
       {/* Input */}
-      <div style={{
+      <div className="chat-composer" style={{
         flexShrink: 0, display: 'flex', gap: 12,
         paddingTop: 16, borderTop: '1px solid #D6E0F5',
       }}>
-        <input
+        <input className="chat-input"
           value={input}
           onChange={e => setInput(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && !e.shiftKey && send(input)}
@@ -626,7 +641,7 @@ export default function ChatPage() {
             fontSize: 15, outline: 'none', color: '#0D1828',
           }}
         />
-        <button
+        <button className="chat-send-button"
           onClick={() => send(input)}
           disabled={!input.trim() || loading}
           style={{
@@ -649,7 +664,7 @@ export default function ChatPage() {
               <button onClick={() => setReportingIndex(null)} disabled={reportSaving} aria-label="Close report" style={{ border: 'none', background: 'transparent', color: '#5A6A85', fontSize: 24, cursor: 'pointer' }}>×</button>
             </div>
             <textarea autoFocus value={reportText} onChange={e => setReportText(e.target.value)} rows={5} placeholder="Describe the issue…" style={{ width: '100%', padding: '11px 12px', border: '1.5px solid #D6E0F5', borderRadius: 10, fontSize: 14, fontFamily: 'inherit', resize: 'vertical' }} />
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 10 }}>
+            <div className="chat-report-contact" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 10 }}>
               <input value={reportEmail} onChange={e => setReportEmail(e.target.value)} type="email" placeholder="Email (optional)" style={{ minWidth: 0, padding: '10px 11px', border: '1.5px solid #D6E0F5', borderRadius: 9, fontSize: 13 }} />
               <input value={reportPhone} onChange={e => setReportPhone(e.target.value)} type="tel" placeholder="Phone (optional)" style={{ minWidth: 0, padding: '10px 11px', border: '1.5px solid #D6E0F5', borderRadius: 9, fontSize: 13 }} />
             </div>

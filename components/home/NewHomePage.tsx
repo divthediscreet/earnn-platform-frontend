@@ -179,11 +179,11 @@ function AnimatedNumber({ value, active = true, delay = 0, duration = 900, reduc
   return <>{displayValue.toLocaleString('en-AE', { minimumFractionDigits: precision, maximumFractionDigits: precision })}</>
 }
 
-function CardImage({ card, compact = false }: { card?: HomeCard; compact?: boolean }) {
+function CardImage({ card, compact = false, priority = false }: { card?: HomeCard; compact?: boolean; priority?: boolean }) {
   if (!card) return <div className={`${styles.cardImage} ${compact ? styles.cardImageCompact : ''} ${styles.cardLoading}`} aria-label="Loading card image" />
   return (
     <div className={`${styles.cardImage} ${compact ? styles.cardImageCompact : ''}`}>
-      <Image src={card.imageSrc || getCardImageUrl(card.earnn_card_id)} alt={`${card.card_name} credit card`} width={142} height={88} unoptimized={!card.imageSrc} priority={Boolean(card.imageSrc)} />
+      <Image src={card.imageSrc || getCardImageUrl(card.earnn_card_id)} alt={`${card.card_name} credit card`} width={142} height={88} unoptimized={!card.imageSrc} priority={priority} />
     </div>
   )
 }
@@ -327,7 +327,7 @@ export default function NewHomePage() {
             </article>
             <article className={`${styles.floatingPanel} ${styles.walletPanel}`}>
               <div className={styles.panelTop}><p className={styles.miniLabel}>Your maximum-rewards wallet</p><span>4 cards</span></div>
-              <div className={styles.cardStack}>{featured.map(card => <CardImage key={card.earnn_card_id} card={card} compact />)}{!featured.length && [0,1,2,3].map(i => <CardImage key={i} compact />)}</div>
+              <div className={styles.cardStack}>{featured.map(card => <CardImage key={card.earnn_card_id} card={card} compact priority />)}{!featured.length && [0,1,2,3].map(i => <CardImage key={i} compact />)}</div>
               <div className={styles.panelTotal}><span>Potential rewards</span><Money suffix="/mo"><AnimatedNumber value={1116} delay={2500} duration={800} reducedMotion={reducedMotion} /></Money></div>
             </article>
             <article className={styles.playbookPanel}>

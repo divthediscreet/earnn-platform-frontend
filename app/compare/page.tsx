@@ -420,7 +420,47 @@ export default function ComparePage() {
   )
 
   return (
-    <div style={{ maxWidth: 1100, margin: '0 auto', padding: '48px 24px 100px' }}>
+    <div className="compare-page" style={{ maxWidth: 1100, margin: '0 auto', padding: '48px 24px 100px' }}>
+      <style>{`
+        .compare-card-financials { display: contents; }
+        @media (max-width: 760px) {
+          .compare-page { padding: 32px 16px 84px !important; }
+          .compare-filter-ribbon { flex-wrap: wrap; gap: 8px; padding: 10px !important; }
+          .compare-filter-group { flex: 1 1 calc(50% - 4px) !important; min-width: 0 !important; border: 1px solid #E4EAF5; border-radius: 9px; padding: 5px 7px 6px !important; }
+          .compare-filter-search input { font-size: 16px !important; }
+          .compare-filter-divider { display: none; }
+          .compare-all-filters-trigger { margin-left: 0 !important; flex: 1 1 calc(50% - 4px); }
+          .compare-all-filters-trigger > button { width: 100%; min-height: 44px; justify-content: center; }
+          .compare-filter-modal { width: calc(100vw - 32px) !important; max-height: calc(100dvh - 32px) !important; padding: 18px !important; }
+          .compare-filter-modal input, .compare-filter-modal select { font-size: 16px !important; min-height: 44px; }
+          .compare-card-header { flex-wrap: wrap; gap: 8px !important; }
+          .compare-card-name { flex: 1 1 calc(100% - 150px); }
+          .compare-card-body { flex-direction: column; }
+          .compare-card-divider { display: none; }
+          .compare-card-media { width: 100% !important; flex-direction: row !important; justify-content: flex-start !important; padding: 14px 16px !important; text-align: left !important; }
+          .compare-card-media > div { text-align: left !important; width: auto !important; }
+          .compare-card-rates { width: 100%; }
+          .compare-card-financials { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border-top: 1px solid #EEF3FF; }
+          .compare-card-annual, .compare-card-fee { width: auto !important; min-width: 0; }
+          .compare-card-fee { border-left: 1px solid #EEF3FF; }
+        }
+        @media (max-width: 640px) {
+          .compare-mobile-secondary { display: none !important; }
+          .compare-filter-ribbon { display: grid !important; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+          .compare-filter-search { grid-column: 1 / -1; }
+          .compare-all-filters-trigger { grid-column: 1 / -1; }
+          .compare-filter-search input { min-height: 44px !important; font-size: 16px !important; }
+          .compare-card-name { flex-basis: calc(100% - 122px); }
+          .compare-card-score { padding: 5px 8px !important; gap: 4px !important; }
+          .compare-card-score > span:last-child { display: none; }
+          .compare-card-select { margin-left: auto; }
+          .compare-card-rates { grid-template-columns: 1fr !important; gap: 12px !important; }
+          .compare-card-rates > div:first-child { padding-right: 0 !important; border-right: 0 !important; }
+          .compare-filter-grid, .compare-benefit-grid { grid-template-columns: 1fr !important; }
+          .compare-filter-actions { position: sticky; bottom: -18px; padding: 12px 0 calc(2px + env(safe-area-inset-bottom)) !important; background: white; }
+          .compare-filter-actions > button { flex: 1; min-width: 0 !important; }
+        }
+      `}</style>
 
       {/* ── HERO ─────────────────────────────────────────────────────────── */}
       {!fromResults && <div style={{
@@ -460,10 +500,10 @@ export default function ComparePage() {
         marginBottom: 20, boxShadow: '0 2px 14px rgba(14,55,133,0.05)', overflow: 'visible', position: 'relative', zIndex: allFiltersOpen ? 400 : 20
       }}>
         {/* Filter row */}
-        <div style={{ display: 'flex', alignItems: 'stretch', gap: 0, padding: '10px 14px' }}>
+        <div className="compare-filter-ribbon" style={{ display: 'flex', alignItems: 'stretch', gap: 0, padding: '10px 14px' }}>
 
           {/* Card name */}
-          <div style={{ ...filterGroupStyle, flex: 1.65 }}>
+          <div className="compare-filter-group compare-filter-search" style={{ ...filterGroupStyle, flex: 1.65 }}>
             <span style={leftFilterLabelStyle}>Card Name</span>
             <input
               value={cardNameQuery}
@@ -474,10 +514,10 @@ export default function ComparePage() {
             />
           </div>
 
-          <div style={dividerStyle} />
+          <div className="compare-filter-divider" style={dividerStyle} />
 
           {/* Salary */}
-          <div style={{ ...filterGroupStyle, flex: 0.9 }}>
+          <div className="compare-filter-group compare-mobile-secondary" style={{ ...filterGroupStyle, flex: 0.9 }}>
             <span style={leftFilterLabelStyle}>Salary</span>
             <input
               value={salaryInput}
@@ -491,10 +531,10 @@ export default function ComparePage() {
             />
           </div>
 
-          <div style={dividerStyle} />
+          <div className="compare-filter-divider compare-mobile-secondary" style={dividerStyle} />
 
           {/* Bank */}
-          <div ref={bankPickerRef} style={{ ...filterGroupStyle, flex: 0.8, minWidth: 116, position: 'relative' }}>
+          <div ref={bankPickerRef} className="compare-filter-group compare-mobile-secondary" style={{ ...filterGroupStyle, flex: 0.8, minWidth: 116, position: 'relative' }}>
             <span style={leftFilterLabelStyle}>Bank</span>
             <button
               type="button"
@@ -516,10 +556,10 @@ export default function ComparePage() {
             )}
           </div>
 
-          <div style={dividerStyle} />
+          <div className="compare-filter-divider compare-mobile-secondary" style={dividerStyle} />
 
           {/* Free for life */}
-          <button onClick={() => { setFreeOnly(f => !f); setPage(1) }} style={{
+          <button className="compare-mobile-secondary" onClick={() => { setFreeOnly(f => !f); setPage(1) }} style={{
             flex: 0.7, display: 'flex', flexDirection: 'column', alignItems: 'stretch', justifyContent: 'flex-start',
             gap: 2, padding: '3px 11px 4px', borderRadius: 0, border: 'none',
             borderLeft: freeOnly ? '1.5px solid #00A67E' : 'none',
@@ -531,10 +571,10 @@ export default function ComparePage() {
             <span style={{ fontSize: 12, fontWeight: 700, textAlign: 'left' }}>Free for life{freeOnly ? ' ✓' : ''}</span>
           </button>
 
-          <div style={dividerStyle} />
+          <div className="compare-filter-divider compare-mobile-secondary" style={dividerStyle} />
 
           {/* Find best cards by category */}
-          <div style={{ ...filterGroupStyle, flex: 1.4 }}>
+          <div className="compare-filter-group compare-mobile-secondary" style={{ ...filterGroupStyle, flex: 1.4 }}>
             <span style={leftFilterLabelStyle}>Best For</span>
             <select value={sortCat} onChange={e => { setSortCat(e.target.value); setPage(1) }} style={filterSelectStyle}>
               <option value="">Best Overall Cards</option>
@@ -542,7 +582,7 @@ export default function ComparePage() {
             </select>
           </div>
 
-          <div ref={allFiltersRef} style={{ position: 'relative', alignSelf: 'center', marginLeft: 12 }}>
+          <div ref={allFiltersRef} className="compare-all-filters-trigger" style={{ position: 'relative', alignSelf: 'center', marginLeft: 12 }}>
             <button type="button" onClick={() => { setAllFiltersOpen(open => !open); setBankPickerOpen(false) }} aria-expanded={allFiltersOpen} style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '9px 12px', border: '1px solid #D6E0F5', borderRadius: 9, background: allFiltersOpen ? '#EEF3FF' : 'white', color: '#0E3785', fontSize: 12.5, fontWeight: 800, cursor: 'pointer', whiteSpace: 'nowrap' }}>
               <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round">
                 <path d="M4 6h16M4 12h16M4 18h16" /><circle cx="9" cy="6" r="1.5" fill="white" /><circle cx="15" cy="12" r="1.5" fill="white" /><circle cx="7" cy="18" r="1.5" fill="white" />
@@ -551,12 +591,12 @@ export default function ComparePage() {
             </button>
             {allFiltersOpen && (
               <div role="dialog" aria-modal="true" aria-label="All card filters" onClick={() => setAllFiltersOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, background: 'rgba(13,24,40,0.42)' }}>
-                <div onClick={event => event.stopPropagation()} style={{ width: 'min(580px, 100%)', maxHeight: 'calc(100vh - 48px)', overflowY: 'auto', background: 'white', border: '1px solid #D6E0F5', borderRadius: 18, boxShadow: '0 24px 60px rgba(13,24,40,0.28)', padding: 22 }}>
+                <div className="compare-filter-modal" onClick={event => event.stopPropagation()} style={{ width: 'min(580px, 100%)', maxHeight: 'calc(100vh - 48px)', overflowY: 'auto', background: 'white', border: '1px solid #D6E0F5', borderRadius: 18, boxShadow: '0 24px 60px rgba(13,24,40,0.28)', padding: 22 }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
                   <strong style={{ color: '#0D1828', fontSize: 16 }}>All Filters</strong>
                   <button type="button" onClick={() => setAllFiltersOpen(false)} aria-label="Close filters" style={{ border: 'none', background: 'transparent', color: '#5A6A85', cursor: 'pointer', fontSize: 23, lineHeight: 1 }}>×</button>
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 14 }}>
+                <div className="compare-filter-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 14 }}>
                   <label style={popupFilterLabelStyle}>Salary (AED)
                     <input value={salaryInput} onChange={e => { setSalaryInput(e.target.value.replace(/\D/g, '').slice(0, 6)); setPage(1) }} inputMode="numeric" pattern="[0-9]*" maxLength={6} placeholder="Enter monthly salary" style={popupControlStyle} />
                   </label>
@@ -598,7 +638,7 @@ export default function ComparePage() {
                   </div>
                   <div style={{ gridColumn: '1 / -1', paddingTop: 4, borderTop: '1px solid #E4EAF5' }}>
                     <div style={{ margin: '14px 0 10px', color: '#0D1828', fontSize: 13, fontWeight: 800 }}>Benefit Filters <span style={{ color: '#94A3B8', fontSize: 11, fontWeight: 600 }}>(must include)</span></div>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 8 }}>
+                    <div className="compare-benefit-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 8 }}>
                       {BENEFIT_FILTERS.map(filter => {
                         const selected = benefitFilters.has(filter.key)
                         return (
@@ -610,7 +650,7 @@ export default function ComparePage() {
                       })}
                     </div>
                   </div>
-                  <div style={{ gridColumn: '1 / -1', display: 'flex', justifyContent: 'center', gap: 10, paddingTop: 8 }}>
+                  <div className="compare-filter-actions" style={{ gridColumn: '1 / -1', display: 'flex', justifyContent: 'center', gap: 10, paddingTop: 8 }}>
                     <button type="button" onClick={resetFilters} style={{ minWidth: 112, padding: '11px 24px', border: '1px solid #B9C9E3', borderRadius: 9, background: 'white', color: '#31517F', fontSize: 13, fontWeight: 800, cursor: 'pointer' }}>
                       Reset
                     </button>
@@ -737,6 +777,7 @@ function CardTile({ card, detail, detailLoading, inCompare, compareFull, onToggl
 
   return (
     <div
+      className="compare-card-tile"
       onClick={onExpand}
       onMouseEnter={onHover}
       style={{
@@ -747,7 +788,7 @@ function CardTile({ card, detail, detailLoading, inCompare, compareFull, onToggl
       }}>
 
       {/* ── HEADER ROW: rank · name · score badge · button ── */}
-      <div style={{
+      <div className="compare-card-header" style={{
         display: 'flex', alignItems: 'center', gap: 12,
         padding: '12px 16px', borderBottom: '1px solid #EEF3FF',
         background: inCompare ? '#F0F4FF' : 'white',
@@ -755,7 +796,7 @@ function CardTile({ card, detail, detailLoading, inCompare, compareFull, onToggl
         borderTopRightRadius: inCompare ? 14 : 15
       }}>
         {/* Name + bank */}
-        <div style={{ flex: 1, minWidth: 0 }}>
+        <div className="compare-card-name" style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 15.5, fontWeight: 800, color: '#0D1828', lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             {card.card_name}
           </div>
@@ -766,7 +807,7 @@ function CardTile({ card, detail, detailLoading, inCompare, compareFull, onToggl
         </div>
 
         {/* Score badge inline — hover tooltip */}
-        <div
+        <div className="compare-card-score"
           style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 6, background: scoreColor(card.earnn_score), borderRadius: 8, padding: '5px 10px', color: 'white', position: 'relative', cursor: 'help' }}
           onMouseEnter={() => setHoverNav(`score_${card.earnn_card_id}`)}
           onMouseLeave={() => setHoverNav(null)}
@@ -780,7 +821,7 @@ function CardTile({ card, detail, detailLoading, inCompare, compareFull, onToggl
         </div>
 
         {/* Card-selection action for the persistent comparison view. */}
-        <button type="button" aria-pressed={inCompare} onClick={(e) => { e.stopPropagation(); onToggleCompare(e) }} disabled={compareFull} style={{
+        <button className="compare-card-select" type="button" aria-pressed={inCompare} onClick={(e) => { e.stopPropagation(); onToggleCompare(e) }} disabled={compareFull} style={{
           flexShrink: 0, display: 'flex', alignItems: 'center', gap: 6,
           padding: '8px 14px', borderRadius: 100,
           border: inCompare ? '1px solid #0E3785' : '1px solid #D6E0F5',
@@ -797,10 +838,10 @@ function CardTile({ card, detail, detailLoading, inCompare, compareFull, onToggl
       </div>
 
       {/* ── BODY ROW: image | rate bars | earn up to | fee ── */}
-      <div style={{ display: 'flex', alignItems: 'stretch', gap: 0 }}>
+      <div className="compare-card-body" style={{ display: 'flex', alignItems: 'stretch', gap: 0 }}>
 
         {/* Card image + salary requirement */}
-        <div style={{ flexShrink: 0, width: 164, boxSizing: 'border-box', padding: '14px 12px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 9, textAlign: 'center' }}>
+        <div className="compare-card-media" style={{ flexShrink: 0, width: 164, boxSizing: 'border-box', padding: '14px 12px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 9, textAlign: 'center' }}>
           <img src={getCardImageUrl(card.earnn_card_id)} alt={card.card_name} width={126} height={78} loading="lazy"
             onError={(e) => { (e.target as HTMLImageElement).src = '/card-dummy.svg' }}
             style={{ borderRadius: 8, objectFit: 'cover', boxShadow: '0 4px 16px rgba(14,55,133,0.2)', display: 'block' }} />
@@ -813,10 +854,10 @@ function CardTile({ card, detail, detailLoading, inCompare, compareFull, onToggl
         </div>
 
         {/* Divider */}
-        <div style={{ width: 1, background: '#EEF3FF', margin: '12px 0' }} />
+        <div className="compare-card-divider" style={{ width: 1, background: '#EEF3FF', margin: '12px 0' }} />
 
         {/* Rate bars — 2 columns × 4 rows, fixed positions */}
-        <div style={{ flex: 1, padding: '13px 16px', display: 'grid', gridTemplateColumns: 'minmax(0, 7fr) minmax(0, 3fr)', columnGap: 16, rowGap: 12, minWidth: 0 }}>
+        <div className="compare-card-rates" style={{ flex: 1, padding: '13px 16px', display: 'grid', gridTemplateColumns: 'minmax(0, 7fr) minmax(0, 3fr)', columnGap: 16, rowGap: 12, minWidth: 0 }}>
           <div style={{ minWidth: 0, paddingRight: 16, borderRight: '1px solid #EEF3FF' }}>
             <div style={{ fontSize: 10.5, fontWeight: 800, color: '#0E3785', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 7 }}>Top reward rates</div>
             {topEarnRates.length > 0 ? (
@@ -846,10 +887,11 @@ function CardTile({ card, detail, detailLoading, inCompare, compareFull, onToggl
         </div>
 
         {/* Divider */}
-        <div style={{ width: 1, background: '#EEF3FF', margin: '12px 0' }} />
+        <div className="compare-card-divider" style={{ width: 1, background: '#EEF3FF', margin: '12px 0' }} />
 
         {/* Estimated annual reward — hero number */}
-        <div
+        <div className="compare-card-financials">
+        <div className="compare-card-annual"
           style={{ flexShrink: 0, width: 130, padding: '14px 10px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 3, position: 'relative', cursor: 'help' }}
           onMouseEnter={() => setHoverNav(navKey)} onMouseLeave={() => setHoverNav(null)}
           onClick={e => e.stopPropagation()}
@@ -865,10 +907,10 @@ function CardTile({ card, detail, detailLoading, inCompare, compareFull, onToggl
         </div>
 
         {/* Divider */}
-        <div style={{ width: 1, background: '#EEF3FF', margin: '12px 0' }} />
+        <div className="compare-card-divider compare-card-financial-divider" style={{ width: 1, background: '#EEF3FF', margin: '12px 0' }} />
 
         {/* Effective Fee */}
-        <div
+        <div className="compare-card-fee"
           style={{ flexShrink: 0, width: 110, padding: '14px 10px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 3, position: 'relative', cursor: 'help', background: fee === 0 ? '#FAFFFE' : '#FFFAF6' }}
           onMouseEnter={() => setHoverNav(`fee_${card.earnn_card_id}`)} onMouseLeave={() => setHoverNav(null)}
           onClick={e => e.stopPropagation()}
@@ -881,6 +923,7 @@ function CardTile({ card, detail, detailLoading, inCompare, compareFull, onToggl
           {hoverNav === `fee_${card.earnn_card_id}` && (
             <InlineTooltip text="Estimating how much you could pay in annual fees based on your spending — after waivers and first-year offers." />
           )}
+        </div>
         </div>
 
       </div>

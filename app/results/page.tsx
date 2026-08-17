@@ -600,7 +600,7 @@ function Screen1Hero({ scoredCards, walletData, onNext, onExplore }: {
   ]
 
   return (
-    <section ref={sectionRef} className="space-y-6">
+    <section ref={sectionRef} className="results-screen-one space-y-6">
       <div className="space-y-3 -mt-3">
         <h1 className="font-display text-4xl font-bold tracking-tight text-primary sm:text-5xl">
           Your spending is unique. So is your card strategy.
@@ -615,7 +615,7 @@ function Screen1Hero({ scoredCards, walletData, onNext, onExplore }: {
         {/* Named portfolio choices replace the unlabeled carousel controls. */}
         <div style={{ marginBottom: 10 }}>
           <div style={{ fontSize: 10, fontWeight: 700, color: '#5A6A85', letterSpacing: '0.08em', marginBottom: 6 }}>CHOOSE YOUR CARD STRATEGY</div>
-          <div role="tablist" aria-label="Recommended card strategies" style={{ display: 'grid', gridTemplateColumns: `repeat(${heroCards.length}, minmax(0, 1fr))`, gap: 8 }}>
+          <div className="results-portfolio-tabs" role="tablist" aria-label="Recommended card strategies" style={{ display: 'grid', gridTemplateColumns: `repeat(${heroCards.length}, minmax(0, 1fr))`, gap: 8 }}>
             {heroCards.map((_, i) => {
               const selected = i === heroIdx
               return (
@@ -637,8 +637,8 @@ function Screen1Hero({ scoredCards, walletData, onNext, onExplore }: {
           <div aria-hidden className="pointer-events-none absolute -right-32 -top-32 h-96 w-96 rounded-full opacity-20"
             style={{ background: 'radial-gradient(circle, #00A870 0%, transparent 70%)' }} />
 
-          <div className="relative grid gap-8 lg:grid-cols-[1.1fr_1fr] lg:items-center">
-            <div className="space-y-0">
+          <div className="relative grid min-w-0 gap-8 lg:grid-cols-[1.1fr_1fr] lg:items-center">
+            <div className="min-w-0 space-y-0">
               <div className="mb-3 mt-4">
                 <div className="flex items-center gap-2 text-base font-bold text-primary-foreground">
                   {heroIdx === 0 && (
@@ -681,7 +681,7 @@ function Screen1Hero({ scoredCards, walletData, onNext, onExplore }: {
               </div>
             </div>
 
-            <div className="relative flex flex-col items-center justify-between gap-4">
+            <div className="relative flex min-w-0 flex-col items-center justify-between gap-4">
               <div style={{ marginTop: 8, transform: rec.n_cards <= 2 ? 'translateY(16px)' : 'none' }}>
                 <CardFan cardIds={rec.card_ids.slice(0, 4)} names={names} size="lg" />
               </div>
@@ -772,7 +772,7 @@ function Screen1Hero({ scoredCards, walletData, onNext, onExplore }: {
           }, 50)
           else setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 50)
         }}
-          className="inline-flex min-w-[340px] items-center justify-center gap-2 rounded-xl border px-6 py-2.5 text-sm font-bold shadow-card transition hover:brightness-110"
+          className="results-why-button inline-flex min-w-[340px] items-center justify-center gap-2 rounded-xl border px-6 py-2.5 text-sm font-bold shadow-card transition hover:brightness-110"
           style={{ background: '#2D8C6A', borderColor: '#2D8C6A', color: '#FFFFFF' }}>
           <span>{showWhy ? 'Hide card recommendations' : 'See why these cards are recommended?'}</span>
           <span aria-hidden="true" style={{ fontSize: 13, lineHeight: 1 }}>{showWhy ? '▲' : '▼'}</span>
@@ -842,7 +842,7 @@ function WhyTheseCards({ scoredCards, walletData, forcedRec, subMsg, heroIdx, sh
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
 
       {/* Summary strip */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+      <div className="results-summary-strip" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
         {[
           { label: 'MONTHLY SPEND',       value: `AED ${fmt(walletData.total_monthly)}`,          valueColor: '#0D1828', bg: '#F8FAFF', border: '#D6E0F5' },
           { label: 'POTENTIAL REWARDS',   value: `AED ${fmt(totalMonthlyRewards)} / mo`,           valueColor: '#00A67E', bg: '#F8FAFF', border: '#D6E0F5' },
@@ -861,7 +861,7 @@ function WhyTheseCards({ scoredCards, walletData, forcedRec, subMsg, heroIdx, sh
 
       {/* Per-card blocks */}
       {cardData.map(({ cardId, sc, catEntries, totalMonthly, totalSpendOnCard, topCats, sharePct }) => (
-        <div key={cardId} style={{ border: '1px solid #D6E0F5', borderRadius: 16, overflow: 'hidden', background: 'white', display: 'grid', gridTemplateColumns: '180px 220px 1fr' }}>
+        <div key={cardId} className="results-why-card" style={{ border: '1px solid #D6E0F5', borderRadius: 16, overflow: 'hidden', background: 'white', display: 'grid', gridTemplateColumns: '180px 220px 1fr' }}>
 
           {/* Col 1: card image */}
           <div style={{ background: '#F4F7FF', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px 16px' }}>
@@ -1006,7 +1006,7 @@ function CardPlaybook({ scoredCards, walletData, rec, compact = false }: { score
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 10 }}>
+      <div className="results-playbook-summary" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 10 }}>
         {[
           { label: 'MONTHLY SPEND', value: `AED ${fmt(walletData.total_monthly)}`, color: '#0D1828', bg: '#F8FAFF', border: '#D6E0F5' },
           { label: 'POTENTIAL REWARDS', value: `AED ${fmt(monthlyRewards)} / mo`, color: '#00A67E', bg: '#F8FAFF', border: '#D6E0F5' },
@@ -2181,7 +2181,22 @@ export default function ResultsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-surface-2">
+    <div className="results-page min-h-screen bg-surface-2">
+      <style>{`
+        @media (max-width: 640px) {
+          .results-portfolio-tabs { display: flex !important; overflow-x: auto; gap: 7px !important; padding-bottom: 2px; scrollbar-width: none; }
+          .results-portfolio-tabs::-webkit-scrollbar { display: none; }
+          .results-portfolio-tabs > button { flex: 0 0 154px; min-height: 44px; }
+          .results-why-button { min-width: 0 !important; width: 100%; padding-left: 16px !important; padding-right: 16px !important; }
+          .results-summary-strip { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+          .results-summary-strip > div:last-child { grid-column: 1 / -1; }
+          .results-playbook-summary { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+          .results-playbook-summary > div:last-child { grid-column: 1 / -1; }
+          .results-why-card { grid-template-columns: 1fr !important; }
+          .results-why-card > div { border-left: 0 !important; border-top: 1px solid #EEF3FF; }
+          .results-why-card > div:first-child { border-top: 0; }
+        }
+      `}</style>
       <Stepper current={step} onJump={setStep} />
 
       <main className="mx-auto max-w-6xl px-4 pb-24 pt-6 sm:px-6 lg:px-8">

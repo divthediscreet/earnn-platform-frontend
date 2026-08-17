@@ -938,13 +938,13 @@ function AnalyseContent() {
       )}
 
       {/* HERO — same message as home page */}
-      <section style={{
+      <section className="analyse-hero" style={{
         background: 'linear-gradient(135deg, #0E3785 0%, #092962 100%)',
         color: 'white', padding: '34px 24px 30px', textAlign: 'center', position: 'relative', overflow: 'hidden'
       }}>
         <div style={{ position: 'absolute', inset: 0, opacity: 0.04, backgroundImage: 'linear-gradient(white 1px, transparent 1px), linear-gradient(90deg, white 1px, transparent 1px)', backgroundSize: '48px 48px' }} />
         <div style={{ maxWidth: 780, margin: '0 auto', position: 'relative' }}>
-          <div style={{ display: 'inline-block', background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: 99, padding: '5px 13px', fontSize: 11, fontWeight: 700, letterSpacing: '0.04em', marginBottom: 12 }}>
+          <div className="analyse-hero-badge" style={{ display: 'inline-block', background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: 99, padding: '5px 13px', fontSize: 11, fontWeight: 700, letterSpacing: '0.04em', marginBottom: 12 }}>
             UAE&apos;s smartest credit card rewards engine
           </div>
           <div style={{ color: '#FFD76A', fontSize: 11, fontWeight: 800, letterSpacing: '0.16em', marginBottom: 8 }}>ANALYSE YOUR SPENDING</div>
@@ -959,7 +959,17 @@ function AnalyseContent() {
 
       </section>
 
-    <div style={{ maxWidth: 1160, margin: '0 auto', padding: '24px 24px 44px' }}>
+    <div className="analyse-page-content" style={{ maxWidth: 1160, margin: '0 auto', padding: '24px 24px 44px' }}>
+      <style>{`
+        @media (max-width: 560px) {
+          .analyse-page-content { padding-left: 16px !important; padding-right: 16px !important; }
+          .analyse-hero { padding-left: 16px !important; padding-right: 16px !important; }
+          .analyse-hero-badge { max-width: 100%; white-space: normal; line-height: 1.35; }
+          .analyse-trust-strip > div { max-width: 100%; }
+          .analyse-trust-strip > div > span:last-child { white-space: normal !important; text-align: left; }
+          .analyse-method-switch { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+        }
+      `}</style>
       {/* Existing privacy guarantees */}
       <div style={{ textAlign: 'center', marginBottom: 20 }}>
         <div className="analyse-trust-strip" style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap', marginTop: 2 }}>
@@ -1571,7 +1581,7 @@ function AnalyseContent() {
                   .analyse-profile-error { margin-top:10px; background:rgba(255,219,214,.14); border:1px solid rgba(255,219,214,.35); border-radius:8px; padding:8px; color:#FFE3DF; font-size:11px; }
                   .analyse-strategy-button { width:100%; margin-top:14px; padding:12px; border:0; border-radius:10px; background:#FFD76A; color:#092962; font-size:13px; font-weight:850; cursor:pointer; }
                   .analyse-strategy-button:disabled { background:#7F95BD; color:#DCE6FA; cursor:not-allowed; }
-                  @media (max-width: 780px) { .analyse-setup-card, .analyse-builder-layout { grid-template-columns:1fr; } .analyse-profile-summary { position:static; } .analyse-method-switch { grid-template-columns:1fr !important; } }
+                  @media (max-width: 780px) { .analyse-setup-card, .analyse-builder-layout { grid-template-columns:1fr; } .analyse-profile-summary { position:static; } }
                   @media (max-width: 560px) { .analyse-category-grid, .analyse-setup-fields { grid-template-columns:1fr; } .analyse-manual-intro { align-items:flex-start; flex-direction:column; gap:4px; } }
                 `}</style>
               </>

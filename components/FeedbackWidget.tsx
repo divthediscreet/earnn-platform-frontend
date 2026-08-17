@@ -51,7 +51,7 @@ export default function FeedbackWidget() {
 
   return (
     <>
-      <div style={{ position: 'fixed', bottom: 28, right: 28, zIndex: 1000, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+      <div className="earnn-feedback-trigger" style={{ position: 'fixed', bottom: 28, right: 28, zIndex: 1000, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
         <button onClick={() => !saving && setOpen(o => !o)} aria-label="Open feedback" style={{
           width: 60, height: 60, borderRadius: '50%', border: 'none', cursor: 'pointer',
           background: '#0E3785', color: 'white', fontSize: 24,
@@ -65,7 +65,7 @@ export default function FeedbackWidget() {
       </div>
 
       {open && (
-        <div style={{ position: 'fixed', bottom: 104, right: 28, zIndex: 999, width: 340, background: 'white', borderRadius: 20, boxShadow: '0 16px 60px rgba(14,55,133,0.2)', border: '1px solid #D6E0F5', overflow: 'hidden' }}>
+        <div className="earnn-feedback-panel" style={{ position: 'fixed', bottom: 104, right: 28, zIndex: 999, width: 340, background: 'white', borderRadius: 20, boxShadow: '0 16px 60px rgba(14,55,133,0.2)', border: '1px solid #D6E0F5', overflow: 'hidden' }}>
           <div style={{ background: '#0E3785', padding: '16px 20px', color: 'white', position: 'relative' }}>
             <button onClick={close} aria-label="Close feedback" style={{ position: 'absolute', top: 12, right: 14, background: 'rgba(255,255,255,0.12)', border: 'none', color: 'white', width: 26, height: 26, borderRadius: '50%', cursor: 'pointer', fontSize: 18 }}>×</button>
             <div style={{ fontWeight: 700, fontSize: 16, paddingRight: 28 }}>💡 Help us improve earnn</div>
@@ -78,15 +78,23 @@ export default function FeedbackWidget() {
               <div style={{ fontSize: 13, fontWeight: 600, color: '#0D1828', marginBottom: 10 }}>How's your experience so far?</div>
               <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>{['😞', '😐', '🙂', '😄', '🤩'].map((emoji, i) => <button key={emoji} onClick={() => setRating(i)} style={{ flex: 1, padding: '8px 0', borderRadius: 10, cursor: 'pointer', fontSize: 20, border: rating === i ? '2px solid #0E3785' : '1.5px solid #D6E0F5', background: rating === i ? '#EEF3FF' : 'white' }}>{emoji}</button>)}</div>
               <div style={{ fontSize: 13, fontWeight: 600, color: '#0D1828', marginBottom: 8 }}>What should we fix or build next?</div>
-              <textarea value={text} onChange={e => setText(e.target.value)} placeholder="Tell us what's working, what's confusing, or what you wish earnn could do..." rows={4} style={{ width: '100%', padding: '10px 12px', border: '1.5px solid #D6E0F5', borderRadius: 10, fontSize: 13, outline: 'none', resize: 'vertical', fontFamily: 'inherit', marginBottom: 10 }} />
-              <input value={email} onChange={e => setEmail(e.target.value)} type="email" placeholder="Email address (optional)" style={{ width: '100%', padding: '10px 12px', border: '1.5px solid #D6E0F5', borderRadius: 10, fontSize: 13, outline: 'none', marginBottom: 8 }} />
-              <input value={phone} onChange={e => setPhone(e.target.value)} type="tel" placeholder="Phone number (optional)" style={{ width: '100%', padding: '10px 12px', border: '1.5px solid #D6E0F5', borderRadius: 10, fontSize: 13, outline: 'none', marginBottom: 10 }} />
+              <textarea className="earnn-feedback-input" value={text} onChange={e => setText(e.target.value)} placeholder="Tell us what's working, what's confusing, or what you wish earnn could do..." rows={4} style={{ width: '100%', padding: '10px 12px', border: '1.5px solid #D6E0F5', borderRadius: 10, fontSize: 13, outline: 'none', resize: 'vertical', fontFamily: 'inherit', marginBottom: 10 }} />
+              <input className="earnn-feedback-input" value={email} onChange={e => setEmail(e.target.value)} type="email" placeholder="Email address (optional)" style={{ width: '100%', padding: '10px 12px', border: '1.5px solid #D6E0F5', borderRadius: 10, fontSize: 13, outline: 'none', marginBottom: 8 }} />
+              <input className="earnn-feedback-input" value={phone} onChange={e => setPhone(e.target.value)} type="tel" placeholder="Phone number (optional)" style={{ width: '100%', padding: '10px 12px', border: '1.5px solid #D6E0F5', borderRadius: 10, fontSize: 13, outline: 'none', marginBottom: 10 }} />
               {error && <div role="alert" style={{ color: '#C0392B', fontSize: 12, marginBottom: 10 }}>{error}</div>}
               <button onClick={submit} disabled={saving || (!text.trim() && rating === null)} style={{ width: '100%', padding: '11px 0', background: (saving || (!text.trim() && rating === null)) ? '#C2CCDD' : '#0E3785', color: 'white', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: (saving || (!text.trim() && rating === null)) ? 'not-allowed' : 'pointer' }}>{saving ? 'Saving…' : 'Send Feedback →'}</button>
             </>}
           </div>
         </div>
       )}
+      <style>{`
+        @media (max-width: 480px) {
+          .earnn-feedback-trigger { right: 16px !important; bottom: calc(16px + env(safe-area-inset-bottom)) !important; }
+          .earnn-feedback-trigger > button { width: 52px !important; height: 52px !important; font-size: 21px !important; }
+          .earnn-feedback-panel { width: calc(100vw - 32px) !important; right: 16px !important; bottom: calc(84px + env(safe-area-inset-bottom)) !important; max-height: min(620px, calc(100dvh - 112px)); overflow-y: auto !important; }
+          .earnn-feedback-input { font-size: 16px !important; }
+        }
+      `}</style>
     </>
   )
 }
