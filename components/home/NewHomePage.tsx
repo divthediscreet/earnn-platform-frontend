@@ -60,13 +60,6 @@ const HOME_ONLINE_CARDS = [
   makeHomeCard('eib_06', 'Emirates Islamic Amazon World Credit Card', 'Emirates Islamic Bank', 'EIB', eibAmazonWorldImage),
 ]
 
-const friction = [
-  ['Monthly cap', 'AED 200'],
-  ['Minimum spend', 'AED 5,000'],
-  ['Eligible categories only', 'Groceries, dining'],
-  ['Selected merchants', 'Partner list'],
-]
-
 const merchantMap = [
   ['Talabat', 'Dining'], ['DEWA', 'Utilities'], ['GEMS', 'Education'],
   ['Careem', 'Transport'], ['Amazon', 'Online Shopping'],
@@ -190,9 +183,7 @@ export default function NewHomePage() {
   const [strategy, setStrategy] = useState<WalletChoiceKey>('simple')
   const [strategyPinned, setStrategyPinned] = useState(false)
   const [heroMotionCycle, setHeroMotionCycle] = useState(0)
-  const [rateMotionCycle, setRateMotionCycle] = useState(0)
   const reducedMotion = usePrefersReducedMotion()
-  const [rateStoryRef, rateStoryVisible] = useInViewOnce<HTMLDivElement>()
   const [chooseRef, chooseVisible] = useInViewOnce<HTMLElement>()
 
   useEffect(() => {
@@ -223,12 +214,6 @@ export default function NewHomePage() {
     const timer = window.setInterval(() => setHeroMotionCycle(current => current + 1), 10000)
     return () => window.clearInterval(timer)
   }, [reducedMotion])
-
-  useEffect(() => {
-    if (!rateStoryVisible || reducedMotion) return
-    const timer = window.setInterval(() => setRateMotionCycle(current => current + 1), 5500)
-    return () => window.clearInterval(timer)
-  }, [rateStoryVisible, reducedMotion])
 
   const featured = HOME_FEATURED_CARDS
   const compared = useMemo(() => cards.slice(0, 3), [cards])
@@ -281,18 +266,6 @@ export default function NewHomePage() {
         </div>
       </section>
 
-      <section className={styles.section}>
-        <SectionTitle eyebrow="Why credit card rewards are confusing" title={<>The headline rate is only <span className={styles.blue}>half the story.</span></>} copy="A card advertising 10% cashback doesn't mean you're earning 10% across your spending. Caps, thresholds, categories, fees and reward values change what you actually get." />
-        <div key={rateMotionCycle} ref={rateStoryRef} className={`${styles.rateStory} ${rateStoryVisible ? styles.rateStoryActive : ''}`}>
-          <div className={styles.rateBig}><small>Bank advertises</small><strong><AnimatedNumber value={10} active={rateStoryVisible} duration={480} reducedMotion={reducedMotion} />%</strong><span>Cashback</span></div>
-          <i className={`ti ti-arrow-right ${styles.rateArrow} ${styles.rateArrowFirst}`} />
-          <div className={styles.butPanel}><p>But…</p>{friction.map(([label, value]) => <div key={label}><span>{label}</span><b>{value}</b></div>)}</div>
-          <i className={`ti ti-arrow-right ${styles.rateArrow} ${styles.rateArrowSecond}`} />
-          <div className={styles.effectivePanel}><small>Effective reward</small><strong><AnimatedNumber value={2.1} precision={1} active={rateStoryVisible} delay={1900} duration={650} reducedMotion={reducedMotion} />%</strong><span>On real spending</span></div>
-        </div>
-        <div className={styles.explainerLine}><b>Earnn calculates what the reward could actually be worth for your spending.</b><small>Figures shown are illustrative examples, not guaranteed returns.</small></div>
-      </section>
-
       <section className={`${styles.section} ${styles.navySection} ${styles.rewardGapSection}`}>
         <SectionTitle light eyebrow="Why you could be earning less" title={<>Your card&apos;s headline rate isn&apos;t<br />what you actually earn.</>} copy="Caps, minimum spends, fees and category restrictions can quietly reduce the rewards you actually receive." />
         <div className={styles.rewardGapContent}>
@@ -301,7 +274,7 @@ export default function NewHomePage() {
               ['ti-arrows-exchange', 'Wrong card for the category', 'A great travel card may barely reward your groceries.'],
               ['ti-target', 'Minimum spend missed', 'Miss the required monthly spend and boosted rewards may not apply.'],
               ['ti-ban', 'Reward cap reached', 'Once the monthly cap is hit, additional spending may earn much less.'],
-              ['ti-plane', 'FX fees on overseas spending', 'Using the wrong card abroad can quietly reduce your overall value.'],
+              ['ti-plane', 'Foreign transaction fees', 'Using the wrong card abroad can quietly reduce your overall value.'],
             ].map(([icon, title, description]) => <div key={title} className={styles.gapIssue}><i className={`ti ${icon} ${styles.gapIssueIcon}`} /><b>{title}</b><span>{description}</span></div>)}
           </div>
           <article className={styles.gapWalletCard}>
@@ -310,7 +283,9 @@ export default function NewHomePage() {
               <Money suffix="/mo">616</Money>
               <div className={styles.gapWalletMeter}><i style={{ width: '55%' }} /></div>
             </div>
-            <div className={styles.gapWalletGain}><strong>+AED 500</strong><span>Potential reward gap /mo</span></div>
+            <div className={styles.gapWalletFlow} aria-label="Potential reward gap of AED 500 per month">
+              <div className={styles.gapWalletGain}><strong>+AED 500</strong><span>Potential reward gap</span></div>
+            </div>
             <div className={`${styles.gapWalletMetric} ${styles.gapWalletOptimized}`}>
               <span>Optimized potential</span>
               <Money suffix="/mo">1,116</Money>
