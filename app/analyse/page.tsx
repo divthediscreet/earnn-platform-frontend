@@ -1348,9 +1348,12 @@ function AnalyseContent() {
           </div>
 
           {/* Privacy note */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 16 }}>
-            <span style={{ fontSize: 12, flexShrink: 0 }}>🔒</span>
-            <span style={{ fontSize: 11, color: '#9DAEC8' }}>Encrypted during processing · statement deleted after analysis</span>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 9, marginBottom: 18, padding: '10px 12px', borderRadius: 10, background: 'rgba(76, 175, 136, 0.1)', border: '1px solid rgba(76, 175, 136, 0.25)' }}>
+            <span style={{ fontSize: 17, flexShrink: 0, lineHeight: 1.35 }}>🔒</span>
+            <div style={{ display: 'grid', gap: 3, color: '#153A70', fontSize: 13, lineHeight: 1.45 }}>
+              <span style={{ fontWeight: 700 }}>Encrypted during processing · Statement deleted after analysis</span>
+              <span style={{ color: '#496481' }}>Processed securely in the UAE. Never sent to GPT models.</span>
+            </div>
           </div>
 
           {error && <div style={{ background: '#FFF3F0', border: '1px solid #FFD0C8', borderRadius: 8, padding: '10px 14px', color: '#C0392B', fontSize: 13, marginBottom: 14 }}>⚠️ {error}</div>}

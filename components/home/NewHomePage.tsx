@@ -61,7 +61,7 @@ const HOME_ONLINE_CARDS = [
 ]
 
 const merchantMap = [
-  ['Talabat', 'Dining'], ['DEWA', 'Utilities'], ['GEMS', 'Education'],
+  ['Talabat', 'Dining'], ['DEWA', 'Utilities'], ['School', 'Education'],
   ['Careem', 'Transport'], ['Amazon', 'Online Shopping'],
 ]
 
@@ -267,14 +267,14 @@ export default function NewHomePage() {
       </section>
 
       <section className={`${styles.section} ${styles.navySection} ${styles.rewardGapSection}`}>
-        <SectionTitle light eyebrow="Why you could be earning less" title={<>Your card&apos;s headline rate isn&apos;t<br />what you actually earn.</>} copy="Caps, minimum spends, fees and category restrictions can quietly reduce the rewards you actually receive." />
+        <SectionTitle light eyebrow="WHY YOU MAY BE MISSING REWARDS" title="Your card isn't always as rewarding as it looks." copy="Where you spend, how much you spend and which card you use can make a big difference." />
         <div className={styles.rewardGapContent}>
           <div className={styles.gapIssueGrid}>
             {[
-              ['ti-arrows-exchange', 'Wrong card for the category', 'A great travel card may barely reward your groceries.'],
-              ['ti-target', 'Minimum spend missed', 'Miss the required monthly spend and boosted rewards may not apply.'],
-              ['ti-ban', 'Reward cap reached', 'Once the monthly cap is hit, additional spending may earn much less.'],
-              ['ti-plane', 'Foreign transaction fees', 'Using the wrong card abroad can quietly reduce your overall value.'],
+              ['ti-arrows-exchange', 'Wrong card', 'Great for travel. Weak on groceries.'],
+              ['ti-target', "Didn't spend enough", 'Some rewards only kick in after you spend certain amount on card.'],
+              ['ti-ban', 'Hit the reward limit', 'After that, you may earn much less.'],
+              ['ti-plane', 'Spending abroad', 'The wrong card can mean extra FX fees.'],
             ].map(([icon, title, description]) => <div key={title} className={styles.gapIssue}><i className={`ti ${icon} ${styles.gapIssueIcon}`} /><b>{title}</b><span>{description}</span></div>)}
           </div>
           <article className={styles.gapWalletCard}>
@@ -300,9 +300,9 @@ export default function NewHomePage() {
       <section className={`${styles.section} ${styles.surface} ${styles.howItWorksSection}`}>
         <SectionTitle eyebrow="How it works" title="From statement to strategy in four steps." />
         <div className={styles.stepsGrid}>
-          <article className={styles.productPanel}><p className={styles.eyebrow}>Step 01 — Upload</p><div className={styles.uploadMock}><i className="ti ti-file-description" /><div><b>statement-may.pdf</b><span><i /></span></div></div><h3>Upload your statement</h3><p>No bank login. No account linking. Just your statement.</p></article>
-          <article className={styles.productPanel}><p className={styles.eyebrow}>Step 02 — Understand</p><div className={styles.mapList}>{merchantMap.map(([merchant,category]) => <div key={merchant}><b>{merchant}</b><i className="ti ti-arrow-right" /><span>{category}</span></div>)}</div><h3>We understand your spending</h3><p className={styles.stepDescription}>Earnn categorizes your transactions and identifies the reward rules that matters you most.</p><ul className={styles.understandRules}><li>Merchant</li><li>Category</li><li>Caps</li><li>Minimum spend</li><li>Restrictions</li></ul></article>
-          <article className={styles.productPanel}><p className={styles.eyebrow}>Step 03 — Optimize</p><div className={styles.optimizeMock}><div className={styles.optimizeCategories}>{['Education','Retail','Telecom','Online'].map(category => <span key={category}>{category}</span>)}</div><svg className={styles.optimizeFlow} viewBox="0 0 240 38" fill="none" aria-hidden="true"><path d="M24 3 C 24 27, 72 10, 88 35" /><path d="M88 3 C 88 24, 122 12, 132 35" /><path d="M152 3 C 152 24, 142 16, 132 35" /><path d="M216 3 C 216 27, 172 10, 176 35" /></svg><div className={styles.cardStack}>{featured.slice(0,3).map(card => <CardImage key={card.earnn_card_id} card={card} compact />)}</div><div><span>Potential rewards</span><Money suffix="/mo">1,116</Money></div></div><h3>Find the right cards and know when to switch</h3><p>Earnn tests card combinations, routes each category to the card that could earn the most, and switches to the next-best option when a reward cap is hit.</p></article>
+          <article className={styles.productPanel}><p className={styles.eyebrow}>Step 01 — Upload</p><div className={styles.uploadMock}><i className="ti ti-file-description" /><div><b>statement-may.pdf</b><span><i /></span></div></div><h3>Upload your statement</h3><ul className={styles.uploadAssurances}><li>Processed securely in the UAE.</li><li>No bank login.</li><li>No GPT models.</li><li>No statement storage.</li></ul></article>
+          <article className={styles.productPanel}><p className={styles.eyebrow}>Step 02 — Understand</p><div className={styles.mapList}>{merchantMap.map(([merchant,category]) => <div key={merchant}><b>{merchant}</b><i className="ti ti-arrow-right" /><span>{category}</span></div>)}</div><h3>We make sense of your spending</h3><p className={styles.stepDescription}>Earnn groups your spending so we can see where your money goes each month.</p><ul className={styles.understandSummary}><li>Dining</li><li>Travel</li><li>Bills</li><li>Groceries</li><li>Shopping</li><li>Fuel</li></ul></article>
+          <article className={styles.productPanel}><p className={styles.eyebrow}>Step 03 — Optimize</p><div className={styles.optimizeMock}><div className={styles.optimizeCategories}>{['Education','Retail','Telecom','Online'].map(category => <span key={category}>{category}</span>)}</div><svg className={styles.optimizeFlow} viewBox="0 0 240 38" fill="none" aria-hidden="true"><path d="M24 3 C 24 27, 72 10, 88 35" /><path d="M88 3 C 88 24, 122 12, 132 35" /><path d="M152 3 C 152 24, 142 16, 132 35" /><path d="M216 3 C 216 27, 172 10, 176 35" /></svg><div className={styles.cardStack}>{featured.slice(0,3).map(card => <CardImage key={card.earnn_card_id} card={card} compact />)}</div><div><span>Potential rewards</span><Money suffix="/mo">1,116</Money></div></div><h3>We find the right cards for you</h3><p>We find which cards could reward your spending better and when it makes sense to switch cards to keep earning more.</p></article>
           <article ref={chooseRef} className={`${styles.productPanel} ${styles.chooseStep}`}>
             <p className={styles.eyebrow}>Step 04 — Choose</p>
             <div className={styles.chooseMock}>
