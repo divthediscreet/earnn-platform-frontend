@@ -81,8 +81,9 @@ interface CardBenefit {
   featured_display_message: string | null
   quantity_per_period: number | null
   quantity_period: string | null
-  requires_monthly_min_spend_on_card: boolean
-  monthly_min_spend_aed_on_card: number | null
+  requires_min_spend_on_card: boolean
+  min_spend_aed_on_card: number | null
+  min_spend_period: string | null
 }
 
 interface RewardThresholdTier {
@@ -1224,9 +1225,15 @@ function ComparisonModal({ cards, catalogueRewardRates, details, onClose, onRemo
   const loungeRows = (card: ApiCard) => benefitRows(card).filter(isLounge)
   const cinemaRows = (card: ApiCard) => benefitRows(card).filter(isCinema)
   const otherBenefits = (card: ApiCard) => benefitRows(card).filter(benefit => !isLounge(benefit) && !isCinema(benefit) && Boolean(benefit.featured_display_message))
-  const spendCondition = (benefit: CardBenefit) => benefit.requires_monthly_min_spend_on_card
-    ? benefit.monthly_min_spend_aed_on_card && benefit.monthly_min_spend_aed_on_card > 0
-      ? `min spend AED ${Math.round(benefit.monthly_min_spend_aed_on_card).toLocaleString()}/mo`
+  const spendPeriodLabel = (period: string | null) => ({
+    monthly: '/mo',
+    quarterly: '/quarter',
+    semi_annual: '/6 months',
+    annual: '/year',
+  }[period || ''] || '')
+  const spendCondition = (benefit: CardBenefit) => benefit.requires_min_spend_on_card
+    ? benefit.min_spend_aed_on_card && benefit.min_spend_aed_on_card > 0
+      ? `min spend AED ${Math.round(benefit.min_spend_aed_on_card).toLocaleString()}${spendPeriodLabel(benefit.min_spend_period)}`
       : 'min spend required'
     : 'no min spend needed'
   const loungeValue = (benefit: CardBenefit) => benefit.quantity_per_period && benefit.quantity_per_period >= 999999
