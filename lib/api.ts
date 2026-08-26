@@ -90,6 +90,8 @@ export function getCardImageUrl(earnnCardId: string) {
   return `${API_BASE}/api/cards/image/${earnnCardId}`
 }
 
+export { simulateMilesGoal } from './miles-goal/api'
+
 // ── Chatbot (Module 1) ────────────────────────────────────────────────────────
 export interface ChatMessage { role: 'user' | 'assistant'; content: string }
 

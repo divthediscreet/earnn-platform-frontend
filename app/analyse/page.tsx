@@ -3,6 +3,7 @@ import React, { useState, useRef, useCallback, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { uploadStatement, scoreCards, getOptimalWallet, fetchCardDetail, fetchCards, searchCards, pingBackend, getCardImageUrl } from '@/lib/api'
 import { Suspense } from 'react'
+import { MERCHANT_OPTIONS, SPEND_CATEGORIES as CATEGORIES } from '@/lib/spend-categories'
 
 const BANK_ABBREV: Record<string, string> = {
   'Emirates NBD':                        'ENBD',
@@ -30,28 +31,6 @@ const formatBankName = (name: string) => {
   if (abbrev) return `${name} (${abbrev})`
   return name
 }
-
-const MERCHANT_OPTIONS: Record<string, { key: string; label: string }[]> = {
-  dining:  [{ key: 'noon', label: 'noon Food' }, { key: 'talabat', label: 'talabat' }, { key: 'deliveroo', label: 'Deliveroo' }, { key: 'careem', label: 'Careem' }, { key: 'smiles', label: 'Smiles' }],
-  grocery: [{ key: 'noon', label: 'noon' }, { key: 'talabat', label: 'talabat' }, { key: 'amazon', label: 'Amazon' }, { key: 'carrefour', label: 'Carrefour' }, { key: 'lulu', label: 'LuLu' }],
-  travel:  [{ key: 'etihad', label: 'Etihad' }, { key: 'emirates', label: 'Emirates' }],
-}
-
-const CATEGORIES = [
-  { key: 'dining',        label: 'Dining & Restaurants',     icon: '🍽️',  hint: 'Talabat, Zomato, restaurants, cafes' },
-  { key: 'grocery',       label: 'Grocery',                  icon: '🛒',  hint: 'LuLu, Carrefour, Spinneys, supermarkets' },
-  { key: 'travel',        label: 'Travel',                   icon: '✈️',  hint: 'Emirates, Flydubai, hotels, Booking.com' },
-  { key: 'fuel',          label: 'Fuel',                     icon: '⛽',  hint: 'ENOC, ADNOC petrol stations' },
-  { key: 'online',        label: 'Online Shopping',          icon: '📦',  hint: 'Amazon, Temu, subscriptions' },
-  { key: 'international', label: 'International Spend',      icon: '🌍',  hint: 'Any spend outside UAE or in foreign currency' },
-  { key: 'entertainment', label: 'Entertainment',            icon: '🎬',  hint: 'VOX, Reel, theme parks' },
-  { key: 'retail',        label: 'Retail Shopping',          icon: '🛍️',  hint: 'Mall shopping, in-store purchases' },
-  { key: 'telecom',       label: 'Telecom',                  icon: '📱',  hint: 'Etisalat/du bills, internet' },
-  { key: 'transport',     label: 'Transport',                icon: '🚕',  hint: 'Careem, RTA, NOL, SALIK' },
-  { key: 'utility',       label: 'Utilities',                icon: '💡',  hint: 'DEWA, water, electricity' },
-  { key: 'education',     label: 'Education',                icon: '📚',  hint: 'School fees, courses' },
-  { key: 'miscellaneous', label: 'Other / Miscellaneous',    icon: '🔖',  hint: 'Everything else' },
-]
 
 // =============================================================================
 // PARSE VALIDATION DEBUG PANEL — independent component, remove when no longer needed
@@ -823,7 +802,7 @@ function AnalyseContent() {
           {/* Floating spend category chips — 3 copies each, full-screen scatter, gold */}
           {(() => {
             const activeSpend = CATEGORIES.filter(c => parseFloat(spend[c.key] || '0') > 0)
-            const allChips: { cat: typeof CATEGORIES[0]; aed: number; copy: number }[] = []
+            const allChips: { cat: (typeof CATEGORIES)[number]; aed: number; copy: number }[] = []
             activeSpend.forEach(cat => {
               for (let copy = 0; copy < 3; copy++) allChips.push({ cat, aed: parseFloat(spend[cat.key] || '0'), copy })
             })
