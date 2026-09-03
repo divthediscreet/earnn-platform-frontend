@@ -1,12 +1,12 @@
 import { isMilesGoalResponse } from './contracts'
 import type { Airline, AirlineScope, MilesGoalSimulationResponse, PersonalizedProfile, StrategyId, ToggleState } from './contracts'
 
-const KEY = 'earnn_miles_goal_v1'
-const STORAGE_VERSION = 1
+const KEY = 'earnn_miles_goal_v2'
+const STORAGE_VERSION = 2
 const SESSION_TTL_MS = 30 * 60 * 1000
 
 export interface MilesGoalSession {
-  version: 1
+  version: 2
   region_id: string
   mode: 'personalized'
   airline_scope: AirlineScope

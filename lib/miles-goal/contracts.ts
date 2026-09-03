@@ -22,7 +22,7 @@ export const DEFAULT_TOGGLE_STATE: ToggleState = {
 }
 
 export interface MilesGoalSimulationRequest {
-  destination: string
+  destination_region: string
   airline: Airline
   salary_aed: number
   spend: SpendProfile
@@ -61,6 +61,10 @@ export interface BaseFeeTrajectory {
   fee_route: FeeRoute
   monthly_base_target_miles: number
   monthly_fee_uplift_target_miles: number
+  monthly_fee_aed: number | null
+  fee_acceleration_bonus_pct: number | null
+  fee_acceleration_cap_target_miles: number | null
+  fee_acceleration_cap_period: 'monthly' | 'quarterly' | 'semi_annual' | 'annual' | null
   cumulative_base_miles_by_month: number[]
   cumulative_route_cost_aed_by_month: number[]
 }
@@ -98,7 +102,10 @@ export interface CardInteractionModel {
   card_name: string
   bank_code: string
   bank_name: string
+  annual_fee_year1_aed?: number
+  annual_fee_year1_free?: boolean
   annual_fee_from_year2_aed: number
+  free_for_life?: boolean
   base_trajectories: BaseFeeTrajectory[]
   conditional_events: ConditionalRewardEvent[]
   strategy_targets: CardStrategyTargetOptions[]

@@ -4,9 +4,12 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "prebuild": "npm run generate:miles-map && npm run validate:miles-map",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "generate:miles-map": "node scripts/build-miles-region-svg.mjs",
+    "validate:miles-map": "node scripts/validate-miles-region-map.mjs"
   },
   "dependencies": {
     "@react-pdf/renderer": "^4.5.1",
@@ -18,11 +21,13 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/d3-geo": "^3.1.0",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.2.7",
+    "d3-geo": "^3.1.1",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

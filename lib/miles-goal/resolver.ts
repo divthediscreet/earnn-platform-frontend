@@ -37,9 +37,13 @@ export function activeEvents(card: CardInteractionModel, route: string, state: T
     let enabled: boolean
     if (event.event_id in state.event_overrides) enabled = state.event_overrides[event.event_id]
     else if (selectedByGroup.has(event.mutual_exclusion_group)) enabled = selectedByGroup.get(event.mutual_exclusion_group) === event.event_id
-    else if (event.toggle_key?.startsWith('new_to_bank:')) enabled = bankState(card, state) === event.toggle_required_value
+    else if (event.toggle_key?.startsWith('new_to_bank:')) {
+      enabled = event.mutual_exclusion_group.startsWith('welcome_variant:')
+        ? bankState(card, state) === event.toggle_required_value
+        : bankState(card, state)
+    }
     else if (event.toggle_key === 'balance_transfer') enabled = state.balance_transfer_default === event.toggle_required_value
-    else enabled = event.default_on
+    else enabled = event.effect_type === 'target_reduce' ? event.default_on : (event.feasibility_gated || event.default_on)
     if (enabled) active.push(event)
   }
   const groups = new Set<string>()

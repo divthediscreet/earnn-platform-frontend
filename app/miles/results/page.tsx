@@ -17,8 +17,8 @@ import type {
 import { DEFAULT_TOGGLE_STATE } from '@/lib/miles-goal/contracts'
 import { airlineLabel, formatAed } from '@/lib/miles-goal/format'
 import { getMilesRegion } from '@/lib/miles-goal/regions'
-import { resolveCatalog, withEventOverride } from '@/lib/miles-goal/resolver'
-import { buildDisplayCards, conditionalCards } from '@/lib/miles-goal/selectors'
+import { resolveCatalog } from '@/lib/miles-goal/resolver'
+import { buildDisplayCards } from '@/lib/miles-goal/selectors'
 import { clearMilesGoalSession, readMilesGoalSession, writeMilesGoalSession } from '@/lib/miles-goal/storage'
 import styles from './MilesResults.module.css'
 
@@ -87,7 +87,7 @@ function MilesResultsContent() {
   useEffect(() => {
     if (!region || !profile || !Object.keys(responses).length) return
     writeMilesGoalSession({
-      version: 1, region_id: region.id, mode: 'personalized', airline_scope: airlineScope,
+      version: 2, region_id: region.id, mode: 'personalized', airline_scope: airlineScope,
       focused_strategy: focused, profile, responses, toggles, saved_at: Date.now(), expires_at: Date.now() + 30 * 60 * 1000,
     })
   }, [region, profile, responses, toggles, airlineScope, focused])
@@ -107,7 +107,7 @@ function MilesResultsContent() {
       return next
     })
     const settled = await Promise.allSettled(requested.map((airline, index) => simulateMilesGoal({
-      destination: region.backendDestination,
+      destination_region: region.id,
       airline,
       salary_aed: nextProfile.salary_aed,
       spend: nextProfile.spend,
@@ -157,28 +157,6 @@ function MilesResultsContent() {
     setAnnouncement('Miles timelines updated using your selected assumptions.')
   }, [])
 
-  const updateEveryAirline = useCallback((change: (state: ToggleState) => ToggleState) => {
-    setToggles(current => {
-      const next = { ...current }
-      for (const airline of AIRLINES) {
-        const response = responses[airline]
-        if (!response) continue
-        next[airline] = change(current[airline] ?? cloneDefaultToggle(response))
-      }
-      return next
-    })
-    setAnnouncement('Miles timelines updated using your selected assumptions.')
-  }, [responses])
-
-  const applyConditional = useCallback((airline: Airline, cardId: string, overrides: Record<string, boolean>) => {
-    const response = responses[airline]
-    const card = response?.interaction_catalog.cards.find(item => item.earnn_card_id === cardId)
-    if (!response || !card) return
-    let state = toggles[airline] ?? cloneDefaultToggle(response)
-    for (const [eventId, enabled] of Object.entries(overrides)) state = withEventOverride(state, card, eventId, enabled)
-    changeToggle(airline, state)
-  }, [responses, toggles, changeToggle])
-
   const startOver = () => {
     controllersRef.current.forEach(controller => controller.abort())
     clearMilesGoalSession()
@@ -188,13 +166,10 @@ function MilesResultsContent() {
   if (!region) return <div className={styles.invalid}><i className="ti ti-map-off" /><h1>Choose a supported destination</h1><p>This route is not part of the current Miles Goal coverage.</p><Link className="btn-primary" href="/miles">View destinations</Link></div>
 
   const displayCards = buildDisplayCards(effectiveResponses, airlineScope, focused)
-  const conditional = conditionalCards(effectiveResponses, airlineScope, focused)
   const available = { emirates: !!responses.emirates, etihad: !!responses.etihad }
   const partial = available.emirates !== available.etihad
   const totalSpend = profile ? Object.values(profile.spend).reduce((sum, value) => sum + value, 0) : 0
   const origins = [...new Set((Object.values(effectiveResponses) as MilesGoalSimulationResponse[]).map(response => response.route.origin))]
-  const bankOptions = [...new Map((Object.values(responses) as MilesGoalSimulationResponse[]).flatMap(response => response.interaction_catalog.cards).map(card => [card.bank_code.toUpperCase(), card.bank_name])).entries()]
-  const firstState = (toggles.emirates ?? toggles.etihad)
 
   return <div className={styles.page}>
     <div className={styles.announcement} aria-live="polite">{announcement}</div>
@@ -214,22 +189,8 @@ function MilesResultsContent() {
         <div><span>RANK CARDS FOR</span><StrategyFocusTabs value={focused} onChange={setFocused} /></div>
       </section>
 
-      <section className={styles.assumptions}>
-        <div className={styles.assumptionHeading}><div><span>QUICK ASSUMPTIONS</span><h2>Include achievable rewards</h2></div><p>Switching these updates the returned timelines instantly. It does not recalculate or increase your base spending.</p></div>
-        <div className={styles.globalSwitches}>
-          <button role="switch" aria-checked={firstState?.new_to_bank_default ?? true} onClick={() => updateEveryAirline(state => ({ ...state, new_to_bank_default: !state.new_to_bank_default }))}><i className={`ti ti-${firstState?.new_to_bank_default ?? true ? 'circle-check-filled' : 'circle'}`} /><span><strong>New to each bank</strong><small>Include eligible joining offers by default</small></span></button>
-          <button role="switch" aria-checked={firstState?.balance_transfer_default ?? true} onClick={() => updateEveryAirline(state => ({ ...state, balance_transfer_default: !state.balance_transfer_default }))}><i className={`ti ti-${firstState?.balance_transfer_default ?? true ? 'circle-check-filled' : 'circle'}`} /><span><strong>Open to balance transfer</strong><small>Include matching one-time rewards</small></span></button>
-        </div>
-        {bankOptions.length > 0 && <details className={styles.bankOverrides}><summary>Set new-to-bank by bank</summary><div>{bankOptions.map(([bankCode, bankName]) => {
-          const active = firstState?.new_to_bank_by_bank[bankCode] ?? firstState?.new_to_bank_default ?? true
-          return <button key={bankCode} aria-pressed={active} onClick={() => updateEveryAirline(state => ({ ...state, new_to_bank_by_bank: { ...state.new_to_bank_by_bank, [bankCode]: !active } }))}>{bankName}<span>{active ? 'New' : 'Existing'}</span></button>
-        })}</div></details>}
-      </section>
-
       <div className={styles.resultHeading}><div><span>FASTEST OPTIONS</span><h2>{focused === 'easiest' ? 'Economy — Easiest' : focused === 'dream' ? 'Business — Dream' : 'Upgrade — Smartest'}</h2></div><p>{displayCards.length} card{displayCards.length === 1 ? '' : 's'} reach this goal within 36 months using the selected assumptions.</p></div>
-      {displayCards.length ? <section className={styles.cards}>{displayCards.map(card => <MilesCardTile key={card.earnn_card_id} card={card} focused={focused} responses={effectiveResponses} toggles={toggles} onToggleChange={changeToggle} />)}</section> : conditional.length === 0 && <section className={styles.empty}><i className="ti ti-plane-off" /><h2>No route reaches this goal within 36 months</h2><p>Try another strategy, airline, or update your spending profile.</p></section>}
-
-      {conditional.length > 0 && <section className={styles.conditional}><div><span>MORE POSSIBILITIES</span><h2>Possible if you unlock one more condition</h2><p>These cards do not reach the goal with your current defaults, but a returned reward opportunity can bring them within 36 months.</p></div><div className={styles.conditionalGrid}>{conditional.map(card => <article key={`${card.airline}-${card.earnn_card_id}`}><i className="ti ti-bolt" /><div><small>{card.bank_name}</small><strong>{card.card_name}</strong><span>{airlineLabel(card.airline)} · Goal in {card.months} months</span></div><button onClick={() => applyConditional(card.airline, card.earnn_card_id, card.requiredOverrides)}>Apply conditions</button></article>)}</div></section>}
+      {displayCards.length ? <section className={styles.cards}>{displayCards.map(card => <MilesCardTile key={card.earnn_card_id} card={card} monthlySpend={totalSpend} responses={effectiveResponses} toggles={toggles} onToggleChange={changeToggle} />)}</section> : <section className={styles.empty}><i className="ti ti-plane-off" /><h2>No route reaches this goal within 36 months</h2><p>Try another strategy, airline, or update your spending profile.</p></section>}
     </>}
 
     {loading && Object.keys(effectiveResponses).length > 0 && <div className={styles.updating} role="status"><span /><strong>Updating {loadingAirlines.map(airlineLabel).join(' and ')} plan…</strong></div>}

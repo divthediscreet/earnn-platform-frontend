@@ -1,0 +1,16 @@
+{
+  "uk_ireland": ["GBR", "IRL", "JEY", "GGY", "IMN"],
+  "europe": ["ALB", "AND", "AUT", "BLR", "BEL", "BIH", "BGR", "HRV", "CYP", "CZE", "DNK", "EST", "FIN", "FRA", "FXX", "DEU", "GRC", "HUN", "ISL", "ITA", "KOS", "LVA", "LIE", "LTU", "LUX", "MLT", "MDA", "MCO", "MNE", "NLD", "MKD", "NOR", "POL", "PRT", "ROU", "SMR", "SRB", "SVK", "SVN", "ESP", "SWE", "CHE", "UKR", "VAT", "GIB", "FRO", "ALD", "CYN", "NSV", "NJM"],
+  "america": ["ATG", "ARG", "BHS", "BRB", "BLZ", "BOL", "BRA", "CAN", "CHL", "COL", "CRI", "CUB", "DMA", "DOM", "ECU", "SLV", "GRD", "GTM", "GUY", "HTI", "HND", "JAM", "MEX", "NIC", "PAN", "PRY", "PER", "KNA", "LCA", "VCT", "SUR", "TTO", "USA", "URY", "VEN", "GRL", "PRI", "GUF", "BMU", "FLK", "CUW", "ABW", "CYM", "VIR", "VGB", "AIA", "TCA", "MSR", "SXM", "NLY", "GLP", "MTQ", "MAF", "BLM", "SPM", "SGS"],
+  "north_africa": ["DZA", "EGY", "LBY", "MAR", "SDN", "TUN", "SAH"],
+  "indian_subcontinent": ["AFG", "BGD", "BTN", "IND", "NPL", "PAK", "LKA"],
+  "southeast_asia": ["BRN", "KHM", "IDN", "LAO", "MYS", "MMR", "SGP", "THA", "TLS", "VNM"],
+  "philippines": ["PHL"],
+  "russia_central_asia": ["ARM", "AZE", "GEO", "KAZ", "KGZ", "RUS", "TJK", "TKM", "UZB"],
+  "china_east_asia": ["CHN", "MNG", "TWN", "HKG", "MAC"],
+  "australia_new_zealand": ["AUS", "NZL"],
+  "japan_korea": ["JPN", "PRK", "KOR"],
+  "middle_east": ["BHR", "IRN", "IRQ", "ISR", "JOR", "KWT", "LBN", "OMN", "PSX", "GAZ", "WEB", "QAT", "SAU", "SYR", "TUR", "ARE", "YEM"],
+  "sub_saharan_africa": ["AGO", "BEN", "BWA", "BFA", "BDI", "CPV", "CMR", "CAF", "TCD", "COG", "COD", "CIV", "DJI", "GNQ", "ERI", "SWZ", "ETH", "GAB", "GMB", "GHA", "GIN", "GNB", "KEN", "LSO", "LBR", "MWI", "MLI", "MRT", "MOZ", "NAM", "NER", "NGA", "RWA", "STP", "SEN", "SLE", "SOM", "SOL", "ZAF", "SDS", "TZA", "TGO", "UGA", "ZMB", "ZWE", "SHN"],
+  "indian_ocean_islands": ["COM", "FJI", "KIR", "MDG", "MDV", "MHL", "MUS", "FSM", "NRU", "PLW", "PNG", "WSM", "SYC", "SLB", "TON", "TUV", "VUT", "IOT", "PYF", "NCL", "GUM", "MNP", "ASM", "REU", "MYT", "PCN", "WLF", "ATF", "NIU", "COK", "TKL", "CXR", "CCK", "HMD", "NFK", "ATC", "IOA"]
+}

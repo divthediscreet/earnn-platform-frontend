@@ -1,27 +1,53 @@
+export const MILES_REGION_IDS = [
+  'uk_ireland',
+  'europe',
+  'america',
+  'north_africa',
+  'indian_subcontinent',
+  'southeast_asia',
+  'philippines',
+  'russia_central_asia',
+  'china_east_asia',
+  'australia_new_zealand',
+  'japan_korea',
+  'middle_east',
+  'sub_saharan_africa',
+  'indian_ocean_islands',
+] as const
+
+export type MilesRegionId = (typeof MILES_REGION_IDS)[number]
+
 export interface MilesRegion {
-  id: string
+  id: MilesRegionId
   label: string
-  backendDestination: string
-  shortLabel: string
-  mapX: number
-  mapY: number
+  invitation: string
 }
 
 export const MILES_REGIONS: MilesRegion[] = [
-  { id: 'uk_ireland', label: 'UK & Ireland', backendDestination: 'uk', shortLabel: 'UK', mapX: 48, mapY: 27 },
-  { id: 'europe', label: 'Europe', backendDestination: 'europe', shortLabel: 'Europe', mapX: 54, mapY: 32 },
-  { id: 'north_america', label: 'North America', backendDestination: 'usa', shortLabel: 'N. America', mapX: 22, mapY: 34 },
-  { id: 'egypt_north_africa', label: 'Egypt & North Africa', backendDestination: 'egypt', shortLabel: 'Egypt', mapX: 54, mapY: 45 },
-  { id: 'india_subcontinent', label: 'India & Subcontinent', backendDestination: 'india', shortLabel: 'India', mapX: 69, mapY: 48 },
-  { id: 'singapore_se_asia', label: 'Singapore & Southeast Asia', backendDestination: 'singapore', shortLabel: 'Singapore', mapX: 79, mapY: 58 },
-  { id: 'philippines', label: 'Philippines', backendDestination: 'philippines', shortLabel: 'Philippines', mapX: 86, mapY: 48 },
+  { id: 'uk_ireland', label: 'UK & Ireland', invitation: 'Explore your miles options' },
+  { id: 'europe', label: 'Europe', invitation: 'Explore your miles options' },
+  { id: 'america', label: 'America', invitation: 'Explore your miles options' },
+  { id: 'north_africa', label: 'North Africa', invitation: 'Explore your miles options' },
+  { id: 'indian_subcontinent', label: 'Indian Subcontinent', invitation: 'Explore your miles options' },
+  { id: 'southeast_asia', label: 'Southeast Asia', invitation: 'Explore your miles options' },
+  { id: 'philippines', label: 'Philippines', invitation: 'Explore your miles options' },
+  { id: 'russia_central_asia', label: 'Russia & Central Asia', invitation: 'Explore your miles options' },
+  { id: 'china_east_asia', label: 'China & East Asia', invitation: 'Explore your miles options' },
+  { id: 'australia_new_zealand', label: 'Australia & New Zealand', invitation: 'Explore your miles options' },
+  { id: 'japan_korea', label: 'Japan & Korea', invitation: 'Explore your miles options' },
+  { id: 'middle_east', label: 'Middle East', invitation: 'Explore your miles options' },
+  { id: 'sub_saharan_africa', label: 'Sub-Saharan Africa', invitation: 'Explore your miles options' },
+  { id: 'indian_ocean_islands', label: 'Indian Ocean & Islands', invitation: 'Explore your miles options' },
 ]
 
-export const COMING_SOON_REGIONS = [
-  'South America', 'Sub-Saharan Africa', 'Middle East', 'Australia & New Zealand',
-  'Japan & Korea', 'China & East Asia',
-]
+export const MILES_REGION_BY_ID = Object.fromEntries(
+  MILES_REGIONS.map((region) => [region.id, region]),
+) as Record<MilesRegionId, MilesRegion>
+
+export function isMilesRegionId(regionId: string | null): regionId is MilesRegionId {
+  return regionId !== null && MILES_REGION_IDS.includes(regionId as MilesRegionId)
+}
 
 export function getMilesRegion(regionId: string | null): MilesRegion | null {
-  return MILES_REGIONS.find(region => region.id === regionId) ?? null
+  return isMilesRegionId(regionId) ? MILES_REGION_BY_ID[regionId] : null
 }
