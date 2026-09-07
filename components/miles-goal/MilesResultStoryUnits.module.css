@@ -1,0 +1,25 @@
+.unit {
+  display: inline-block;
+  margin-left: 5px;
+  color: #8796ad !important;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0;
+  white-space: nowrap;
+}
+
+.prefix {
+  display: inline-block;
+  margin-right: 5px;
+  color: #0e3785;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+@media (max-width: 760px) {
+  .unit {
+    font-size: 12px;
+  }
+}

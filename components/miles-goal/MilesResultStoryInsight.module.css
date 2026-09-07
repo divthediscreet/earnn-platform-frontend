@@ -1,0 +1,37 @@
+.insight {
+  border-color: #edf1f8 !important;
+  border-style: solid !important;
+  background: linear-gradient(145deg, #fff, #fbfcff) !important;
+  box-shadow: 0 4px 16px rgba(14, 55, 133, 0.035) !important;
+}
+
+.insight::before {
+  background: #c48607 !important;
+}
+
+.insight > span {
+  color: #627493 !important;
+}
+
+.insight > span i {
+  color: #b57800 !important;
+}
+
+.insight small {
+  color: #40577c !important;
+}
+
+.reason {
+  margin-top: 12px !important;
+  color: #40577c !important;
+  font-size: 12px !important;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.noBoost {
+  color: #697a98 !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  letter-spacing: 0 !important;
+}

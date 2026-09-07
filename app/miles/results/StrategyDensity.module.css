@@ -1,0 +1,245 @@
+.section {
+  margin-top: 0 !important;
+  margin-bottom: 66px !important;
+}
+
+.intro {
+  margin-bottom: 24px !important;
+  padding-right: 0 !important;
+  padding-left: 0 !important;
+}
+
+.intro span {
+  font-size: 10px !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.13em !important;
+}
+
+.card {
+  min-height: 232px !important;
+  padding: 20px !important;
+  border-color: rgba(214, 224, 245, 0.9) !important;
+  background: #fff !important;
+  background-position: center !important;
+  background-size: cover !important;
+}
+
+.economyVisual {
+  background-image: url('/miles-goal/strategy/economy-cabin.webp') !important;
+}
+
+.economyVisual > p {
+  color: #314566 !important;
+}
+
+.economyVisual small,
+.smartestVisual small {
+  display: inline-flex !important;
+  width: fit-content;
+  border-radius: 7px;
+  padding: 4px 7px;
+  background: rgba(255, 255, 255, 0.84);
+  color: #0d1828 !important;
+  font-weight: 700 !important;
+}
+
+.smartestVisual {
+  background-image: url('/miles-goal/strategy/business-upgrade.webp') !important;
+}
+
+.smartestVisual > p {
+  color: #314566 !important;
+}
+
+.smartestVisual small {
+  color: #0d1828 !important;
+  font-weight: 700 !important;
+}
+
+.card > span {
+  padding: 5px 8px !important;
+  background: rgba(255, 255, 255, 0.76) !important;
+  color: #0e3785 !important;
+}
+
+.card > strong {
+  margin-top: 10px !important;
+  font-size: 24px !important;
+}
+
+.card > p {
+  margin-top: 5px !important;
+  line-height: 1.4 !important;
+}
+
+.card > div {
+  gap: 10px !important;
+  margin-top: auto !important;
+  padding-top: 12px !important;
+}
+
+.card > b {
+  font-size: 20px !important;
+}
+
+.milesTarget {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  width: 100%;
+  box-sizing: border-box;
+  min-width: 142px;
+  padding: 8px 10px;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.68);
+}
+
+.milesTarget span {
+  color: #314566;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.13em;
+}
+
+.milesTarget b {
+  color: #c48607 !important;
+  font-size: 19px !important;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+.timelineTarget {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  width: 100%;
+  box-sizing: border-box;
+  min-width: 0;
+  justify-self: start;
+  padding: 7px 8px;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.68);
+}
+
+.timelineTarget span {
+  color: #314566;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.13em;
+}
+
+.timelineTarget b {
+  color: #0d1828;
+  font-size: 18px;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+.selected {
+  border: 2px solid #0a2860 !important;
+  z-index: 2;
+  transform: translateY(-8px) scale(1.1) !important;
+  transform-origin: center;
+  box-shadow: 0 16px 34px rgba(10, 40, 96, 0.2) !important;
+}
+
+.selectedTick {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  display: grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  border-radius: 7px;
+  background: #0a2860;
+  color: #fff;
+  font-size: 15px;
+  font-weight: 900;
+  box-shadow: 0 4px 10px rgba(10, 40, 96, 0.22);
+}
+
+.dreamNeutral {
+  border-color: rgba(255, 255, 255, 0.22) !important;
+  background-image: linear-gradient(90deg, rgba(6, 20, 45, 0.76), rgba(6, 20, 45, 0.42) 45%, rgba(6, 20, 45, 0.05) 72%), url('/miles-goal/strategy/business-suite.webp') !important;
+  color: #fff !important;
+  box-shadow: 0 12px 30px rgba(13, 24, 40, 0.18) !important;
+}
+
+.dreamNeutral::before {
+  display: none !important;
+}
+
+.dreamNeutral > span {
+  background: rgba(255, 255, 255, 0.14) !important;
+  color: #fff !important;
+}
+
+.dreamNeutral > strong,
+.dreamNeutral > b {
+  color: #fff !important;
+}
+
+.dreamNeutral > p,
+.dreamNeutral small {
+  color: rgba(255, 255, 255, 0.78) !important;
+}
+
+.dreamNeutral small {
+  display: inline-flex !important;
+  width: fit-content;
+  border-radius: 7px;
+  padding: 4px 7px;
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff !important;
+  font-weight: 700 !important;
+}
+
+.dreamNeutral > div {
+  border-color: rgba(255, 255, 255, 0.24) !important;
+}
+
+.dreamNeutral .milesTarget {
+  background: rgba(0, 0, 0, 0.25);
+}
+
+.dreamNeutral .milesTarget span {
+  color: rgba(255, 255, 255, 0.74);
+}
+
+.dreamNeutral .milesTarget b {
+  color: #c48607 !important;
+}
+
+.dreamNeutral .timelineTarget {
+  background: rgba(0, 0, 0, 0.25);
+}
+
+.dreamNeutral .timelineTarget span {
+  color: rgba(255, 255, 255, 0.74);
+}
+
+.dreamNeutral .timelineTarget b {
+  color: #fff;
+}
+
+.dreamNeutral.selected {
+  border-color: #fff !important;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.32), 0 16px 34px rgba(10, 40, 96, 0.28) !important;
+}
+
+.dreamNeutral .selectedTick {
+  background: #fff;
+  color: #0a2860;
+}
+
+@media (max-width: 760px) {
+  .card {
+    min-height: 0 !important;
+    padding: 18px !important;
+  }
+
+  .selected {
+    transform: translateY(-3px) scale(1.02) !important;
+  }
+}

@@ -9,7 +9,7 @@ import styles from './MilesCustomizeDrawer.module.css'
 function initialProfile(existing?: PersonalizedProfile | null): PersonalizedProfile {
   if (existing) return existing
   return {
-    salary_aed: 0,
+    salary_aed: 30000,
     spend: { ...emptySpendProfile(), miscellaneous: 10000 },
     airline_preference: 'none',
     skywards_miles: 0,

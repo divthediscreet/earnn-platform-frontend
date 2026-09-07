@@ -166,6 +166,6 @@ export default function MilesCardTile({ card, monthlySpend, responses, toggles, 
         <section className={styles.timelineColumn} aria-live="polite" aria-label="Months to goal"><p className={styles.timelineLead}>YOU NEED</p>{recalculating ? <div className={styles.calculating} aria-label="Updating timeline"><i className="ti ti-plane-inflight" /></div> : <strong className={styles.months}>{winner.months_to_goal}</strong>}<p className={styles.timelineCaption}>{winner.months_to_goal === 1 ? 'month' : 'months'} (approx), to reach this target.</p><button type="button" className={styles.exploreButton} onClick={() => setExpanded(value => !value)} aria-expanded={expanded}>{expanded ? 'Hide plan' : 'Explore plan'} <i className={`ti ti-chevron-${expanded ? 'up' : 'down'}`} /></button></section>
       </div>
     </> : <div className={styles.unavailable}><i className="ti ti-plane-off" /><div><strong>{content.tab} is not available for this card within 36 months.</strong><span>Try another strategy or card from the ranked list.</span></div></div>}
-    {expanded && winnerCard && <MilesCardDetails card={card} focused={selectedStrategy} responses={responses} toggles={toggles} onToggleChange={onToggleChange} />}
+    {expanded && winnerCard && <MilesCardDetails card={card} focused={selectedStrategy} monthlySpend={monthlySpend} responses={responses} toggles={toggles} onToggleChange={onToggleChange} />}
   </article>
 }

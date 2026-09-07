@@ -1,0 +1,21 @@
+.hero {
+  min-height: 380px !important;
+  align-items: flex-start !important;
+  padding-top: 48px !important;
+  padding-bottom: 68px !important;
+  padding-right: max(24px, calc((100vw - 1132px) / 2)) !important;
+  padding-left: max(24px, calc((100vw - 1132px) / 2)) !important;
+  background-image: url('/miles-goal/hero-sunset-wing.webp') !important;
+  background-position: center !important;
+  background-size: cover !important;
+}
+
+@media (max-width: 760px) {
+  .hero {
+    min-height: 0 !important;
+    padding-top: 54px !important;
+    padding-bottom: 82px !important;
+    padding-right: 14px !important;
+    padding-left: 14px !important;
+  }
+}

@@ -1,7 +1,7 @@
 'use client'
 
-import { MILES_REGIONS, MILES_REGION_BY_ID, type MilesRegion, type MilesRegionId } from '@/lib/miles-goal/regions'
-import { NEUTRAL_SVG_PATHS, REGION_SVG_PATHS, WORLD_MAP_VIEWBOX } from './worldRegionPaths'
+import { MILES_REGIONS, type MilesRegion, type MilesRegionId } from '@/lib/miles-goal/regions'
+import { REGION_SVG_PATHS, WORLD_MAP_VIEWBOX } from './worldRegionPaths'
 import styles from './WorldRegionMap.module.css'
 
 type Props = {
@@ -16,7 +16,6 @@ export default function WorldRegionMap({ selectedRegionId, previewRegionId, onPr
     onPreview(regionId)
   }
   const activeRegionId = previewRegionId || selectedRegionId
-  const activeRegion = activeRegionId ? MILES_REGION_BY_ID[activeRegionId] : null
 
   return (
     <div
@@ -26,10 +25,7 @@ export default function WorldRegionMap({ selectedRegionId, previewRegionId, onPr
       <svg className={styles.map} viewBox={WORLD_MAP_VIEWBOX} role="group" aria-labelledby="miles-map-title miles-map-description">
         <title id="miles-map-title">Interactive Earnn travel-region map</title>
         <desc id="miles-map-description">Select one of fourteen Earnn travel regions. Each region is a single keyboard-accessible control.</desc>
-        <rect className={styles.ocean} width="1100" height="560" rx="22" aria-hidden="true" />
-        <g aria-hidden="true">
-          {NEUTRAL_SVG_PATHS.map((path, index) => <path key={index} d={path} className={`${styles.geography} ${styles.inactive}`} />)}
-        </g>
+        <rect className={styles.ocean} width="100%" height="100%" rx="22" aria-hidden="true" />
         {MILES_REGIONS.map((region) => {
           const isActive = activeRegionId === region.id
           return (
@@ -59,10 +55,6 @@ export default function WorldRegionMap({ selectedRegionId, previewRegionId, onPr
           )
         })}
       </svg>
-      <div className={styles.regionLabel} aria-live="polite">
-        <strong>{activeRegion?.label || 'Explore the world'}</strong>
-        <span>{activeRegion ? `${activeRegion.invitation} →` : 'Select any region to begin'}</span>
-      </div>
     </div>
   )
 }

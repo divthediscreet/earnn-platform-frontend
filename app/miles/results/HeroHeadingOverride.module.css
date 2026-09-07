@@ -1,0 +1,52 @@
+.heroCopy {
+  flex: 1;
+  min-width: 0;
+  max-width: 1000px;
+}
+
+.heading {
+  max-width: 1000px !important;
+  font-size: clamp(38px, 4.4vw, 58px) !important;
+}
+
+.walletHeading {
+  max-width: 1020px !important;
+  margin-top: 22px !important;
+  font-size: clamp(28px, 2.7vw, 36px) !important;
+  white-space: normal;
+}
+
+.walletWord {
+  display: block;
+  font-size: 1.18em;
+  line-height: 1;
+}
+
+.walletHeading + p {
+  margin-top: 30px !important;
+}
+
+@media (max-width: 760px) {
+  .heading {
+    font-size: 40px !important;
+  }
+
+  .walletHeading {
+    white-space: normal;
+    font-size: 35px !important;
+  }
+
+  .walletHeading + p {
+    margin-top: 26px !important;
+  }
+}
+
+@media (max-width: 420px) {
+  .heading {
+    font-size: 35px !important;
+  }
+
+  .walletHeading {
+    font-size: 31px !important;
+  }
+}

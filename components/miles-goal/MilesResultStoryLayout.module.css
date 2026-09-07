@@ -1,0 +1,15 @@
+.story {
+  grid-template-columns: 1.19fr 1.19fr 1.37fr 1.7fr !important;
+}
+
+@media (max-width: 760px) {
+  .story {
+    grid-template-columns: 1fr 1fr !important;
+  }
+}
+
+@media (max-width: 420px) {
+  .story {
+    grid-template-columns: 1fr !important;
+  }
+}

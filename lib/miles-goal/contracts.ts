@@ -73,6 +73,7 @@ export interface StrategyDefinition {
   strategy_id: StrategyId
   strategy_name: string
   original_target_miles: number
+  cash_price_aed: number
   associated_cash_aed: number
 }
 
