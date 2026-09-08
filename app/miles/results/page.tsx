@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import MilesCustomizeDrawer from '@/components/miles-goal/MilesCustomizeDrawer'
+import CardDetailPopup from '@/components/CardDetailPopup'
 import MilesDisclosure from '@/components/miles-goal/MilesDisclosure'
 import MilesLoadingState from '@/components/miles-goal/MilesLoadingState'
 import MilesResultPreview from '@/components/miles-goal/MilesResultPreview'
@@ -84,6 +85,7 @@ function ViewOneResultsContent() {
   const [airlineScope, setAirlineScope] = useState<AirlineScope>('best')
   const [focused, setFocused] = useState<StrategyId>('dream')
   const [filtersOpen, setFiltersOpen] = useState(false)
+  const [detailCardId, setDetailCardId] = useState<string | null>(null)
   const [bankFilter, setBankFilter] = useState('all')
   const [journeyStep, setJourneyStep] = useState<JourneyStep>('strategy')
   const [returnStep, setReturnStep] = useState<Exclude<JourneyStep, 'personalize'>>('reveal')
@@ -296,7 +298,7 @@ function ViewOneResultsContent() {
     {(journeyStep !== 'results' || Object.keys(effectiveResponses).length > 0) && (journeyStep === 'results' ? <>
       <div className={resultTopBar.bar}><button type="button" onClick={startOver}><i className="ti ti-search" /> New Search</button><Link href={`/miles/results?region=${encodeURIComponent(region.id)}&view=new`}>View 2.0</Link></div>
       <div className={`${styles.newResultHeading} ${love.resultsHeading}`}><div><span>FASTEST CARDS</span><h2>Here’s your fastest route.</h2></div><button type="button" className={filterButton.button} onClick={() => setFiltersOpen(true)}><i className="ti ti-adjustments-horizontal" /> All filters</button></div>
-      {displayCards.length ? <section className={styles.summaryCards}>{displayCards.map(card => <MilesResultSummaryCard key={card.earnn_card_id} card={card} focused={focused} destinationLabel={region.label} monthlySpend={totalSpend} responses={effectiveResponses} toggles={toggles} onToggleChange={changeToggle} />)}</section> : <section className={styles.empty}><i className="ti ti-plane-off" /><h2>No route reaches this goal within 36 months</h2><p>Try another strategy, airline, or update your spending profile.</p></section>}
+      {displayCards.length ? <section className={styles.summaryCards}>{displayCards.map(card => <MilesResultSummaryCard key={card.earnn_card_id} card={card} focused={focused} destinationLabel={region.label} monthlySpend={totalSpend} responses={effectiveResponses} toggles={toggles} onToggleChange={changeToggle} onCardNameClick={setDetailCardId} />)}</section> : <section className={styles.empty}><i className="ti ti-plane-off" /><h2>No route reaches this goal within 36 months</h2><p>Try another strategy, airline, or update your spending profile.</p></section>}
     </> : journeyStep === 'personalize' ? <section className={journey.shell} aria-label="Personalize your miles plan">
       <div className={journey.progress}><button type="button" onClick={closeDrawer}><i className="ti ti-arrow-left" /> Back</button></div>
       <MilesCustomizeDrawer open embedded onClose={closeDrawer} onSubmit={submitProfile} initial={returnStep === 'results' ? profile : null} submitting={loading} />
@@ -322,6 +324,7 @@ function ViewOneResultsContent() {
     {loading && Object.keys(effectiveResponses).length > 0 && <div className={styles.updating} role="status"><span /><strong>Updating {loadingAirlines.map(airlineLabel).join(' and ')} plan…</strong></div>}
     <MilesDisclosure />
     <MilesResultFilters open={filtersOpen} onClose={() => setFiltersOpen(false)} bank={bankFilter} onBankChange={setBankFilter} banks={bankOptions} airlineScope={airlineScope} onAirlineScopeChange={setAirlineScope} available={available} />
+    {detailCardId && <CardDetailPopup cardId={detailCardId} onClose={() => setDetailCardId(null)} />}
   </div>
 }
 

@@ -30,7 +30,7 @@ function targetDescription(strategy: StrategyId, destinationLabel: string) {
   return `Premium Economy upgrade to ${destinationLabel}`
 }
 
-export default function MilesResultSummaryCard({ card, focused, destinationLabel, monthlySpend, responses, toggles, onToggleChange }: {
+export default function MilesResultSummaryCard({ card, focused, destinationLabel, monthlySpend, responses, toggles, onToggleChange, onCardNameClick }: {
   card: MilesDisplayCard
   focused: StrategyId
   destinationLabel: string
@@ -38,6 +38,7 @@ export default function MilesResultSummaryCard({ card, focused, destinationLabel
   responses: Partial<Record<Airline, MilesGoalSimulationResponse>>
   toggles: Partial<Record<Airline, ToggleState>>
   onToggleChange: (airline: Airline, state: ToggleState) => void
+  onCardNameClick: (cardId: string) => void
 }) {
   const [expanded, setExpanded] = useState(false)
   const winner = card.strategy[focused]
@@ -107,7 +108,7 @@ export default function MilesResultSummaryCard({ card, focused, destinationLabel
     <div className={styles.topline}><span>#{card.focused_rank} {card.focused_rank === 1 ? 'FASTEST TO YOUR GOAL' : 'FASTEST OPTION'}</span><span>Fee: {feeText(catalogCard)}</span></div>
     <div className={`${styles.main} ${timelineStyles.main}`}>
       <Image width={122} height={75} unoptimized src={getCardImageUrl(card.earnn_card_id)} onError={event => { event.currentTarget.src = '/card-dummy.svg' }} alt={`${card.card_name} credit card`} />
-      <div className={styles.identity}><small>{card.bank_name}</small><h2>{card.card_name}</h2><p>{card.focused_rank === 1 ? 'The fastest eligible route under your current assumptions.' : 'A strong eligible route for your selected flight goal.'}</p></div>
+      <div className={styles.identity}><small>{card.bank_name}</small><h2><button type="button" className={styles.cardName} onClick={() => onCardNameClick(card.earnn_card_id)}>{card.card_name}</button></h2><p>{card.focused_rank === 1 ? 'The fastest eligible route under your current assumptions.' : 'A strong eligible route for your selected flight goal.'}</p></div>
       <div className={`${styles.goal} ${timelineStyles.goal}`}><small>ESTIMATED TIMELINE</small><strong>{winner.months_to_goal}</strong><span>{winner.months_to_goal === 1 ? 'month' : 'months'} to goal</span></div>
     </div>
 
