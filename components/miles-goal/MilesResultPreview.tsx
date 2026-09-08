@@ -40,6 +40,7 @@ export default function MilesResultPreview() {
     })) as Partial<Record<Airline, MilesGoalSimulationResponse>>
   }, [session, toggles])
   const cards = session ? withLockedDisplayOrder(buildDisplayCards(responses, session.airline_scope, session.focused_strategy), session.locked_card_order?.[session.focused_strategy]) : []
+  const monthlySpend = session?.profile ? Object.values(session.profile.spend).reduce((total, amount) => total + amount, 0) : 0
   const updateToggle = (airline: Airline, state: ToggleState) => {
     setToggles(current => {
       const next = { ...current, [airline]: state }
@@ -50,5 +51,5 @@ export default function MilesResultPreview() {
 
   if (!region || !session) return <main className={styles.page}><section className={styles.empty}><h1>No personalised plan available</h1><p>Build a Miles plan first, then return here to preview the alternate card design.</p><Link className="btn-primary" href="/miles">Start a new search</Link></section></main>
 
-  return <main className={styles.page}><div className={styles.shell}><header className={styles.top}><div><span className={styles.label}>YOUR PERSONALISED PLAN</span><h1>Here’s your fastest route.</h1></div><nav className={styles.switches} aria-label="Result layouts"><button type="button" onClick={() => { clearMilesGoalSession(); router.push('/miles') }}><i className="ti ti-search" /> New Search</button><Link href={`/miles/results?region=${encodeURIComponent(region.id)}&view=current`}>View 1.0</Link></nav></header><section className={styles.cards}>{cards.map(card => <MilesShowcaseCard key={card.earnn_card_id} card={card} focused={session.focused_strategy} responses={responses} toggles={toggles} onToggleChange={updateToggle} />)}</section></div></main>
+  return <main className={styles.page}><div className={styles.shell}><header className={styles.top}><div><span className={styles.label}>YOUR PERSONALISED PLAN</span><h1>Here’s your fastest route.</h1></div><nav className={styles.switches} aria-label="Result layouts"><button type="button" onClick={() => { clearMilesGoalSession(); router.push('/miles') }}><i className="ti ti-search" /> New Search</button><Link href={`/miles/results?region=${encodeURIComponent(region.id)}&view=current`}>View 1.0</Link></nav></header><section className={styles.cards}>{cards.map(card => <MilesShowcaseCard key={card.earnn_card_id} card={card} focused={session.focused_strategy} responses={responses} toggles={toggles} onToggleChange={updateToggle} monthlySpend={monthlySpend} />)}</section></div></main>
 }

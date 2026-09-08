@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import WorldRegionMap from '@/components/miles-goal/WorldRegionMap'
 import MilesDisclosure from '@/components/miles-goal/MilesDisclosure'
 import type { MilesRegion, MilesRegionId } from '@/lib/miles-goal/regions'
+import { clearMilesGoalSession } from '@/lib/miles-goal/storage'
 import styles from './MilesLanding.module.css'
 import love from './results/LoveableMilesResult.module.css'
 import heading from './results/HeroHeadingOverride.module.css'
@@ -15,7 +16,10 @@ export default function MilesLandingPage() {
   const [previewRegionId, setPreviewRegionId] = useState<MilesRegionId | null>(null)
   // Strategy selection is purely UI. Generic flight/card calculations begin only
   // when the user asks to see what their selected trip takes.
-  const selectRegion = (region: MilesRegion) => router.push(`/miles/results?region=${encodeURIComponent(region.id)}&view=current`)
+  const selectRegion = (region: MilesRegion) => {
+    clearMilesGoalSession()
+    router.push(`/miles/results?region=${encodeURIComponent(region.id)}&view=current`)
+  }
 
   return <div className={styles.page}>
     <section className={`${love.hero} ${heroLift.hero} ${styles.landingHero}`}>

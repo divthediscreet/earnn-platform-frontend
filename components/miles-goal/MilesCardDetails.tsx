@@ -46,7 +46,7 @@ function customerFacingLabel(value: string | null | undefined): string | null {
 
 function qualifyingPeriod(event: ConditionalRewardEvent): string | null {
   if (event.window_days) {
-    const months = Math.ceil(event.window_days / 30)
+    const months = event.window_days >= 360 && event.window_days <= 366 ? 12 : Math.ceil(event.window_days / 30)
     return `${months} ${months === 1 ? 'month' : 'months'}`
   }
   const labels: Record<string, string> = { monthly: '1 month', quarterly: '3 months', semi_annual: '6 months', annual: '12 months' }
@@ -54,10 +54,16 @@ function qualifyingPeriod(event: ConditionalRewardEvent): string | null {
 }
 
 function conditionSentence(event: ConditionalRewardEvent, display: EventDisplay | undefined): string {
-  if (event.toggle_key === 'balance_transfer') return 'Open to balance transfer'
+  if (event.toggle_key === 'balance_transfer') return event.threshold_aed ? `Transfer ${formatAed(event.threshold_aed)} to your account` : 'Open to balance transfer'
   if (event.condition_type === 'spend_threshold' && event.threshold_aed) {
-    const basis = event.eligible_spend_basis === 'category_filtered' ? 'Eligible category spend' : event.eligible_spend_basis === 'merchant_gated' ? 'Eligible merchant spend' : 'Spend'
     const period = qualifyingPeriod(event)
+    if (eventMechanic(event, display) === 'restricted_spend_bonus') {
+      const merchant = display?.restricted_merchant_for_spend?.trim()
+      const category = display?.restricted_category_for_spend?.trim()
+      if (merchant) return `Spend ${formatAed(event.threshold_aed)} at ${merchant}${period ? ` within ${period}` : ''}`
+      if (category) return `Spend ${formatAed(event.threshold_aed)} on ${category}${period ? ` within ${period}` : ''}`
+    }
+    const basis = event.eligible_spend_basis === 'category_filtered' ? 'Eligible category spend' : event.eligible_spend_basis === 'merchant_gated' ? 'Eligible merchant spend' : 'Spend'
     return `${basis} ${formatAed(event.threshold_aed)}${period ? ` in ${period}` : ''}`
   }
   if (display?.mechanic === 'annual_benefit_acceleration') return 'Annual miles bonus (credited every 12 months)'
@@ -65,7 +71,8 @@ function conditionSentence(event: ConditionalRewardEvent, display: EventDisplay 
   return customerFacingLabel(display?.title) || fallbackConditionName(event)
 }
 
-function conditionTiming(event: ConditionalRewardEvent): string {
+function conditionTiming(event: ConditionalRewardEvent, display: EventDisplay | undefined): string | null {
+  if (eventMechanic(event, display) === 'restricted_spend_bonus') return null
   const period = qualifyingPeriod(event)
   if (event.condition_type === 'spend_threshold' && period) return `Complete within ${period}`
   const unlockMonth = event.unlock_month_actual ?? event.unlock_month_if_forced
@@ -87,12 +94,13 @@ const EVENT_ORDER: Record<string, number> = {
   balance_transfer_bonus: 6,
 }
 
-export default function MilesCardDetails({ card, focused, responses, toggles, onToggleChange }: {
+export default function MilesCardDetails({ card, focused, responses, toggles, onToggleChange, monthlySpend }: {
   card: MilesDisplayCard
   focused: StrategyId
   responses: Partial<Record<Airline, MilesGoalSimulationResponse>>
   toggles: Partial<Record<Airline, ToggleState>>
   onToggleChange: (airline: Airline, state: ToggleState) => void
+  monthlySpend: number
 }) {
   const winner = card.strategy[focused]
   const response = winner ? responses[winner.airline] : undefined
@@ -103,6 +111,11 @@ export default function MilesCardDetails({ card, focused, responses, toggles, on
   const displays = response.interaction_catalog.event_display_catalog
   const visibleEvents = catalogCard.conditional_events
     .filter(event => event.effect_type !== 'cost_reduce' && appliesToRoute(event, winner.fee_route))
+    .filter(event => {
+      if (eventMechanic(event, displays[event.event_id]) !== 'restricted_spend_bonus') return true
+      const display = displays[event.event_id]
+      return Boolean(display?.restricted_merchant_for_spend?.trim() || display?.restricted_category_for_spend?.trim())
+    })
     .sort((left, right) => (EVENT_ORDER[eventMechanic(left, displays[left.event_id])] ?? 99) - (EVENT_ORDER[eventMechanic(right, displays[right.event_id])] ?? 99))
   const activeEventIds = new Set(activeEvents(catalogCard, winner.fee_route, state).map(event => event.event_id))
   const hasNewToBankEvent = catalogCard.conditional_events.some(event => event.toggle_key?.startsWith('new_to_bank:'))
@@ -121,9 +134,10 @@ export default function MilesCardDetails({ card, focused, responses, toggles, on
         const joiningBonus = eventMechanic(event, displays[event.event_id]) === 'joining_bonus'
         const newToBankOnly = event.toggle_key?.startsWith('new_to_bank:') && event.toggle_required_value === true
         const unavailable = joiningBonus || (newToBankOnly && !cardNewToBank)
-        return <label key={event.event_id} className={`${conditionStyles.card} ${active && !unavailable ? conditionStyles.active : ''} ${unavailable ? conditionStyles.disabled : ''}`}><input type="checkbox" checked={active} disabled={unavailable} onChange={toggle => toggleCondition(event, toggle.target.checked)} /><span className={conditionStyles.condition}>{conditionSentence(event, displays[event.event_id])}</span><span className={conditionStyles.timing}>{conditionTiming(event)}</span><span className={conditionStyles.bonusLabel}>Bonus</span><strong>{conditionValue(event)}</strong><span className={conditionStyles.toggle} aria-hidden="true"><i /></span><span className={conditionStyles.status}>{joiningBonus ? 'No Condition' : unavailable ? 'Requires New to bank' : active ? 'I can do it' : "I can’t do this"}</span></label>
+        const timing = conditionTiming(event, displays[event.event_id])
+        return <label key={event.event_id} className={`${conditionStyles.card} ${active && !unavailable ? conditionStyles.active : ''} ${unavailable ? conditionStyles.disabled : ''}`}><input type="checkbox" checked={active} disabled={unavailable} onChange={toggle => toggleCondition(event, toggle.target.checked)} /><span className={conditionStyles.condition}>{conditionSentence(event, displays[event.event_id])}</span>{timing && <span className={conditionStyles.timing}>{timing}</span>}<span className={conditionStyles.bonusLabel}>Bonus</span><strong>{conditionValue(event)}</strong><span className={conditionStyles.toggle} aria-hidden="true"><i /></span><span className={conditionStyles.status}>{joiningBonus ? 'No Condition' : unavailable ? 'Requires New to bank' : active ? 'I can do it' : "I can’t do this"}</span></label>
       })}
     </div></div></section>
-    <section><h3>Here’s how you reach your goal</h3><MilesAchievementFormula candidate={winner} card={catalogCard} displays={displays} currentUsableMiles={response.interaction_catalog.current_usable_miles} rewardCurrency={response.interaction_catalog.target_reward_currency} /></section>
+    <section><h3>Here’s how you reach your goal</h3><MilesAchievementFormula candidate={winner} card={catalogCard} displays={displays} currentUsableMiles={response.interaction_catalog.current_usable_miles} rewardCurrency={response.interaction_catalog.target_reward_currency} monthlySpend={monthlySpend} /></section>
   </div>
 }

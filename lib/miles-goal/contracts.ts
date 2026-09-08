@@ -96,6 +96,8 @@ export interface EventDisplay {
   eligible_declared_monthly_spend_aed: number | null
   extra_spend_in_period_aed: number | null
   extra_monthly_spend_aed: number | null
+  restricted_category_for_spend?: string | null
+  restricted_merchant_for_spend?: string | null
 }
 
 export interface CardInteractionModel {

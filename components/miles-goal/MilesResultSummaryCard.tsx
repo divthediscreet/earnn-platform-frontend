@@ -119,6 +119,6 @@ export default function MilesResultSummaryCard({ card, focused, destinationLabel
     </div>
 
     <div className={styles.actions}><button type="button" className="btn-primary" onClick={() => setExpanded(value => !value)} aria-expanded={expanded}>{expanded ? 'Hide full plan' : 'See full plan'} <i className={`ti ti-chevron-${expanded ? 'up' : 'down'}`} /></button><Link href="/compare">Get this card <i className="ti ti-arrow-up-right" /></Link></div>
-    {expanded && <MilesCardDetails card={card} focused={focused} responses={responses} toggles={toggles} onToggleChange={onToggleChange} />}
+    {expanded && <MilesCardDetails card={card} focused={focused} responses={responses} toggles={toggles} onToggleChange={onToggleChange} monthlySpend={monthlySpend} />}
   </article>
 }

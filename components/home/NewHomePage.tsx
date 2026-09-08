@@ -272,7 +272,7 @@ export default function NewHomePage() {
         <div className={styles.rewardGapContent}>
           <div className={styles.gapIssueGrid}>
             {[
-              ['ti-arrows-exchange', 'Wrong card', 'Great for travel. Weak on groceries.'],
+              ['ti-arrows-exchange', 'Wrong card used', 'Used travel card at grocery store'],
               ['ti-target', "Didn't spend enough", 'Some rewards only kick in after you spend certain amount on card.'],
               ['ti-ban', 'Hit the reward limit', 'After that, you may earn much less.'],
               ['ti-plane', 'Spending abroad', 'The wrong card can mean extra FX fees.'],

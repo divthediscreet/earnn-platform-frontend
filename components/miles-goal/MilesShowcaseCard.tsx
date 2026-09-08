@@ -18,12 +18,13 @@ function feeText(card: NonNullable<MilesDisplayCard['catalogs'][Airline]>) {
   return `${formatAed(card.annual_fee_from_year2_aed)} / year`
 }
 
-export default function MilesShowcaseCard({ card, focused, responses, toggles, onToggleChange }: {
+export default function MilesShowcaseCard({ card, focused, responses, toggles, onToggleChange, monthlySpend }: {
   card: MilesDisplayCard
   focused: StrategyId
   responses: Partial<Record<Airline, MilesGoalSimulationResponse>>
   toggles: Partial<Record<Airline, ToggleState>>
   onToggleChange: (airline: Airline, state: ToggleState) => void
+  monthlySpend: number
 }) {
   const [expanded, setExpanded] = useState(false)
   const winner = card.strategy[focused]
@@ -51,7 +52,7 @@ export default function MilesShowcaseCard({ card, focused, responses, toggles, o
       <div className={styles.copy}>
         <p className={styles.bank}>{card.bank_name}</p>
         <h2>{card.card_name}</h2>
-        <p className={styles.timeline}><strong>{winner.months_to_goal}</strong><span>{winner.months_to_goal === 1 ? 'month' : 'months'} to your<br />{focused === 'dream' ? 'Business Class' : focused === 'easiest' ? 'Economy' : 'Business upgrade'} goal</span></p>
+        <p className={styles.timeline}><strong>{winner.months_to_goal}</strong><span>{winner.months_to_goal === 1 ? 'month' : 'months'} to your<br />{focused === 'dream' ? 'Business Class Ticket' : focused === 'easiest' ? 'Economy Ticket' : 'Business Upgrade Ticket'}</span></p>
       </div>
       <Image className={styles.cardImage} width={240} height={150} unoptimized src={getCardImageUrl(card.earnn_card_id)} onError={event => { event.currentTarget.src = '/card-dummy.svg' }} alt={`${card.card_name} credit card`} />
       <div className={styles.metrics}>
@@ -61,6 +62,6 @@ export default function MilesShowcaseCard({ card, focused, responses, toggles, o
       </div>
       <button type="button" className={styles.expand} onClick={() => setExpanded(value => !value)} aria-expanded={expanded}>Show me how <i className={`ti ti-chevron-${expanded ? 'up' : 'down'}`} /></button>
     </div>
-    {expanded && <MilesCardDetails card={card} focused={focused} responses={responses} toggles={toggles} onToggleChange={onToggleChange} />}
+    {expanded && <MilesCardDetails card={card} focused={focused} responses={responses} toggles={toggles} onToggleChange={onToggleChange} monthlySpend={monthlySpend} />}
   </article>
 }

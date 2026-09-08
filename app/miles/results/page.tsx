@@ -276,8 +276,7 @@ function ViewOneResultsContent() {
       setJourneyStep('reveal')
       return
     }
-    setJourneyStep('reveal')
-    void runSimulation(starterProfile(), AIRLINES, true)
+    void runSimulation(starterProfile(), AIRLINES, true).then(() => setJourneyStep('reveal'))
   }
   const adjustTraveller = (kind: keyof Travellers, delta: number) => {
     setTravellers(current => {
@@ -287,13 +286,12 @@ function ViewOneResultsContent() {
   }
 
   if (loading && journeyStep === 'personalize') return <main className={loadingOverlay.screen}><MilesLoadingState destination={region.label} /></main>
+  if (loading && journeyStep === 'strategy') return <main className={loadingOverlay.targetScreen}><MilesLoadingState destination={region.label} variant="target" /></main>
 
   return <div className={`${styles.page} ${journeyStep !== 'results' ? `${love.page} ${journey.page}` : ''}`}>
     <div className={styles.announcement} aria-live="polite">{announcement}</div>
 
     {Object.keys(errors).length > 0 && <section className={styles.partial} role="status"><i className="ti ti-alert-triangle" /><div><strong>{Object.keys(effectiveResponses).length ? 'Some airline results are unavailable' : 'We could not build the plan yet'}</strong>{AIRLINES.filter(airline => errors[airline]).map(airline => <p key={airline}>{airlineLabel(airline)}: {errors[airline]} {profile && <button onClick={() => void runSimulation(profile, [airline], false)}>Retry</button>}</p>)}</div></section>}
-
-    {loading && !Object.keys(effectiveResponses).length && <MilesLoadingState destination={region.label} />}
 
     {(journeyStep !== 'results' || Object.keys(effectiveResponses).length > 0) && (journeyStep === 'results' ? <>
       <div className={resultTopBar.bar}><button type="button" onClick={startOver}><i className="ti ti-search" /> New Search</button><Link href={`/miles/results?region=${encodeURIComponent(region.id)}&view=new`}>View 2.0</Link></div>
