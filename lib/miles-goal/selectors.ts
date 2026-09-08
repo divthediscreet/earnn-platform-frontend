@@ -49,6 +49,16 @@ export function buildDisplayCards(
   })
 }
 
+/** Retains the recommendation order established when the plan was first built.
+ * Values within each card can still change as assumptions are adjusted. */
+export function withLockedDisplayOrder(cards: MilesDisplayCard[], lockedIds: string[] | undefined): MilesDisplayCard[] {
+  if (!lockedIds?.length) return cards
+  const ranks = new Map(lockedIds.map((cardId, index) => [cardId, index + 1]))
+  return [...cards]
+    .sort((left, right) => (ranks.get(left.earnn_card_id) ?? Number.MAX_SAFE_INTEGER) - (ranks.get(right.earnn_card_id) ?? Number.MAX_SAFE_INTEGER))
+    .map(card => ({ ...card, focused_rank: ranks.get(card.earnn_card_id) ?? card.focused_rank }))
+}
+
 export interface ConditionalDisplayCard {
   earnn_card_id: string
   card_name: string

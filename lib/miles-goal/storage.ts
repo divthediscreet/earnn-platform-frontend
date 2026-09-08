@@ -8,9 +8,12 @@ const SESSION_TTL_MS = 30 * 60 * 1000
 export interface MilesGoalSession {
   version: 2
   region_id: string
-  mode: 'personalized'
+  mode: 'generic' | 'personalized'
   airline_scope: AirlineScope
   focused_strategy: StrategyId
+  locked_card_order?: Partial<Record<StrategyId, string[]>>
+  journey_step?: 'strategy' | 'travellers' | 'reveal' | 'timeline' | 'results'
+  travellers?: { adults: number; children: number; infants: number }
   profile: PersonalizedProfile | null
   responses: Partial<Record<Airline, MilesGoalSimulationResponse>>
   toggles: Partial<Record<Airline, ToggleState>>

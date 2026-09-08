@@ -4,6 +4,7 @@ import Link from 'next/link'
 import Image, { type StaticImageData } from 'next/image'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { fetchCards, getCardImageUrl } from '@/lib/api'
+import { STATEMENT_UPLOAD_UI_ENABLED } from '@/lib/statement-upload-ui'
 import citiPremierImage from '@/assets/home-cards/citi-premier.webp'
 import shukranAdcbImage from '@/assets/home-cards/shukran-adcb.webp'
 import fabGemsWorldImage from '@/assets/home-cards/fab-gems-world.webp'
@@ -297,7 +298,7 @@ export default function NewHomePage() {
         <Link href="/analyse" className={styles.rewardCta}>Find My Reward Gap <i className="ti ti-arrow-right" /></Link>
       </section>
 
-      <section className={`${styles.section} ${styles.surface} ${styles.howItWorksSection}`}>
+      {STATEMENT_UPLOAD_UI_ENABLED && <section className={`${styles.section} ${styles.surface} ${styles.howItWorksSection}`}>
         <SectionTitle eyebrow="How it works" title="From statement to strategy in four steps." />
         <div className={styles.stepsGrid}>
           <article className={styles.productPanel}><p className={styles.eyebrow}>Step 01 — Upload</p><div className={styles.uploadMock}><i className="ti ti-file-description" /><div><b>statement-may.pdf</b><span><i /></span></div></div><h3>Upload your statement</h3><ul className={styles.uploadAssurances}><li>Processed securely in the UAE.</li><li>No bank login.</li><li>No GPT models.</li><li>No statement storage.</li></ul></article>
@@ -322,7 +323,7 @@ export default function NewHomePage() {
             <p>One card is never enough. Choose a set of 2, 3, or 4 cards and see your earnings increase instantly.</p>
           </article>
         </div>
-      </section>
+      </section>}
 
       <section className={`${styles.section} ${styles.compareSection}`}>
         <SectionTitle className={styles.compareSectionHeading} eyebrow="Explore UAE credit cards" title={<>Compare real earning potential,<br />not just headline rates.</>} copy="Live card data from Earnn's UAE catalogue: estimated earning potential, effective reward rates, fees, benefits and key conditions." />
@@ -347,7 +348,7 @@ export default function NewHomePage() {
         </div>
       </section>
 
-      <section className={`${styles.section} ${styles.navySection} ${styles.securitySection}`}>
+      {STATEMENT_UPLOAD_UI_ENABLED && <section className={`${styles.section} ${styles.navySection} ${styles.securitySection}`}>
         <SectionTitle light eyebrow="Security & privacy" title="Your statement. Your control." />
         <div className={styles.passwordPromise}><i className="ti ti-lock" /> We never ask for your online banking password.</div>
         <div className={styles.securityGrid}>{[
@@ -356,7 +357,7 @@ export default function NewHomePage() {
           ['ti-file-lock','Statement handling','Encrypted during processing and deleted after analysis.'],
         ].map(([icon,title,body]) => <article key={title} className={styles.productPanel}><i className={`ti ${icon}`} /><h3>{title}</h3><p>{body}</p></article>)}</div>
         <div className={styles.finalCta}><h2>Find out what your spending could really earn.</h2><p>Upload a statement and Earnn will build a card strategy around the way you actually spend.</p><Link href="/analyse" className={styles.rewardCta}>Analyse My Spending <i className="ti ti-arrow-right" /></Link><small>No bank login required • Free analysis • Takes about 60 seconds</small></div>
-      </section>
+      </section>}
     </div>
   )
 }

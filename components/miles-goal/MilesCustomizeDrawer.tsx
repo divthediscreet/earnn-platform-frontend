@@ -9,8 +9,8 @@ import styles from './MilesCustomizeDrawer.module.css'
 function initialProfile(existing?: PersonalizedProfile | null): PersonalizedProfile {
   if (existing) return existing
   return {
-    salary_aed: 30000,
-    spend: { ...emptySpendProfile(), miscellaneous: 10000 },
+    salary_aed: 0,
+    spend: emptySpendProfile(),
     airline_preference: 'none',
     skywards_miles: 0,
     etihad_guest_miles: 0,
@@ -18,12 +18,13 @@ function initialProfile(existing?: PersonalizedProfile | null): PersonalizedProf
   }
 }
 
-export default function MilesCustomizeDrawer({ open, onClose, onSubmit, initial, submitting }: {
+export default function MilesCustomizeDrawer({ open, onClose, onSubmit, initial, submitting, embedded = false }: {
   open: boolean
   onClose: () => void
   onSubmit: (profile: PersonalizedProfile) => void
   initial?: PersonalizedProfile | null
   submitting: boolean
+  embedded?: boolean
 }) {
   const [profile, setProfile] = useState(() => initialProfile(initial))
   const [advanced, setAdvanced] = useState(false)
@@ -67,13 +68,13 @@ export default function MilesCustomizeDrawer({ open, onClose, onSubmit, initial,
     setProfile(value => ({ ...value, merchant_prefs: { ...value.merchant_prefs, [category]: next } }))
   }
 
-  return <div className={styles.backdrop} onMouseDown={event => { if (event.target === event.currentTarget) onClose() }}>
-    <div className={styles.drawer} role="dialog" aria-modal="true" aria-labelledby="customize-title" ref={dialogRef}>
-      <header><div><span>PERSONALIZE YOUR PLAN</span><h2 id="customize-title">Tell us how you spend</h2><p>We use this profile only for your current browser session.</p></div><button onClick={onClose} aria-label="Close customization"><i className="ti ti-x" /></button></header>
+  return <div className={`${styles.backdrop} ${embedded ? styles.embedded : ''}`} onMouseDown={event => { if (!embedded && event.target === event.currentTarget) onClose() }}>
+    <div className={styles.drawer} role={embedded ? undefined : 'dialog'} aria-modal={embedded ? undefined : true} aria-labelledby="customize-title" ref={dialogRef}>
+      <header><div><span>PERSONALIZE YOUR PLAN</span><h2 id="customize-title">Tell us how you spend</h2><p>We use this profile only for your current browser session.</p></div>{!embedded && <button onClick={onClose} aria-label="Close customization"><i className="ti ti-x" /></button>}</header>
       <div className={styles.body}>
         <section className={styles.primaryFields}>
           <label><span>Monthly salary <b>Required</b></span><div className={styles.moneyInput}><i>AED</i><input type="number" min="1" inputMode="numeric" value={profile.salary_aed || ''} onChange={event => setProfile(value => ({ ...value, salary_aed: normalizeSpendValue(event.target.value) }))} placeholder="e.g. 15,000" /></div></label>
-          <label><span>Airline preference</span><select value={profile.airline_preference} onChange={event => setProfile(value => ({ ...value, airline_preference: event.target.value as 'none' | Airline }))}><option value="none">No preference</option><option value="emirates">Emirates</option><option value="etihad">Etihad</option></select></label>
+          <label><span>Airline preference</span><select value={profile.airline_preference} onChange={event => setProfile(value => ({ ...value, airline_preference: event.target.value as 'none' | Airline }))}><option value="none">Select an airline (optional)</option><option value="emirates">Emirates</option><option value="etihad">Etihad</option></select></label>
           <label><span>Skywards miles <small>Optional</small></span><input type="number" min="0" value={profile.skywards_miles || ''} onChange={event => setProfile(value => ({ ...value, skywards_miles: normalizeSpendValue(event.target.value) }))} placeholder="0" /></label>
           <label><span>Etihad Guest miles <small>Optional</small></span><input type="number" min="0" value={profile.etihad_guest_miles || ''} onChange={event => setProfile(value => ({ ...value, etihad_guest_miles: normalizeSpendValue(event.target.value) }))} placeholder="0" /></label>
         </section>

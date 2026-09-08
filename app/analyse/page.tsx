@@ -4,6 +4,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { uploadStatement, scoreCards, getOptimalWallet, fetchCardDetail, fetchCards, searchCards, pingBackend, getCardImageUrl } from '@/lib/api'
 import { Suspense } from 'react'
 import { MERCHANT_OPTIONS, SPEND_CATEGORIES as CATEGORIES } from '@/lib/spend-categories'
+import { STATEMENT_UPLOAD_UI_ENABLED } from '@/lib/statement-upload-ui'
 
 const BANK_ABBREV: Record<string, string> = {
   'Emirates NBD':                        'ENBD',
@@ -433,7 +434,11 @@ function ComparisonPopup({ data, onContinue }: {
 function AnalyseContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const defaultMode = searchParams.get('mode') === 'manual' ? 'manual' : 'upload'
+  // Shared public-UI gate. Flip STATEMENT_UPLOAD_UI_ENABLED to restore the original upload journey.
+  const uploadFeatureDisabled = !STATEMENT_UPLOAD_UI_ENABLED
+  const defaultMode: 'upload' | 'manual' = STATEMENT_UPLOAD_UI_ENABLED
+    ? (searchParams.get('mode') === 'manual' ? 'manual' : 'upload')
+    : 'manual'
 
   const [mode, setMode] = useState<'upload' | 'manual'>(defaultMode)
   const manualSectionRef = useRef<HTMLDivElement>(null)
@@ -931,7 +936,7 @@ function AnalyseContent() {
             Find Your Reward Gap
           </h1>
           <p style={{ fontSize: 'clamp(14px, 1.8vw, 16px)', color: 'rgba(255,255,255,0.82)', lineHeight: 1.55, maxWidth: 660, margin: '0 auto' }}>
-            Upload a statement or tell us how you spend. Earnn will find the card strategy that could reward you better.
+            Tell us how you spend. Earnn will find the card strategy that could reward you better.
           </p>
 
         </div>
@@ -1231,7 +1236,7 @@ function AnalyseContent() {
           50% { opacity: 1; text-shadow: 0 0 8px rgba(255, 215, 106, .72); }
         }
       `}</style>
-      <div className="analyse-method-switch" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4, background: '#EEF3FF', border: '1px solid #D6E0F5', borderRadius: 12, padding: 4, maxWidth: 500, margin: '0 auto 16px' }}>
+      <div className="analyse-method-switch" style={{ display: uploadFeatureDisabled ? 'none' : 'grid', gridTemplateColumns: '1fr 1fr', gap: 4, background: '#EEF3FF', border: '1px solid #D6E0F5', borderRadius: 12, padding: 4, maxWidth: 500, margin: '0 auto 16px' }}>
         {(['upload', 'manual'] as const).map(m => (
           <button key={m} onClick={() => { setMode(m); setError(''); if (m === 'manual') setTimeout(() => manualSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50) }} style={{
             minHeight: 42, padding: '7px 12px', borderRadius: 8, border: 'none', cursor: 'pointer', textAlign: 'center', fontSize: 13, fontWeight: 700,
@@ -1248,7 +1253,7 @@ function AnalyseContent() {
       </div>
 
       {/* UPLOAD PATH */}
-      {mode === 'upload' && (
+      {!uploadFeatureDisabled && mode === 'upload' && (
         <div style={{ maxWidth: 760, margin: '0 auto', background: 'white', borderRadius: 16, border: '0.5px solid #D6E0F5', padding: '18px 20px', boxShadow: '0 2px 12px rgba(14,55,133,0.06)' }}>
 
           {/* File row */}

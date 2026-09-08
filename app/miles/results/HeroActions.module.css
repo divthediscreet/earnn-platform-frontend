@@ -1,0 +1,36 @@
+.legacyLink {
+  position: absolute;
+  top: 28px;
+  right: max(48px, calc((100vw - 1132px) / 2));
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.personalizeAction {
+  position: absolute;
+  right: max(48px, calc((100vw - 1132px) / 2));
+  bottom: 138px;
+}
+
+@media (max-width: 760px) {
+  .legacyLink {
+    top: 20px;
+    right: 20px;
+    font-size: 11px;
+  }
+
+  .personalizeAction {
+    position: static;
+    align-self: stretch;
+    width: 100%;
+  }
+}
+
+@media (max-width: 420px) {
+  .legacyLink {
+    right: 16px;
+  }
+}

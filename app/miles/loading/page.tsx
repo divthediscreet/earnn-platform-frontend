@@ -73,16 +73,18 @@ function MilesPlanLoadingContent() {
       writeMilesGoalSession({
         version: 2,
         region_id: region.id,
-        mode: 'personalized',
+        mode: 'generic',
         airline_scope: Object.keys(responses).length === 1 ? Object.keys(responses)[0] as Airline : 'best',
         focused_strategy: 'dream',
+        journey_step: 'strategy',
+        travellers: { adults: 1, children: 0, infants: 0 },
         profile,
         responses,
         toggles,
         saved_at: Date.now(),
         expires_at: Date.now() + 30 * 60 * 1000,
       })
-      router.replace(`/miles/results?region=${encodeURIComponent(region.id)}`)
+      router.replace(`/miles/results?region=${encodeURIComponent(region.id)}&view=current`)
     })
 
     return () => controller.abort()

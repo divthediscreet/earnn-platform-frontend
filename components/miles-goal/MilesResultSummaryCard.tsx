@@ -24,15 +24,16 @@ function feeText(card: NonNullable<MilesDisplayCard['catalogs'][Airline]>) {
   return `${formatAed(card.annual_fee_from_year2_aed)} / year`
 }
 
-function targetDescription(strategy: StrategyId, destination: string) {
-  if (strategy === 'easiest') return `Economy to ${destination}`
-  if (strategy === 'dream') return `Business Class to ${destination}`
-  return `Premium Economy upgrade to ${destination}`
+function targetDescription(strategy: StrategyId, destinationLabel: string) {
+  if (strategy === 'easiest') return `Economy to ${destinationLabel}`
+  if (strategy === 'dream') return `Business Class to ${destinationLabel}`
+  return `Premium Economy upgrade to ${destinationLabel}`
 }
 
-export default function MilesResultSummaryCard({ card, focused, monthlySpend, responses, toggles, onToggleChange }: {
+export default function MilesResultSummaryCard({ card, focused, destinationLabel, monthlySpend, responses, toggles, onToggleChange }: {
   card: MilesDisplayCard
   focused: StrategyId
+  destinationLabel: string
   monthlySpend: number
   responses: Partial<Record<Airline, MilesGoalSimulationResponse>>
   toggles: Partial<Record<Airline, ToggleState>>
@@ -111,13 +112,13 @@ export default function MilesResultSummaryCard({ card, focused, monthlySpend, re
     </div>
 
     <div className={`${styles.story} ${storyStyles.story} ${layoutStyles.story}`}>
-      <div className={`${storyStyles.panel} ${storyStyles.target}`}><span><i className="ti ti-target-arrow" /> YOUR TARGET</span><strong>{formatNumber(winner.target_at_goal_miles)}<span className={unitStyles.unit}>miles</span></strong><small>{targetDescription(focused, source.route.destination)}</small></div>
+      <div className={`${storyStyles.panel} ${storyStyles.target}`}><span><i className="ti ti-target-arrow" /> YOUR TARGET</span><strong>{formatNumber(winner.target_at_goal_miles)}<span className={unitStyles.unit}>miles</span></strong><small>{targetDescription(focused, destinationLabel)}</small></div>
       <div className={`${storyStyles.panel} ${storyStyles.boost}`}><span><i className="ti ti-gift" /> YOUR BOOST</span><strong className={boostMiles > 0 ? undefined : insightStyles.noBoost}>{boostMiles > 0 ? <><span className={unitStyles.prefix}>Up to</span>{formatNumber(boostMiles)}<span className={unitStyles.unit}>miles</span></> : 'No bonus miles'}</strong><small>{bonusEvents.length > 0 ? `${bonusEvents.length} eligible bonus reward${bonusEvents.length === 1 ? '' : 's'}` : 'No qualifying bonus is active'}</small></div>
       <div className={`${storyStyles.panel} ${storyStyles.earning}`}><span><i className="ti ti-chart-bar" /> YOUR EARNING</span><strong>{formatNumber(monthlyMiles)}<span className={unitStyles.unit}>miles/month</span></strong><small>From your monthly spend of {formatAed(monthlySpend)}</small></div>
       <div className={`${storyStyles.panel} ${storyStyles.exploitability} ${insightStyles.insight}`}><span><i className="ti ti-sparkles" /> WHY THIS WORKS</span>{whyMessages.map((message, index) => <small key={message} className={index === 0 ? insightStyles.reason : undefined}>• {message}</small>)}</div>
     </div>
 
     <div className={styles.actions}><button type="button" className="btn-primary" onClick={() => setExpanded(value => !value)} aria-expanded={expanded}>{expanded ? 'Hide full plan' : 'See full plan'} <i className={`ti ti-chevron-${expanded ? 'up' : 'down'}`} /></button><Link href="/compare">Get this card <i className="ti ti-arrow-up-right" /></Link></div>
-    {expanded && <MilesCardDetails card={card} focused={focused} monthlySpend={monthlySpend} responses={responses} toggles={toggles} onToggleChange={onToggleChange} />}
+    {expanded && <MilesCardDetails card={card} focused={focused} responses={responses} toggles={toggles} onToggleChange={onToggleChange} />}
   </article>
 }

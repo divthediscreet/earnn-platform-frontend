@@ -1,13 +1,11 @@
 'use client'
 
-import { useState } from 'react'
-import type { Airline, ConditionalRewardEvent, EventDisplay, FeeRoute, MilesGoalSimulationResponse, StrategyId, ToggleState } from '@/lib/miles-goal/contracts'
+import type { Airline, ConditionalRewardEvent, EventDisplay, MilesGoalSimulationResponse, StrategyId, ToggleState } from '@/lib/miles-goal/contracts'
 import type { MilesDisplayCard } from '@/lib/miles-goal/selectors'
 import { activeEvents, withEventOverride } from '@/lib/miles-goal/resolver'
 import { formatAed, formatMiles } from '@/lib/miles-goal/format'
-import MilesTimeline from './MilesTimeline'
+import MilesAchievementFormula from './MilesAchievementFormula'
 import styles from './MilesDetails.module.css'
-import legacyStyles from './MilesCardTile.module.css'
 import conditionStyles from './MilesDetailsConditions.module.css'
 
 function appliesToRoute(event: ConditionalRewardEvent, route: string): boolean {
@@ -67,59 +65,65 @@ function conditionSentence(event: ConditionalRewardEvent, display: EventDisplay 
   return customerFacingLabel(display?.title) || fallbackConditionName(event)
 }
 
-export default function MilesCardDetails({ card, focused, monthlySpend, responses, toggles, onToggleChange }: {
+function conditionTiming(event: ConditionalRewardEvent): string {
+  const period = qualifyingPeriod(event)
+  if (event.condition_type === 'spend_threshold' && period) return `Complete within ${period}`
+  const unlockMonth = event.unlock_month_actual ?? event.unlock_month_if_forced
+  if (unlockMonth) return `Bonus credited in month ${unlockMonth}`
+  if (period) return `Available every ${period}`
+  return 'One-time offer'
+}
+
+function eventMechanic(event: ConditionalRewardEvent, display: EventDisplay | undefined): string {
+  return (display?.mechanic || '').trim().toLowerCase()
+}
+
+const EVENT_ORDER: Record<string, number> = {
+  joining_bonus: 1,
+  spend_bonus: 2,
+  restricted_spend_bonus: 3,
+  annual_benefit_acceleration: 4,
+  miles_discount_voucher: 5,
+  balance_transfer_bonus: 6,
+}
+
+export default function MilesCardDetails({ card, focused, responses, toggles, onToggleChange }: {
   card: MilesDisplayCard
   focused: StrategyId
-  monthlySpend: number
   responses: Partial<Record<Airline, MilesGoalSimulationResponse>>
   toggles: Partial<Record<Airline, ToggleState>>
   onToggleChange: (airline: Airline, state: ToggleState) => void
 }) {
-  const [feeRouteOverride, setFeeRouteOverride] = useState<FeeRoute | null>(null)
-  const [feeInfoOpen, setFeeInfoOpen] = useState(false)
-  const rankedWinner = card.strategy[focused]
-  const winner = feeRouteOverride && rankedWinner
-    ? card.routeCandidates[focused].find(candidate => candidate.airline === rankedWinner.airline && candidate.fee_route === feeRouteOverride) ?? rankedWinner
-    : rankedWinner
+  const winner = card.strategy[focused]
   const response = winner ? responses[winner.airline] : undefined
   const catalogCard = winner ? card.catalogs[winner.airline] : undefined
   const state = winner && response ? (toggles[winner.airline] ?? response.interaction_catalog.toggle_defaults) : undefined
 
   if (!winner || !response || !catalogCard || !state) return null
   const displays = response.interaction_catalog.event_display_catalog
-  const trajectory = catalogCard.base_trajectories.find(item => item.trajectory_id === winner.selected_trajectory_id)
-  const visibleEvents = catalogCard.conditional_events.filter(event => event.effect_type !== 'cost_reduce' && appliesToRoute(event, winner.fee_route))
+  const visibleEvents = catalogCard.conditional_events
+    .filter(event => event.effect_type !== 'cost_reduce' && appliesToRoute(event, winner.fee_route))
+    .sort((left, right) => (EVENT_ORDER[eventMechanic(left, displays[left.event_id])] ?? 99) - (EVENT_ORDER[eventMechanic(right, displays[right.event_id])] ?? 99))
   const activeEventIds = new Set(activeEvents(catalogCard, winner.fee_route, state).map(event => event.event_id))
   const hasNewToBankEvent = catalogCard.conditional_events.some(event => event.toggle_key?.startsWith('new_to_bank:'))
   const bankNewToBank = state.new_to_bank_by_bank[catalogCard.bank_code.toUpperCase()] ?? state.new_to_bank_default
   const cardNewToBank = state.new_to_bank_by_card[catalogCard.earnn_card_id] ?? bankNewToBank
-  const monthlyRoute = catalogCard.base_trajectories.find(item => item.fee_route === 'monthly_fee_acceleration')
-  const monthlyRouteCandidate = card.routeCandidates[focused].find(candidate => candidate.airline === winner.airline && candidate.fee_route === 'monthly_fee_acceleration')
-  const standardRouteCandidate = card.routeCandidates[focused].find(candidate => candidate.airline === winner.airline && candidate.fee_route === 'standard_annual')
-  const monthlyRouteRecommended = winner.fee_route === 'monthly_fee_acceleration'
-  const canSwitchFeeRoute = !!monthlyRouteCandidate && !!standardRouteCandidate
-
   const toggleCondition = (event: ConditionalRewardEvent, enabled: boolean) => {
     onToggleChange(winner.airline, withEventOverride(state, catalogCard, event.event_id, enabled))
   }
-
-  const selectFeeRoute = (useMonthlyRoute: boolean) => {
-    if (!canSwitchFeeRoute) return
-    setFeeRouteOverride(useMonthlyRoute ? 'monthly_fee_acceleration' : 'standard_annual')
-    setFeeInfoOpen(false)
-  }
+  const conditionCount = visibleEvents.length + (hasNewToBankEvent ? 1 : 0)
 
   return <div className={styles.details}>
-    <section><h3>Conditions</h3><div className={conditionStyles.panel}><div className={legacyStyles.conditionsColumn} aria-label="Conditions and miles"><div className={legacyStyles.tableHeading}><span>CONDITION</span><span>MILES</span></div><div className={legacyStyles.conditions}>
-      <div className={`${legacyStyles.monthlySpendRow} ${monthlyRouteRecommended ? legacyStyles.feeRouteActive : ''} ${monthlyRoute && !canSwitchFeeRoute ? legacyStyles.feeRouteDisabled : ''}`}><div><span>Your monthly spend <strong>{formatAed(monthlySpend)}</strong></span>{monthlyRoute && <div className={legacyStyles.feeRouteInline}><span>Express miles monthly route</span>{monthlyRouteRecommended && <button type="button" className={legacyStyles.feeInfoButton} aria-label="Explain Express Miles monthly route" aria-expanded={feeInfoOpen} onClick={() => setFeeInfoOpen(open => !open)}>+</button>}</div>}</div><strong>{formatMiles((trajectory?.monthly_base_target_miles ?? 0) + (trajectory?.monthly_fee_uplift_target_miles ?? 0)).replace(' miles', ' miles/month')}</strong>{monthlyRoute ? <label><input type="checkbox" checked={monthlyRouteRecommended} disabled={!canSwitchFeeRoute} onChange={toggle => selectFeeRoute(toggle.target.checked)} /><span className={legacyStyles.checkmark} aria-hidden="true"><i className="ti ti-check" /></span></label> : <span aria-hidden="true" />}
-        {feeInfoOpen && monthlyRoute && <div className={legacyStyles.feeInfo} role="dialog" aria-label="Express Miles monthly route details"><button type="button" onClick={() => setFeeInfoOpen(false)} aria-label="Close">×</button><strong>Express Miles monthly route</strong><p>Instead of paying <b>{formatAed(catalogCard.annual_fee_from_year2_aed)}</b> per year, you pay <b>{formatAed(monthlyRoute.monthly_fee_aed ?? monthlyRoute.cumulative_route_cost_aed_by_month[0])}</b> per month.</p><p>You get <b>{monthlyRoute.fee_acceleration_bonus_pct ?? Math.round((monthlyRoute.monthly_fee_uplift_target_miles / Math.max(monthlyRoute.monthly_base_target_miles, 1)) * 100)}% bonus miles</b> on eligible spend{monthlyRoute.fee_acceleration_cap_target_miles !== null && monthlyRoute.fee_acceleration_cap_target_miles !== undefined ? <> — capped at <b>{formatMiles(monthlyRoute.fee_acceleration_cap_target_miles)}</b> per {monthlyRoute.fee_acceleration_cap_period ?? 'month'}.</> : '.'}</p></div>}
-      </div>
-      {hasNewToBankEvent && <label className={cardNewToBank ? legacyStyles.conditionActive : ''}><input type="checkbox" checked={cardNewToBank} onChange={toggle => onToggleChange(winner.airline, { ...state, new_to_bank_by_card: { ...state.new_to_bank_by_card, [catalogCard.earnn_card_id]: toggle.target.checked } })} /><span className={legacyStyles.conditionName}>New to {catalogCard.bank_name}</span><strong>Welcome offers</strong><span className={legacyStyles.checkmark} aria-hidden="true"><i className="ti ti-check" /></span></label>}
+    <section><h3>Which bonuses can you unlock?</h3><p className={conditionStyles.intro}>Earnn included the bonuses that look within reach. Turn any off and your timeline updates instantly.</p><div className={conditionStyles.panel}><div className={conditionStyles.cards} style={{ '--condition-count': Math.min(Math.max(conditionCount, 1), 6) } as React.CSSProperties} aria-label="Conditions and bonuses">
+      {hasNewToBankEvent && <label className={`${conditionStyles.card} ${cardNewToBank ? conditionStyles.active : ''}`}><input type="checkbox" checked={cardNewToBank} onChange={toggle => onToggleChange(winner.airline, { ...state, new_to_bank_by_card: { ...state.new_to_bank_by_card, [catalogCard.earnn_card_id]: toggle.target.checked } })} /><span className={conditionStyles.condition}>New to {catalogCard.bank_name}</span><span className={conditionStyles.timing}>Available when you join</span><span className={conditionStyles.bonusLabel}>Bonus</span><strong>Welcome offers</strong><span className={conditionStyles.toggle} aria-hidden="true"><i /></span><span className={conditionStyles.status}>{cardNewToBank ? 'I can do it' : "I can’t do this"}</span></label>}
       {visibleEvents.map(event => {
         const active = activeEventIds.has(event.event_id)
-        return <label key={event.event_id} className={active ? legacyStyles.conditionActive : ''}><input type="checkbox" checked={active} onChange={toggle => toggleCondition(event, toggle.target.checked)} /><span className={legacyStyles.conditionName}>{conditionSentence(event, displays[event.event_id])}</span><strong>{conditionValue(event)}</strong><span className={legacyStyles.checkmark} aria-hidden="true"><i className="ti ti-check" /></span></label>
+        const joiningBonus = eventMechanic(event, displays[event.event_id]) === 'joining_bonus'
+        const newToBankOnly = event.toggle_key?.startsWith('new_to_bank:') && event.toggle_required_value === true
+        const unavailable = joiningBonus || (newToBankOnly && !cardNewToBank)
+        return <label key={event.event_id} className={`${conditionStyles.card} ${active && !unavailable ? conditionStyles.active : ''} ${unavailable ? conditionStyles.disabled : ''}`}><input type="checkbox" checked={active} disabled={unavailable} onChange={toggle => toggleCondition(event, toggle.target.checked)} /><span className={conditionStyles.condition}>{conditionSentence(event, displays[event.event_id])}</span><span className={conditionStyles.timing}>{conditionTiming(event)}</span><span className={conditionStyles.bonusLabel}>Bonus</span><strong>{conditionValue(event)}</strong><span className={conditionStyles.toggle} aria-hidden="true"><i /></span><span className={conditionStyles.status}>{joiningBonus ? 'No Condition' : unavailable ? 'Requires New to bank' : active ? 'I can do it' : "I can’t do this"}</span></label>
       })}
-    </div></div></div></section>
-    <section><h3>Your achievement story</h3><MilesTimeline candidate={winner} card={catalogCard} displays={displays} /></section>
+    </div></div></section>
+    <section><h3>Here’s how you reach your goal</h3><MilesAchievementFormula candidate={winner} card={catalogCard} displays={displays} currentUsableMiles={response.interaction_catalog.current_usable_miles} rewardCurrency={response.interaction_catalog.target_reward_currency} /></section>
   </div>
 }

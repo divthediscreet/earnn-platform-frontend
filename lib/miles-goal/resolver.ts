@@ -4,6 +4,28 @@ import type {
   StrategyResolvedResult, ToggleState,
 } from './contracts'
 
+/** Applies the selected seat count to the existing, per-traveller miles targets.
+ * Infants are deliberately excluded by the caller because they do not use a miles seat.
+ */
+export function withTravellerTarget(catalog: InteractionCatalog, travellerCount: number): InteractionCatalog {
+  const multiplier = Math.max(1, travellerCount)
+  if (multiplier === 1) return catalog
+  return {
+    ...catalog,
+    strategies: catalog.strategies.map(strategy => ({
+      ...strategy,
+      original_target_miles: strategy.original_target_miles * multiplier,
+    })),
+    cards: catalog.cards.map(card => ({
+      ...card,
+      strategy_targets: card.strategy_targets.map(strategy => ({
+        ...strategy,
+        original_target_miles: strategy.original_target_miles * multiplier,
+      })),
+    })),
+  }
+}
+
 const PERIOD_MONTHS: Record<string, number> = { monthly: 1, quarterly: 3, semi_annual: 6, annual: 12 }
 
 export class InvalidMilesToggleState extends Error {}
@@ -35,7 +57,10 @@ export function activeEvents(card: CardInteractionModel, route: string, state: T
   for (const event of card.conditional_events) {
     if (!routeMatches(event, route)) continue
     let enabled: boolean
-    if (event.event_id in state.event_overrides) enabled = state.event_overrides[event.event_id]
+    // A new-to-bank-only offer is unavailable when the parent eligibility is off.
+    // Keep any existing child override intact so it is restored if eligibility is turned back on.
+    if (event.toggle_key?.startsWith('new_to_bank:') && event.toggle_required_value === true && !bankState(card, state)) enabled = false
+    else if (event.event_id in state.event_overrides) enabled = state.event_overrides[event.event_id]
     else if (selectedByGroup.has(event.mutual_exclusion_group)) enabled = selectedByGroup.get(event.mutual_exclusion_group) === event.event_id
     else if (event.toggle_key?.startsWith('new_to_bank:')) {
       enabled = event.mutual_exclusion_group.startsWith('welcome_variant:')
