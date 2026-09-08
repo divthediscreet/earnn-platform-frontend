@@ -189,7 +189,7 @@ function ViewOneResultsContent() {
           if (!response) return []
           const catalog = withTravellerTarget(response.interaction_catalog, travellers.adults + travellers.children)
           const state = toggles[airline as Airline] ?? catalog.toggle_defaults
-          return [[airline, { ...response, interaction_catalog: catalog, resolved_view: resolveCatalog(catalog, state) }]]
+          return [airline, { ...response, interaction_catalog: catalog, resolved_view: resolveCatalog(catalog, state) }]
         })) as Partial<Record<Airline, MilesGoalSimulationResponse>>
         setLockedCardOrder(Object.fromEntries(STRATEGY_IDS.map(strategy => [strategy, buildDisplayCards(initialResponses, rankingScope, strategy).map(card => card.earnn_card_id)])) as Partial<Record<StrategyId, string[]>>)
         setJourneyStep('results')
