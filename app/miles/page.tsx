@@ -13,7 +13,9 @@ import heroLift from './results/HeroLift.module.css'
 export default function MilesLandingPage() {
   const router = useRouter()
   const [previewRegionId, setPreviewRegionId] = useState<MilesRegionId | null>(null)
-  const selectRegion = (region: MilesRegion) => router.push(`/miles/loading?region=${encodeURIComponent(region.id)}`)
+  // Strategy selection is purely UI. Generic flight/card calculations begin only
+  // when the user asks to see what their selected trip takes.
+  const selectRegion = (region: MilesRegion) => router.push(`/miles/results?region=${encodeURIComponent(region.id)}&view=current`)
 
   return <div className={styles.page}>
     <section className={`${love.hero} ${heroLift.hero} ${styles.landingHero}`}>

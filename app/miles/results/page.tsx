@@ -232,9 +232,6 @@ function ViewOneResultsContent() {
     setErrors({})
     setTravellers(DEFAULT_TRAVELLERS)
     setJourneyStep('strategy')
-    const initialProfile = starterProfile()
-    setProfile(initialProfile)
-    void runSimulation(initialProfile, AIRLINES, true)
   }, [region, runSimulation])
 
   const changeToggle = useCallback((airline: Airline, state: ToggleState) => {
@@ -274,6 +271,14 @@ function ViewOneResultsContent() {
     setReturnStep(from)
     setJourneyStep('personalize')
   }
+  const seeWhatItTakes = () => {
+    if (selectedCandidate) {
+      setJourneyStep('reveal')
+      return
+    }
+    setJourneyStep('reveal')
+    void runSimulation(starterProfile(), AIRLINES, true)
+  }
   const adjustTraveller = (kind: keyof Travellers, delta: number) => {
     setTravellers(current => {
       const minimum = kind === 'adults' ? 1 : 0
@@ -288,10 +293,9 @@ function ViewOneResultsContent() {
 
     {Object.keys(errors).length > 0 && <section className={styles.partial} role="status"><i className="ti ti-alert-triangle" /><div><strong>{Object.keys(effectiveResponses).length ? 'Some airline results are unavailable' : 'We could not build the plan yet'}</strong>{AIRLINES.filter(airline => errors[airline]).map(airline => <p key={airline}>{airlineLabel(airline)}: {errors[airline]} {profile && <button onClick={() => void runSimulation(profile, [airline], false)}>Retry</button>}</p>)}</div></section>}
 
-    {!profile && !loading && <section className={styles.profileGate}><div><i className="ti ti-lock-open" /></div><span>PERSONALIZED, NOT FABRICATED</span><h2>Add your salary and monthly spending</h2><p>Card eligibility depends on salary, so Earnn will not assume one for you. Your inputs stay in this browser session.</p><button className="btn-primary" onClick={() => openPersonalization('reveal')}>Build my plan <i className="ti ti-arrow-right" /></button></section>}
     {loading && !Object.keys(effectiveResponses).length && <MilesLoadingState destination={region.label} />}
 
-    {Object.keys(effectiveResponses).length > 0 && (journeyStep === 'results' ? <>
+    {(journeyStep !== 'results' || Object.keys(effectiveResponses).length > 0) && (journeyStep === 'results' ? <>
       <div className={resultTopBar.bar}><button type="button" onClick={startOver}><i className="ti ti-search" /> New Search</button><Link href={`/miles/results?region=${encodeURIComponent(region.id)}&view=new`}>View 2.0</Link></div>
       <div className={`${styles.newResultHeading} ${love.resultsHeading}`}><div><span>FASTEST CARDS</span><h2>Here’s your fastest route.</h2></div><button type="button" className={filterButton.button} onClick={() => setFiltersOpen(true)}><i className="ti ti-adjustments-horizontal" /> All filters</button></div>
       {displayCards.length ? <section className={styles.summaryCards}>{displayCards.map(card => <MilesResultSummaryCard key={card.earnn_card_id} card={card} focused={focused} destinationLabel={region.label} monthlySpend={totalSpend} responses={effectiveResponses} toggles={toggles} onToggleChange={changeToggle} />)}</section> : <section className={styles.empty}><i className="ti ti-plane-off" /><h2>No route reaches this goal within 36 months</h2><p>Try another strategy, airline, or update your spending profile.</p></section>}
@@ -305,7 +309,7 @@ function ViewOneResultsContent() {
         <h2 className={journey.strategyPrompt}>How do you want to fly?</h2>
         <div className={`${styles.strategyCards} ${love.strategyGrid}`}>{(Object.keys(STRATEGY_COPY) as StrategyId[]).map(strategyId => <button key={strategyId} type="button" className={`${styles.strategyCard} ${love.strategyCard} ${density.card} ${journey.strategyCard} ${focused === strategyId ? `${styles.strategySelected} ${love.strategySelected} ${density.selected}` : ''} ${strategyId === 'easiest' ? density.economyVisual : strategyId === 'dream' ? density.dreamNeutral : density.smartestVisual}`} aria-pressed={focused === strategyId} onClick={() => setFocused(strategyId)}>{focused === strategyId && <i className={`${density.selectedTick} ti ti-check`} aria-hidden="true" />}<span><i className={`ti ti-${strategyId === 'easiest' ? 'plane' : strategyId === 'dream' ? 'sparkles' : 'trending-up'}`} /> {STRATEGY_COPY[strategyId].eyebrow}{strategyId === 'dream' && ' ✨'}</span><strong>{strategyId === 'easiest' ? 'Fly more for less' : strategyId === 'dream' ? 'Fly Business Class' : 'Upgrade to Business'}</strong><b>{strategyId === 'easiest' ? 'Economy' : strategyId === 'dream' ? 'The dream, paid with miles.' : 'Use miles where they matter most.'}</b><p>{strategyId === 'easiest' ? <>Stretch your miles across <em>more travellers or more trips.</em></> : strategyId === 'dream' ? <>Turn your everyday spending into the <em>Business Class experience.</em></> : <>Pay for your ticket and use miles <em>only for the Business Class upgrade.</em></>}</p></button>)}</div>
         <section className={journey.travellerBlock} aria-label="Who is flying"><h3>Who is flying?</h3><div className={journey.inlineTravellers}>{(['adults', 'children', 'infants'] as (keyof Travellers)[]).map(kind => <div key={kind}><div className={journey.travellerLabel}><span>{kind[0].toUpperCase() + kind.slice(1)}</span><small>{kind === 'adults' ? 'Age 12+' : kind === 'children' ? 'Age 2–11' : 'Under 2'}</small></div><div className={journey.counter}><button type="button" aria-label={`Remove ${kind}`} disabled={travellers[kind] === (kind === 'adults' ? 1 : 0)} onClick={() => adjustTraveller(kind, -1)}>−</button><strong>{travellers[kind]}</strong><button type="button" aria-label={`Add ${kind}`} disabled={travellers[kind] === 9} onClick={() => adjustTraveller(kind, 1)}>+</button></div></div>)}</div></section>
-        <div className={journey.stepAction}><button className="btn-primary" disabled={!selectedCandidate} onClick={() => setJourneyStep('reveal')}>See What It Takes <i className="ti ti-arrow-right" /></button></div>
+        <div className={journey.stepAction}><button className="btn-primary" disabled={loading} onClick={seeWhatItTakes}>See What It Takes <i className="ti ti-arrow-right" /></button></div>
       </section>}
 
       {journeyStep === 'reveal' && selectedStrategy && <section className={journey.centeredStep} aria-label="Dream and value reveal">
