@@ -49,6 +49,41 @@ export async function getOptimalWallet(spend: Record<string, number>, userSalary
   return res.json()
 }
 
+// ── Merchant Lookup ──────────────────────────────────────────────────────────
+export interface MerchantLookupTier {
+  rate_pct:              number
+  min_monthly_spend_aed: number | null
+  max_monthly_spend_aed: number | null
+  cap_aed:                number | null
+  card_cap_aed:           number | null
+}
+
+export interface MerchantLookupCard {
+  earnn_card_id:    string
+  card_name:        string
+  bank_name:        string
+  reward_rate_pct:  number
+  matched_malls:    string[]
+  tier_breakdown:   MerchantLookupTier[]
+}
+
+export interface MerchantLookupResult {
+  resolved:      boolean
+  merchant_name: string
+  category?:     string
+  cards:         MerchantLookupCard[]
+}
+
+export async function lookupMerchant(merchantName: string): Promise<MerchantLookupResult> {
+  const res = await fetch(`${API_BASE}/api/rewards/merchant-lookup`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ merchant_name: merchantName }),
+  })
+  if (!res.ok) throw new Error(`Merchant lookup failed: ${res.statusText}`)
+  return res.json()
+}
+
 // ── Card Catalogue (Module 4) ─────────────────────────────────────────────────
 export async function fetchCards(params?: {
   bank?: string
