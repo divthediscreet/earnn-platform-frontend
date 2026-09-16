@@ -1283,10 +1283,10 @@ function ComparisonModal({ cards, catalogueRewardRates, details, onClose, onRemo
         <colgroup><col style={{ width: firstColumnWidth }} />{cards.map(card => <col key={card.earnn_card_id} />)}</colgroup>
         <thead><tr style={{ background: '#FFFFFF' }}><th style={{ ...label, textAlign: 'left', background: '#F0F4FC', borderBottom: '1px solid #DCE6F6' }}><div style={{ color: '#0E3785', fontSize: 11, fontWeight: 900 }}>SELECTED<br />CARDS</div><div style={{ marginTop: 5, color: '#7385A5', fontSize: 10, fontWeight: 700, textTransform: 'none', letterSpacing: 0 }}>{cards.length} of 3 selected</div></th>{cards.map(card => <th key={card.earnn_card_id} style={{ ...cell, minWidth: 0, textAlign: 'left', background: '#FFFFFF', borderBottom: '1px solid #DCE6F6' }}><div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}><div style={{ display: 'flex', alignItems: 'center', gap: 11, minWidth: 0 }}><div style={{ padding: 4, flexShrink: 0, borderRadius: 9, background: '#F2F6FF', border: '1px solid #DFE8F8' }}><img src={getCardImageUrl(card.earnn_card_id)} alt={card.card_name} width={70} height={44} loading="lazy" onError={(event) => { (event.target as HTMLImageElement).src = '/card-dummy.svg' }} style={{ display: 'block', borderRadius: 5, objectFit: 'cover' }} /></div><div><div style={{ color: '#6A7D9E', fontSize: 10.5, fontWeight: 700 }}>{card.bank_name}</div><div style={{ marginTop: 3, color: '#10213B', fontWeight: 900, fontSize: 13, lineHeight: 1.25 }}>{card.card_name}</div></div></div><button onClick={() => onRemove(card.earnn_card_id)} aria-label={`Remove ${card.card_name}`} style={{ flexShrink: 0, width: 27, height: 27, border: '1px solid #D9E3F4', borderRadius: 8, background: '#F5F8FE', color: '#45628E', cursor: 'pointer', fontWeight: 900 }}>×</button></div></th>)}</tr></thead>
         <tbody>
-          {row('earnn score', card => <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}><ScoreGauge score={card.earnn_score} /><div><strong style={{ display: 'block', color: scoreColor(card.earnn_score), fontSize: 24, letterSpacing: '-.04em', lineHeight: 1 }}>{fmtScore(card.earnn_score)}</strong><span style={{ display: 'block', marginTop: 3, color: scoreColor(card.earnn_score), fontSize: 10.5, fontWeight: 900, letterSpacing: '.04em' }}>{scoreBand(card.earnn_score).label} · / 100</span></div></div>, true, <ComparisonMetricLabel label="earnn score" text="earnn Score is hyper-personalised — it varies based on your spending pattern. This score reflects how well this card works for you." />)}
+          {row('earnn score', card => <div style={{ display: 'flex', flexDirection: 'column', gap: 2, width: '100%' }}><div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}><StarRating score={card.earnn_score} /><strong style={{ color: scoreColor(card.earnn_score), fontSize: 26, letterSpacing: '-.03em', lineHeight: 1 }}>{fmtScore(card.earnn_score)}<span style={{ fontSize: 16, fontWeight: 700, marginLeft: 2 }}>/100</span></strong></div><span style={{ color: scoreColor(card.earnn_score), fontSize: 12, fontWeight: 900, letterSpacing: '.04em' }}>{scoreBand(card.earnn_score).label}</span></div>, true, <ComparisonMetricLabel label="earnn score" text="earnn Score is hyper-personalised — it varies based on your spending pattern. This score reflects how well this card works for you." />)}
+          {row('Average Return', rewardRateBadge)}
           {row('Best for', card => bestForSection(card, 'Best for'))}
           {row('Highlight', card => bestForSection(card, 'Highlight'), true)}
-          {row('Overall expected reward rate', rewardRateBadge)}
           {row('Fee', card => { const fee = effectiveFeeAed(card); return <strong style={{ color: fee === 0 ? '#00A67E' : '#C95B00' }}>{fee === 0 ? 'Lifetime free' : `AED ${Math.round(fee).toLocaleString()} / yr`}</strong> }, true)}
           {row('Expected yearly reward', card => <strong style={{ color: '#00A67E' }}>AED {Math.round(card.expected_annual_return_aed || 0).toLocaleString()}</strong>, false, <ComparisonMetricLabel label="Expected yearly reward" text="Estimated annual rewards based on the standard UAE spending profile used for this comparison, before annual fees." />)}
           {row('Expected monthly reward', card => <strong style={{ color: '#00A67E' }}>AED {Math.round((card.expected_annual_return_aed || 0) / 12).toLocaleString()}</strong>, true)}
@@ -1309,26 +1309,27 @@ function ComparisonModal({ cards, catalogueRewardRates, details, onClose, onRemo
   </div>
 }
 
-function ScoreGauge({ score }: { score: number }) {
-  const value = Math.max(0, Math.min(100, score))
-  const angle = Math.PI - (value / 100) * Math.PI
-  const needleX = 80 + 46 * Math.cos(angle)
-  const needleY = 78 - 46 * Math.sin(angle)
+const STAR_PATH = "M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"
 
-  return <svg viewBox="0 0 160 96" width="106" height="64" role="img" aria-label={`Earnn score gauge: ${fmtScore(value)} out of 100`} style={{ flexShrink: 0, overflow: 'visible' }}>
-    <title>Earnn score gauge</title>
-    <path d="M22 78 C22 65 26 53 33 44" fill="none" stroke="#E94B3C" strokeWidth="16" strokeLinecap="butt" />
-    <path d="M33 44 C41 33 50 26 62 23" fill="none" stroke="#F78C32" strokeWidth="16" strokeLinecap="butt" />
-    <path d="M62 23 C74 18 86 18 98 23" fill="none" stroke="#F4C842" strokeWidth="16" strokeLinecap="butt" />
-    <path d="M98 23 C110 26 119 33 127 44" fill="none" stroke="#85C84A" strokeWidth="16" strokeLinecap="butt" />
-    <path d="M127 44 C134 53 138 65 138 78" fill="none" stroke="#159B61" strokeWidth="16" strokeLinecap="butt" />
-    <path d="M35 78 C35 53 55 33 80 33 C105 33 125 53 125 78" fill="none" stroke="rgba(14,55,133,.08)" strokeWidth="18" strokeLinecap="butt" />
-    <line x1="80" y1="78" x2={needleX} y2={needleY} stroke="#143968" strokeWidth="3.5" strokeLinecap="round" />
-    <circle cx="80" cy="78" r="8" fill="#143968" />
-    <circle cx="80" cy="78" r="3" fill="#FFFFFF" opacity=".85" />
-    <text x="16" y="94" fill="#8090A8" fontSize="9" fontWeight="800">0</text>
-    <text x="135" y="94" fill="#8090A8" fontSize="9" fontWeight="800">100</text>
-  </svg>
+function StarRating({ score }: { score: number }) {
+  const value = Math.max(0, Math.min(100, score))
+  const starsFilled = (value / 100) * 5
+  const color = scoreColor(value)
+  return <div role="img" aria-label={`Earnn score: ${fmtScore(value)} out of 100`} style={{ display: 'flex', gap: 1, flexShrink: 0 }}>
+    {[0, 1, 2, 3, 4].map(i => {
+      const fillPct = Math.max(0, Math.min(1, starsFilled - i)) * 100
+      return <span key={i} style={{ position: 'relative', display: 'inline-block', width: 13, height: 13 }}>
+        <svg viewBox="0 0 24 24" width="13" height="13" style={{ position: 'absolute', top: 0, left: 0 }}>
+          <path d={STAR_PATH} fill="#E3E8F2" />
+        </svg>
+        <span style={{ position: 'absolute', top: 0, left: 0, width: `${fillPct}%`, height: '100%', overflow: 'hidden' }}>
+          <svg viewBox="0 0 24 24" width="13" height="13">
+            <path d={STAR_PATH} fill={color} />
+          </svg>
+        </span>
+      </span>
+    })}
+  </div>
 }
 
 function ComparisonMetricLabel({ label, text }: { label: string; text: string }) {
