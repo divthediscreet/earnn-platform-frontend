@@ -42,14 +42,14 @@ export default function Navbar() {
           <Link href="/compare" style={navLinkStyle}>
             Compare
           </Link>
+          <Link href="/merchant-lookup" style={navLinkStyle}>
+            Card Match
+          </Link>
           <Link href="/miles" style={navLinkStyle}>
             Fly for Free ✈
           </Link>
           <Link href="/chat" style={navLinkStyle}>
             Ask Earnie
-          </Link>
-          <Link href="/analyse" className="btn-primary" style={{ padding: '10px 24px', fontSize: 14, marginLeft: 8 }}>
-            Get Started Free
           </Link>
         </div>
         <button className={styles.mobileMenuButton} onClick={() => setMenuOpen(v => !v)} aria-label="Toggle navigation" aria-expanded={menuOpen}>
@@ -60,9 +60,9 @@ export default function Navbar() {
         <div className={styles.mobileNavMenu}>
           <Link href="/analyse" onClick={() => setMenuOpen(false)}>Analyse</Link>
           <Link href="/compare" onClick={() => setMenuOpen(false)}>Compare</Link>
+          <Link href="/merchant-lookup" onClick={() => setMenuOpen(false)}>Card Match</Link>
           <Link href="/miles" onClick={() => setMenuOpen(false)}>Fly for Free ✈</Link>
           <Link href="/chat" onClick={() => setMenuOpen(false)}>Ask Earnie</Link>
-          <Link href="/analyse" onClick={() => setMenuOpen(false)} className={styles.mobileNavCta}>Get Started Free</Link>
         </div>
       )}
     </nav>

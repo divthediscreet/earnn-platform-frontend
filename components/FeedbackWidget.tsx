@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { usePathname } from 'next/navigation'
 import { submitFeedback } from '@/lib/api'
 
@@ -13,6 +13,12 @@ export default function FeedbackWidget() {
   const [sent, setSent] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+
+  useEffect(() => {
+    const openFromElsewhere = () => setOpen(true)
+    window.addEventListener('earnn:open-feedback', openFromElsewhere)
+    return () => window.removeEventListener('earnn:open-feedback', openFromElsewhere)
+  }, [])
 
   const close = () => {
     if (saving) return
