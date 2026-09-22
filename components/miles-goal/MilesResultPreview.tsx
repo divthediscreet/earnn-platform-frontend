@@ -122,6 +122,18 @@ export default function MilesResultPreview() {
     writeMilesGoalSession({ ...next, toggles })
     setEditorStep(null)
   }
+  const useRecoveryStrategy = (strategy: StrategyId) => {
+    if (!session) return
+    const next = { ...session, focused_strategy: strategy }
+    setSession(next)
+    writeMilesGoalSession({ ...next, toggles })
+  }
+  const tryOneWay = () => {
+    if (!session) return
+    const next = { ...session, trip_type: 'one_way' as const }
+    setSession(next)
+    writeMilesGoalSession({ ...next, toggles })
+  }
   const fasterStrategyOptions: StrategyId[] = session?.focused_strategy === 'dream'
     ? ['easiest', 'smartest']
     : ['easiest']
@@ -130,7 +142,7 @@ export default function MilesResultPreview() {
 
   return <main className={styles.page}><div className={styles.shell}>
     <header className={styles.top}><div><span className={styles.label}>YOUR PERSONALISED PLAN</span><h1>Here’s your fastest route.</h1></div><nav className={styles.switches} aria-label="Result layouts"><button type="button" className={styles.filterAction} onClick={() => setFiltersOpen(true)}><i className="ti ti-adjustments-horizontal" /> Filter</button><button type="button" onClick={() => { clearMilesGoalSession(); router.push('/miles') }}><i className="ti ti-search" /> New Search</button><Link href={`/miles/results?region=${encodeURIComponent(region.id)}&view=current`}>View 1.0</Link></nav></header>
-    <section className={styles.cards}>{filteredCards.map(card => <MilesShowcaseCard key={card.earnn_card_id} card={card} focused={session.focused_strategy} responses={responses} toggles={toggles} onToggleChange={updateToggle} monthlySpend={monthlySpend} onCardNameClick={setDetailCardId} onChangeStrategy={openStrategyEditor} />)}{!filteredCards.length && <p className={styles.noCards}>No cards match this bank filter.</p>}</section>
+    <section className={styles.cards}>{cards.length ? <>{filteredCards.map(card => <MilesShowcaseCard key={card.earnn_card_id} card={card} focused={session.focused_strategy} responses={responses} toggles={toggles} onToggleChange={updateToggle} monthlySpend={monthlySpend} onCardNameClick={setDetailCardId} onChangeStrategy={openStrategyEditor} />)}{!filteredCards.length && <p className={styles.noCards}>No cards match your selected bank filter.</p>}</> : session.focused_strategy === 'easiest' ? <section className={styles.empty}><h2>An Economy trip within 36 months is not available with these assumptions.</h2><p>Start a new search for another destination, or try a one-way ticket to reduce the miles needed.</p><div className={styles.recoveryActions}><button type="button" className={styles.primaryAction} onClick={() => { clearMilesGoalSession(); router.push('/miles') }}>Try a new destination <i className="ti ti-search" /></button>{session.trip_type !== 'one_way' && <button type="button" className={styles.backAction} onClick={tryOneWay}>Try one-way ticket <i className="ti ti-arrow-right" /></button>}</div></section> : <section className={`${styles.empty} ${styles.strategyRecovery}`}><h2>{session.focused_strategy === 'dream' ? 'Flying Business Class entirely with miles may take a little longer.' : 'This Business Class upgrade is difficult to reach within 36 months.'}</h2><p>Try a different way to fly and see the fastest route available for your current profile.</p><div className={styles.strategyOptions}>{fasterStrategyOptions.map(strategy => <button key={strategy} type="button" onClick={() => useRecoveryStrategy(strategy)}><span>{strategy === 'smartest' ? 'SMART STRATEGY' : 'ECONOMY ONLY'}</span><strong>{STRATEGY_COPY[strategy].title}</strong><small>{STRATEGY_COPY[strategy].description}</small><small className={styles.strategyBest}><b>Best for:</b> {STRATEGY_COPY[strategy].bestFor}</small></button>)}</div></section>}</section>
   </div>
   <MilesResultFilters open={filtersOpen} onClose={() => setFiltersOpen(false)} bank={bankFilter} onBankChange={setBankFilter} banks={bankOptions} airlineScope={session.airline_scope} onAirlineScopeChange={updateAirlineScope} available={available} existingCardBanks={existingCardBanks} onExistingCardBanksChange={changeExistingCardBanks} />
   {editorStep && <div className={styles.editorBackdrop} role="dialog" aria-modal="true" aria-label="Change flight strategy"><section className={styles.editorDialog}>
