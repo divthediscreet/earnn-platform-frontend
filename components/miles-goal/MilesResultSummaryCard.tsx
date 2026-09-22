@@ -61,6 +61,9 @@ export default function MilesResultSummaryCard({ card, focused, destinationLabel
     ? Math.round((joiningBonusMiles / winner.target_at_goal_miles) * 100)
     : 0
   const voucher = active.find(event => event.effect_type === 'target_reduce')
+  const companionTicket = focused === 'smartest' || !source || source.interaction_catalog.traveller_count <= 1
+    ? undefined
+    : active.find(event => event.effect_type === 'ticket_reduce')
   const balanceTransfer = active.find(event => event.toggle_key === 'balance_transfer' && event.effect_type === 'miles_add')
   const annualBonus = active.find(event => source.interaction_catalog.event_display_catalog[event.event_id]?.mechanic === 'annual_benefit_acceleration')
   const incrementalCardFee = winner.fee_route === 'monthly_fee_acceleration'
@@ -94,6 +97,13 @@ export default function MilesResultSummaryCard({ card, focused, destinationLabel
     reasonMessages.push(voucher.threshold_aed
       ? `Spend ${formatAed(voucher.threshold_aed)}${period ? ` in ${period}` : ''} to get a ${formatNumber(voucher.effect_value)}% miles discount voucher.`
       : `Get a ${formatNumber(voucher.effect_value)}% miles discount voucher.`)
+  }
+  if (companionTicket) {
+    const periodLabels: Record<string, string> = { monthly: '1 month', quarterly: '3 months', semi_annual: '6 months', annual: '12 months' }
+    const period = companionTicket.period ? periodLabels[companionTicket.period] : null
+    reasonMessages.push(companionTicket.threshold_aed
+      ? `Spend ${formatAed(companionTicket.threshold_aed)}${period ? ` in ${period}` : ''} to use ${formatNumber(companionTicket.effect_value)} free companion ${companionTicket.effect_value === 1 ? 'ticket' : 'tickets'}.`
+      : `Use ${formatNumber(companionTicket.effect_value)} free companion ${companionTicket.effect_value === 1 ? 'ticket' : 'tickets'}.`)
   }
   const hasPrimaryRouteReason = reasonMessages.length > 0
   if (annualBonus) {

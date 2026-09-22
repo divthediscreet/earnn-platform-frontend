@@ -7,12 +7,12 @@ const mapping = JSON.parse(await readFile(`${root}/scripts/miles-goal/country-re
 const mapData = JSON.parse(await readFile(`${root}/scripts/miles-goal/ne_110m_admin_0_map_units.geojson`, 'utf8'))
 
 const expectedRegions = [
-  'uk_ireland', 'europe', 'america', 'north_africa', 'indian_subcontinent',
+  'uk_ireland', 'europe', 'north_america', 'south_america', 'north_africa', 'indian_subcontinent',
   'southeast_asia', 'philippines', 'russia_central_asia', 'china_east_asia',
   'australia_new_zealand', 'japan_korea', 'middle_east',
   'sub_saharan_africa', 'indian_ocean_islands',
 ]
-assert.deepEqual(Object.keys(mapping), expectedRegions, 'The mapping must contain the 14 approved regions in canonical order')
+assert.deepEqual(Object.keys(mapping), expectedRegions, 'The mapping must contain the 15 approved regions in canonical order')
 
 const reverse = new Map()
 for (const [regionId, codes] of Object.entries(mapping)) {
@@ -36,7 +36,7 @@ for (const feature of mapData.features) {
 assert.deepEqual(unresolved, [], `Every selectable map unit must resolve. Unmapped: ${unresolved.join(', ')}`)
 
 const criticalMappings = {
-  GBR: 'uk_ireland', IRL: 'uk_ireland', FRA: 'europe', USA: 'america', CAN: 'america', BRA: 'america',
+  GBR: 'uk_ireland', IRL: 'uk_ireland', FRA: 'europe', USA: 'north_america', CAN: 'north_america', BRA: 'south_america',
   EGY: 'north_africa', IND: 'indian_subcontinent', PAK: 'indian_subcontinent', LKA: 'indian_subcontinent',
   THA: 'southeast_asia', PHL: 'philippines', RUS: 'russia_central_asia', KAZ: 'russia_central_asia',
   CHN: 'china_east_asia', AUS: 'australia_new_zealand', NZL: 'australia_new_zealand',

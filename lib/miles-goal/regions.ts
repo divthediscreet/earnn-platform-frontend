@@ -1,7 +1,8 @@
 export const MILES_REGION_IDS = [
   'uk_ireland',
   'europe',
-  'america',
+  'north_america',
+  'south_america',
   'north_africa',
   'indian_subcontinent',
   'southeast_asia',
@@ -21,12 +22,14 @@ export interface MilesRegion {
   id: MilesRegionId
   label: string
   invitation: string
+  supported_airlines?: readonly Airline[]
 }
 
 export const MILES_REGIONS: MilesRegion[] = [
   { id: 'uk_ireland', label: 'UK & Ireland', invitation: 'Explore your miles options' },
   { id: 'europe', label: 'Europe', invitation: 'Explore your miles options' },
-  { id: 'america', label: 'America', invitation: 'Explore your miles options' },
+  { id: 'north_america', label: 'North America', invitation: 'Explore your miles options' },
+  { id: 'south_america', label: 'South America', invitation: 'Explore your miles options', supported_airlines: ['emirates'] },
   { id: 'north_africa', label: 'North Africa', invitation: 'Explore your miles options' },
   { id: 'indian_subcontinent', label: 'Indian Subcontinent', invitation: 'Explore your miles options' },
   { id: 'southeast_asia', label: 'Southeast Asia', invitation: 'Explore your miles options' },
@@ -51,3 +54,10 @@ export function isMilesRegionId(regionId: string | null): regionId is MilesRegio
 export function getMilesRegion(regionId: string | null): MilesRegion | null {
   return isMilesRegionId(regionId) ? MILES_REGION_BY_ID[regionId] : null
 }
+
+export function supportedMilesAirlines(region: MilesRegion): readonly Airline[] {
+  return region.supported_airlines ?? DEFAULT_SUPPORTED_AIRLINES
+}
+import type { Airline } from './contracts'
+
+const DEFAULT_SUPPORTED_AIRLINES: readonly Airline[] = ['emirates', 'etihad']

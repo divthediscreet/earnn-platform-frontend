@@ -18,13 +18,14 @@ function initialProfile(existing?: PersonalizedProfile | null): PersonalizedProf
   }
 }
 
-export default function MilesCustomizeDrawer({ open, onClose, onSubmit, initial, submitting, embedded = false }: {
+export default function MilesCustomizeDrawer({ open, onClose, onSubmit, initial, submitting, embedded = false, availableAirlines = ['emirates', 'etihad'] }: {
   open: boolean
   onClose: () => void
   onSubmit: (profile: PersonalizedProfile) => void
   initial?: PersonalizedProfile | null
   submitting: boolean
   embedded?: boolean
+  availableAirlines?: readonly Airline[]
 }) {
   const [profile, setProfile] = useState(() => initialProfile(initial))
   const [advanced, setAdvanced] = useState(false)
@@ -74,9 +75,9 @@ export default function MilesCustomizeDrawer({ open, onClose, onSubmit, initial,
       <div className={styles.body}>
         <section className={styles.primaryFields}>
           <label><span>Monthly salary <b>Required</b></span><div className={styles.moneyInput}><i>AED</i><input type="number" min="1" inputMode="numeric" value={profile.salary_aed || ''} onChange={event => setProfile(value => ({ ...value, salary_aed: normalizeSpendValue(event.target.value) }))} placeholder="e.g. 15,000" /></div></label>
-          <label><span>Airline preference</span><select value={profile.airline_preference} onChange={event => setProfile(value => ({ ...value, airline_preference: event.target.value as 'none' | Airline }))}><option value="none">Select an airline (optional)</option><option value="emirates">Emirates</option><option value="etihad">Etihad</option></select></label>
-          <label><span>Skywards miles <small>Optional</small></span><input type="number" min="0" value={profile.skywards_miles || ''} onChange={event => setProfile(value => ({ ...value, skywards_miles: normalizeSpendValue(event.target.value) }))} placeholder="0" /></label>
-          <label><span>Etihad Guest miles <small>Optional</small></span><input type="number" min="0" value={profile.etihad_guest_miles || ''} onChange={event => setProfile(value => ({ ...value, etihad_guest_miles: normalizeSpendValue(event.target.value) }))} placeholder="0" /></label>
+          <label><span>Airline preference</span><select value={profile.airline_preference} onChange={event => setProfile(value => ({ ...value, airline_preference: event.target.value as 'none' | Airline }))}><option value="none">Select an airline (optional)</option>{availableAirlines.includes('emirates') && <option value="emirates">Emirates</option>}{availableAirlines.includes('etihad') && <option value="etihad">Etihad</option>}</select></label>
+          {availableAirlines.includes('emirates') && <label><span>Skywards miles <small>Optional</small></span><input type="number" min="0" value={profile.skywards_miles || ''} onChange={event => setProfile(value => ({ ...value, skywards_miles: normalizeSpendValue(event.target.value) }))} placeholder="0" /></label>}
+          {availableAirlines.includes('etihad') && <label><span>Etihad Guest miles <small>Optional</small></span><input type="number" min="0" value={profile.etihad_guest_miles || ''} onChange={event => setProfile(value => ({ ...value, etihad_guest_miles: normalizeSpendValue(event.target.value) }))} placeholder="0" /></label>}
         </section>
 
         <div className={styles.spendHeading}><div><span>YOUR MONTHLY SPENDING</span><h3>Category breakdown</h3></div><strong>{formatAed(total)}<small> / month</small></strong></div>

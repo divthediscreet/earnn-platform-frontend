@@ -7,12 +7,10 @@ import MilesLoadingState from '@/components/miles-goal/MilesLoadingState'
 import { simulateMilesGoal } from '@/lib/miles-goal/api'
 import { DEFAULT_TOGGLE_STATE } from '@/lib/miles-goal/contracts'
 import type { Airline, MilesGoalSimulationResponse, PersonalizedProfile, ToggleState } from '@/lib/miles-goal/contracts'
-import { getMilesRegion } from '@/lib/miles-goal/regions'
+import { getMilesRegion, supportedMilesAirlines } from '@/lib/miles-goal/regions'
 import { writeMilesGoalSession } from '@/lib/miles-goal/storage'
 import { emptySpendProfile } from '@/lib/spend-categories'
 import styles from './MilesLoadingPage.module.css'
-
-const AIRLINES: Airline[] = ['emirates', 'etihad']
 
 function starterProfile(): PersonalizedProfile {
   return {
@@ -46,8 +44,9 @@ function MilesPlanLoadingContent() {
     if (!region) return
     const controller = new AbortController()
     const profile = starterProfile()
+    const airlines = supportedMilesAirlines(region)
 
-    void Promise.allSettled(AIRLINES.map(airline => simulateMilesGoal({
+    void Promise.allSettled(airlines.map(airline => simulateMilesGoal({
       destination_region: region.id,
       airline,
       salary_aed: profile.salary_aed,
@@ -60,7 +59,7 @@ function MilesPlanLoadingContent() {
       const toggles: Partial<Record<Airline, ToggleState>> = {}
       results.forEach((result, index) => {
         if (result.status !== 'fulfilled') return
-        const airline = AIRLINES[index]
+        const airline = airlines[index]
         responses[airline] = result.value
         toggles[airline] = cloneDefaultToggle(result.value)
       })

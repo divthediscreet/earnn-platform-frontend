@@ -7,7 +7,7 @@ const root = fileURLToPath(new URL('..', import.meta.url))
 const sourceDirectory = `${root}/scripts/miles-goal`
 const outputPath = `${root}/components/miles-goal/worldRegionPaths.ts`
 const regionIds = [
-  'uk_ireland', 'europe', 'america', 'north_africa', 'indian_subcontinent',
+  'uk_ireland', 'europe', 'north_america', 'south_america', 'north_africa', 'indian_subcontinent',
   'southeast_asia', 'philippines', 'russia_central_asia', 'china_east_asia',
   'australia_new_zealand', 'japan_korea', 'middle_east',
   'sub_saharan_africa', 'indian_ocean_islands',

@@ -17,11 +17,13 @@ function appliesToRoute(event: ConditionalRewardEvent, route: string): boolean {
 function conditionValue(event: ConditionalRewardEvent): string {
   if (event.effect_type === 'miles_add') return formatMiles(event.effect_value)
   if (event.effect_type === 'target_reduce') return `Get ${event.effect_value}% miles discount voucher`
+  if (event.effect_type === 'ticket_reduce') return `${event.effect_value} free companion ${event.effect_value === 1 ? 'ticket' : 'tickets'}`
   return 'Fee reduced'
 }
 
 function fallbackConditionName(event: ConditionalRewardEvent): string {
   if (event.effect_type === 'target_reduce') return 'Miles discount voucher'
+  if (event.effect_type === 'ticket_reduce') return 'Free companion ticket'
   if (event.toggle_key?.startsWith('new_to_bank:')) return 'New-to-bank offer'
   if (event.toggle_key === 'balance_transfer') return 'Balance transfer bonus'
   if (event.recurrence === 'per_period') return 'Ongoing reward boost'
@@ -39,6 +41,7 @@ function customerFacingLabel(value: string | null | undefined): string | null {
     spend_acceleration: 'Spend Acceleration Bonus',
     annual_benefit_acceleration: 'Annual Miles Bonus',
     miles_discount_voucher: 'Miles Discount Voucher',
+    flight_free_companion_ticket: 'Free Companion Ticket',
   }
   const normalized = value.trim().toLowerCase()
   return labels[normalized] || value.replaceAll('_', ' ')
@@ -91,6 +94,7 @@ const EVENT_ORDER: Record<string, number> = {
   restricted_spend_bonus: 3,
   annual_benefit_acceleration: 4,
   miles_discount_voucher: 5,
+  flight_free_companion_ticket: 6,
   balance_transfer_bonus: 6,
 }
 
@@ -111,6 +115,9 @@ export default function MilesCardDetails({ card, focused, responses, toggles, on
   const displays = response.interaction_catalog.event_display_catalog
   const visibleEvents = catalogCard.conditional_events
     .filter(event => event.effect_type !== 'cost_reduce' && appliesToRoute(event, winner.fee_route))
+    .filter(event => event.effect_type !== 'ticket_reduce' || (
+      response.interaction_catalog.traveller_count > 1 && (focused === 'easiest' || focused === 'dream')
+    ))
     .filter(event => {
       if (eventMechanic(event, displays[event.event_id]) !== 'restricted_spend_bonus') return true
       const display = displays[event.event_id]
@@ -125,6 +132,20 @@ export default function MilesCardDetails({ card, focused, responses, toggles, on
     onToggleChange(winner.airline, withEventOverride(state, catalogCard, event.event_id, enabled))
   }
   const conditionCount = visibleEvents.length + (hasNewToBankEvent ? 1 : 0)
+  const trajectory = catalogCard.base_trajectories.find(item => item.trajectory_id === winner.selected_trajectory_id)
+  const travellerMultiplier = response.interaction_catalog.traveller_count * response.interaction_catalog.trip_legs
+  const isMonthlyFeeRoute = winner.fee_route === 'monthly_fee_acceleration'
+  const firstYearFee = catalogCard.annual_fee_year1_free ? 0 : (catalogCard.annual_fee_year1_aed ?? catalogCard.annual_fee_from_year2_aed)
+  const renewalCount = Math.floor(Math.max(winner.months_to_goal - 1, 0) / 12)
+  const renewalFee = catalogCard.annual_fee_from_year2_aed
+  const monthlyFee = (trajectory?.monthly_fee_aed ?? 0) * winner.months_to_goal
+  const cardFees = isMonthlyFeeRoute ? monthlyFee : firstYearFee + renewalFee * renewalCount
+  const flightCash = winner.associated_cash_aed * travellerMultiplier
+  const flightCashLabel = focused === 'smartest' ? 'Economy ticket' : 'Taxes & airport charges'
+  const cashRequirement = cardFees + flightCash
+  const strategyDefinition = response.interaction_catalog.strategies.find(strategy => strategy.strategy_id === focused)
+  const estimatedTicketPrice = (strategyDefinition?.cash_price_aed ?? 0) * travellerMultiplier
+  const estimatedSaving = estimatedTicketPrice - cashRequirement
 
   return <div className={styles.details}>
     <section><h3>Which bonuses can you unlock?</h3><p className={conditionStyles.intro}>Earnn included the bonuses that look within reach. Turn any off and your timeline updates instantly.</p><div className={conditionStyles.panel}><div className={conditionStyles.cards} style={{ '--condition-count': Math.min(Math.max(conditionCount, 1), 6) } as React.CSSProperties} aria-label="Conditions and bonuses">
@@ -139,5 +160,15 @@ export default function MilesCardDetails({ card, focused, responses, toggles, on
       })}
     </div></div></section>
     <section><h3>Here’s how you reach your goal</h3><MilesAchievementFormula candidate={winner} card={catalogCard} displays={displays} currentUsableMiles={response.interaction_catalog.current_usable_miles} rewardCurrency={response.interaction_catalog.target_reward_currency} monthlySpend={monthlySpend} /></section>
+    <section className={styles.cashRequirement}><h3>Cash required to take this flight</h3><p>Card fees plus the unavoidable booking cash.</p><div className={styles.cashRows}>
+      {isMonthlyFeeRoute ? <div><span>Monthly card fee · {winner.months_to_goal} {winner.months_to_goal === 1 ? 'month' : 'months'}</span><strong>{formatAed(monthlyFee)}</strong></div> : <>
+        <div><span>1st year card fee</span><strong>{formatAed(firstYearFee)}</strong></div>
+        {Array.from({ length: renewalCount }, (_, index) => <div key={index}><span>Year {index + 2} card fee</span><strong>{formatAed(renewalFee)}</strong></div>)}
+      </>}
+      <div><span>{focused === 'smartest' ? flightCashLabel : 'Taxes & airport charges (need to pay while booking tickets with miles)'}</span><strong>{formatAed(flightCash)}</strong></div>
+      <div className={styles.cashTotal}><span>Total cash required</span><strong>{formatAed(cashRequirement)}</strong></div>
+      <div className={styles.ticketPrice}><span>Estimated ticket price (if paid fully in AED)</span><strong>{formatAed(estimatedTicketPrice)}</strong></div>
+      <div className={styles.cashSaving}><span>Estimated saving</span><strong>{formatAed(estimatedSaving)}</strong></div>
+    </div></section>
   </div>
 }

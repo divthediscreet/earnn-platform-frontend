@@ -33,7 +33,7 @@ export default function WorldRegionMap({ selectedRegionId, previewRegionId, onPr
       }}
     >
       <svg className={styles.map} viewBox={WORLD_MAP_VIEWBOX} role="group" aria-label="Interactive Earnn travel-region map" aria-describedby="miles-map-description">
-        <desc id="miles-map-description">Select one of fourteen Earnn travel regions. Each region is a single keyboard-accessible control.</desc>
+        <desc id="miles-map-description">Select one of fifteen Earnn travel regions. Each region is a single keyboard-accessible control.</desc>
         <rect className={styles.ocean} width="100%" height="100%" rx="22" aria-hidden="true" />
         {MILES_REGIONS.map((region) => {
           const isActive = activeRegionId === region.id

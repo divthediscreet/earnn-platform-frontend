@@ -14,6 +14,8 @@ export interface MilesGoalSession {
   locked_card_order?: Partial<Record<StrategyId, string[]>>
   journey_step?: 'strategy' | 'travellers' | 'reveal' | 'timeline' | 'results'
   travellers?: { adults: number; children: number; infants: number }
+  trip_type?: 'one_way' | 'return'
+  existing_card_banks?: string[]
   profile: PersonalizedProfile | null
   responses: Partial<Record<Airline, MilesGoalSimulationResponse>>
   toggles: Partial<Record<Airline, ToggleState>>

@@ -14,8 +14,8 @@ import heroLift from './results/HeroLift.module.css'
 export default function MilesLandingPage() {
   const router = useRouter()
   const [previewRegionId, setPreviewRegionId] = useState<MilesRegionId | null>(null)
-  // Strategy selection is purely UI. Generic flight/card calculations begin only
-  // when the user asks to see what their selected trip takes.
+  // Region selection starts the default one-adult, Business Class return-trip
+  // calculation immediately; users can refine those assumptions on the target page.
   const selectRegion = (region: MilesRegion) => {
     clearMilesGoalSession()
     router.push(`/miles/results?region=${encodeURIComponent(region.id)}&view=current`)

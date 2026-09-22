@@ -19,11 +19,13 @@ function eventText({ event, display }: MonthEvent) {
     spend_acceleration: 'Spend Acceleration Bonus',
     annual_benefit_acceleration: 'Annual Miles Bonus',
     miles_discount_voucher: 'Miles Discount Voucher',
+    flight_free_companion_ticket: 'Free Companion Ticket',
   }
   const rawTitle = display?.title || event.source_ref || 'Card reward'
   const title = labels[rawTitle.trim().toLowerCase()] || rawTitle.replaceAll('_', ' ')
   const quantity = event.quantity_per_period || 1
   if (event.effect_type === 'target_reduce') return `${title}: ${event.effect_value}% fewer miles needed`
+  if (event.effect_type === 'ticket_reduce') return `${title}: ${event.effect_value} free companion ${event.effect_value === 1 ? 'ticket' : 'tickets'} applied`
   if (event.effect_type === 'cost_reduce') return `${title}: ${formatAed(event.effect_value * quantity)} fee reduction`
   return `${title}: +${formatMiles(event.effect_value * quantity)}`
 }

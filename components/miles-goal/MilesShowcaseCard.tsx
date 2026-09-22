@@ -18,7 +18,7 @@ function feeText(card: NonNullable<MilesDisplayCard['catalogs'][Airline]>) {
   return `${formatAed(card.annual_fee_from_year2_aed)} / year`
 }
 
-export default function MilesShowcaseCard({ card, focused, responses, toggles, onToggleChange, monthlySpend, onCardNameClick }: {
+export default function MilesShowcaseCard({ card, focused, responses, toggles, onToggleChange, monthlySpend, onCardNameClick, onChangeStrategy }: {
   card: MilesDisplayCard
   focused: StrategyId
   responses: Partial<Record<Airline, MilesGoalSimulationResponse>>
@@ -26,6 +26,7 @@ export default function MilesShowcaseCard({ card, focused, responses, toggles, o
   onToggleChange: (airline: Airline, state: ToggleState) => void
   monthlySpend: number
   onCardNameClick: (cardId: string) => void
+  onChangeStrategy?: () => void
 }) {
   const [expanded, setExpanded] = useState(false)
   const winner = card.strategy[focused]
@@ -53,7 +54,7 @@ export default function MilesShowcaseCard({ card, focused, responses, toggles, o
       <div className={styles.copy}>
         <p className={styles.bank}>{card.bank_name}</p>
         <h2><button type="button" className={styles.cardName} onClick={() => onCardNameClick(card.earnn_card_id)}>{card.card_name}</button></h2>
-        <p className={styles.timeline}><strong>{winner.months_to_goal}</strong><span>{winner.months_to_goal === 1 ? 'month' : 'months'} to your<br />{focused === 'dream' ? 'Business Class Ticket' : focused === 'easiest' ? 'Economy Ticket' : 'Business Upgrade Ticket'}</span></p>
+        <div className={styles.timelineRow}><p className={styles.timeline}><strong>{winner.months_to_goal}</strong><span>{winner.months_to_goal === 1 ? 'month' : 'months'} to your<br />{focused === 'dream' ? 'Business Class Ticket' : focused === 'easiest' ? 'Economy Ticket' : 'Business Upgrade Ticket'}</span></p>{winner.months_to_goal > 18 && focused !== 'easiest' && onChangeStrategy && <button type="button" className={styles.changeStrategy} onClick={onChangeStrategy}>Change strategy <span>and fly earlier <i className="ti ti-arrow-up-right" /></span></button>}</div>
       </div>
       <Image className={styles.cardImage} width={240} height={150} unoptimized src={getCardImageUrl(card.earnn_card_id)} onError={event => { event.currentTarget.src = '/card-dummy.svg' }} alt={`${card.card_name} credit card`} />
       <div className={styles.metrics}>

@@ -35,7 +35,7 @@ export interface ConditionalRewardEvent {
   event_id: string
   earnn_card_id: string
   source_ref: string
-  effect_type: 'miles_add' | 'target_reduce' | 'cost_reduce'
+  effect_type: 'miles_add' | 'target_reduce' | 'ticket_reduce' | 'cost_reduce'
   effect_value: number
   condition_type: 'none' | 'spend_threshold' | 'binary_fact'
   feasibility_gated: boolean
@@ -116,6 +116,8 @@ export interface CardInteractionModel {
 
 export interface InteractionCatalog {
   horizon_months: 36
+  traveller_count: number
+  trip_legs: number
   target_reward_currency: 'skywards_miles' | 'etihad_guest_miles'
   current_usable_miles: number
   toggle_defaults: ToggleState
@@ -171,7 +173,7 @@ export interface ResolvedMilesGoalView { strategies: StrategyResolvedResult[] }
 
 export interface MilesGoalSimulationResponse {
   calculation_version: 'miles_goal_v3'
-  resolution_contract_version: 'conditional_event_v1'
+  resolution_contract_version: 'conditional_event_v1' | 'conditional_event_v2'
   route: { miles_goal_id: string; origin: string; destination: string; airline: Airline }
   assumptions: {
     horizon_months: 36
@@ -189,7 +191,7 @@ export function isMilesGoalResponse(value: unknown): value is MilesGoalSimulatio
   if (!value || typeof value !== 'object') return false
   const response = value as Partial<MilesGoalSimulationResponse>
   return response.calculation_version === 'miles_goal_v3'
-    && response.resolution_contract_version === 'conditional_event_v1'
+    && (response.resolution_contract_version === 'conditional_event_v1' || response.resolution_contract_version === 'conditional_event_v2')
     && !!response.interaction_catalog
     && Array.isArray(response.interaction_catalog.cards)
     && Array.isArray(response.resolved_view?.strategies)

@@ -17,10 +17,10 @@ import type {
 } from '@/lib/miles-goal/contracts'
 import { DEFAULT_TOGGLE_STATE } from '@/lib/miles-goal/contracts'
 import { airlineLabel, formatAed, formatNumber } from '@/lib/miles-goal/format'
-import { getMilesRegion } from '@/lib/miles-goal/regions'
+import { getMilesRegion, supportedMilesAirlines } from '@/lib/miles-goal/regions'
 import { resolveCatalog, withTravellerTarget } from '@/lib/miles-goal/resolver'
 import { buildDisplayCards, STRATEGY_IDS, withLockedDisplayOrder } from '@/lib/miles-goal/selectors'
-import { rankedCandidates } from '@/lib/miles-goal/merge-airlines'
+import { rankedCandidates, responsesForScope } from '@/lib/miles-goal/merge-airlines'
 import { clearMilesGoalSession, readMilesGoalSession, writeMilesGoalSession } from '@/lib/miles-goal/storage'
 import { emptySpendProfile } from '@/lib/spend-categories'
 import styles from './MilesResults.module.css'
@@ -38,10 +38,18 @@ const STRATEGY_COPY: Record<StrategyId, { eyebrow: string; label: string; outcom
   smartest: { eyebrow: 'SMARTEST', label: 'Upgrade to Business', outcome: 'Business Class upgrade' },
 }
 
-type JourneyStep = 'strategy' | 'reveal' | 'personalize' | 'results'
+type JourneyStep = 'reveal' | 'personalize' | 'results'
+type EditStep = 'strategy' | 'travellers' | null
 type Travellers = { adults: number; children: number; infants: number }
+type TripType = 'one_way' | 'return'
 
 const DEFAULT_TRAVELLERS: Travellers = { adults: 1, children: 0, infants: 0 }
+const DEFAULT_TRIP_TYPE: TripType = 'return'
+const MIN_TARGET_LOADING_MS = 10_000
+
+function waitFor(milliseconds: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, milliseconds))
+}
 
 function timelineBand(months: number): string {
   if (months <= 2) return 'As little as 1–3 months'
@@ -78,6 +86,7 @@ function ViewOneResultsContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const region = getMilesRegion(searchParams.get('region'))
+  const supportedAirlines: Airline[] = region ? [...supportedMilesAirlines(region)] : []
   const [profile, setProfile] = useState<PersonalizedProfile | null>(null)
   const [responses, setResponses] = useState<Partial<Record<Airline, MilesGoalSimulationResponse>>>({})
   const [toggles, setToggles] = useState<Partial<Record<Airline, ToggleState>>>({})
@@ -87,9 +96,12 @@ function ViewOneResultsContent() {
   const [filtersOpen, setFiltersOpen] = useState(false)
   const [detailCardId, setDetailCardId] = useState<string | null>(null)
   const [bankFilter, setBankFilter] = useState('all')
-  const [journeyStep, setJourneyStep] = useState<JourneyStep>('strategy')
+  const [existingCardBanks, setExistingCardBanks] = useState<string[]>([])
+  const [journeyStep, setJourneyStep] = useState<JourneyStep>('reveal')
+  const [editStep, setEditStep] = useState<EditStep>(null)
   const [returnStep, setReturnStep] = useState<Exclude<JourneyStep, 'personalize'>>('reveal')
   const [travellers, setTravellers] = useState<Travellers>(DEFAULT_TRAVELLERS)
+  const [tripType, setTripType] = useState<TripType>(DEFAULT_TRIP_TYPE)
   const [loading, setLoading] = useState(false)
   const [loadingAirlines, setLoadingAirlines] = useState<Airline[]>([])
   const [errors, setErrors] = useState<Partial<Record<Airline, string>>>({})
@@ -99,19 +111,21 @@ function ViewOneResultsContent() {
   const controllersRef = useRef<AbortController[]>([])
   const initializedRegionRef = useRef<string | null>(null)
 
-  useEffect(() => () => controllersRef.current.forEach(controller => controller.abort()), [])
+  // Do not abort the initial request from an unmount cleanup. React Strict Mode
+  // intentionally runs that cleanup once during development, which otherwise
+  // cancels the only default target calculation before it can populate the page.
 
   const effectiveResponses = useMemo(() => {
     const next: Partial<Record<Airline, MilesGoalSimulationResponse>> = {}
     for (const airline of AIRLINES) {
       const response = responses[airline]
       if (!response) continue
-      const catalog = withTravellerTarget(response.interaction_catalog, travellers.adults + travellers.children)
+      const catalog = withTravellerTarget(response.interaction_catalog, travellers.adults + travellers.children, tripType === 'return' ? 2 : 1)
       const state = toggles[airline] ?? catalog.toggle_defaults
       next[airline] = { ...response, interaction_catalog: catalog, resolved_view: resolveCatalog(catalog, state) }
     }
     return next
-  }, [responses, toggles, travellers])
+  }, [responses, toggles, travellers, tripType])
 
   useEffect(() => {
     if (!region || !profile || !Object.keys(responses).length) return
@@ -123,6 +137,8 @@ function ViewOneResultsContent() {
       focused_strategy: focused,
       journey_step: journeyStep === 'personalize' ? returnStep : journeyStep,
       travellers,
+      trip_type: tripType,
+      existing_card_banks: existingCardBanks,
       profile,
       responses,
       toggles,
@@ -130,7 +146,7 @@ function ViewOneResultsContent() {
       saved_at: Date.now(),
       expires_at: Date.now() + 30 * 60 * 1000,
     })
-  }, [region, profile, responses, toggles, lockedCardOrder, airlineScope, focused, journeyStep, returnStep, travellers])
+  }, [region, profile, responses, toggles, lockedCardOrder, airlineScope, focused, journeyStep, returnStep, travellers, tripType, existingCardBanks])
 
   useEffect(() => {
     if (!openNewViewWhenReady || !region || !profile) return
@@ -138,10 +154,11 @@ function ViewOneResultsContent() {
     router.replace(`/miles/results?region=${encodeURIComponent(region.id)}&view=new`)
   }, [openNewViewWhenReady, profile, region, router])
 
-  const runSimulation = useCallback(async (nextProfile: PersonalizedProfile, requested: Airline[], replace: boolean, showResultsWhenReady = false) => {
+  const runSimulation = useCallback(async (nextProfile: PersonalizedProfile, requested: Airline[], replace: boolean, showResultsWhenReady = false, keepTargetScreenVisible = false) => {
     if (!region) return
     controllersRef.current.forEach(controller => controller.abort())
     const requestId = ++requestIdRef.current
+    const startedAt = Date.now()
     const controllers = requested.map(() => new AbortController())
     controllersRef.current = controllers
     setLoading(true)
@@ -152,15 +169,32 @@ function ViewOneResultsContent() {
       requested.forEach(airline => delete next[airline])
       return next
     })
-    const settled = await Promise.allSettled(requested.map((airline, index) => simulateMilesGoal({
-      destination_region: region.id,
-      airline,
-      salary_aed: nextProfile.salary_aed,
-      spend: nextProfile.spend,
-      current_usable_miles: airline === 'emirates' ? nextProfile.skywards_miles : nextProfile.etihad_guest_miles,
-      merchant_prefs: nextProfile.merchant_prefs,
-      toggle_state: toggles[airline],
-    }, { signal: controllers[index].signal })))
+    // The Miles Goal repository shares a database client.  Running Emirates
+    // and Etihad together can make that client drop one of the two reads, so
+    // resolve the small airline set in order and keep the target page reliable.
+    const settled: PromiseSettledResult<MilesGoalSimulationResponse>[] = []
+    for (const [index, airline] of requested.entries()) {
+      try {
+        const response = await simulateMilesGoal({
+          destination_region: region.id,
+          airline,
+          salary_aed: nextProfile.salary_aed,
+          spend: nextProfile.spend,
+          current_usable_miles: airline === 'emirates' ? nextProfile.skywards_miles : nextProfile.etihad_guest_miles,
+          merchant_prefs: nextProfile.merchant_prefs,
+          toggle_state: toggles[airline],
+        }, { signal: controllers[index].signal })
+        settled.push({ status: 'fulfilled', value: response })
+      } catch (reason) {
+        settled.push({ status: 'rejected', reason })
+      }
+    }
+    if (requestId !== requestIdRef.current) return
+
+    if (keepTargetScreenVisible) {
+      const remaining = MIN_TARGET_LOADING_MS - (Date.now() - startedAt)
+      if (remaining > 0) await waitFor(remaining)
+    }
     if (requestId !== requestIdRef.current) return
 
     const succeeded: Partial<Record<Airline, MilesGoalSimulationResponse>> = {}
@@ -189,7 +223,7 @@ function ViewOneResultsContent() {
         const rankingScope: AirlineScope = requested.length === 1 ? requested[0] : 'best'
         const initialResponses = Object.fromEntries(Object.entries(succeeded).map(([airline, response]) => {
           if (!response) return []
-          const catalog = withTravellerTarget(response.interaction_catalog, travellers.adults + travellers.children)
+          const catalog = withTravellerTarget(response.interaction_catalog, travellers.adults + travellers.children, tripType === 'return' ? 2 : 1)
           const state = toggles[airline as Airline] ?? catalog.toggle_defaults
           return [airline, { ...response, interaction_catalog: catalog, resolved_view: resolveCatalog(catalog, state) }]
         })) as Partial<Record<Airline, MilesGoalSimulationResponse>>
@@ -201,12 +235,14 @@ function ViewOneResultsContent() {
       if (requested.length === 1) setAirlineScope(requested[0])
       else setAirlineScope('best')
     }
-  }, [region, toggles])
+  }, [region, toggles, travellers, tripType])
 
   const submitProfile = useCallback((nextProfile: PersonalizedProfile) => {
-    const requested: Airline[] = nextProfile.airline_preference === 'none' ? AIRLINES : [nextProfile.airline_preference]
+    const requested: Airline[] = nextProfile.airline_preference === 'none'
+      ? supportedAirlines
+      : supportedAirlines.includes(nextProfile.airline_preference) ? [nextProfile.airline_preference] : supportedAirlines
     void runSimulation(nextProfile, requested, true, true)
-  }, [runSimulation])
+  }, [runSimulation, supportedAirlines])
   const closeDrawer = useCallback(() => {
     if (journeyStep === 'personalize') setJourneyStep(returnStep)
   }, [journeyStep, returnStep])
@@ -225,7 +261,9 @@ function ViewOneResultsContent() {
       setAirlineScope(stored.airline_scope)
       setFocused(stored.focused_strategy)
       setTravellers(stored.travellers ?? DEFAULT_TRAVELLERS)
-      setJourneyStep(stored.mode === 'personalized' ? 'results' : stored.journey_step === 'travellers' ? 'strategy' : stored.journey_step === 'timeline' ? 'reveal' : stored.journey_step ?? 'strategy')
+      setTripType(stored.trip_type ?? DEFAULT_TRIP_TYPE)
+      setExistingCardBanks(stored.existing_card_banks ?? [])
+      setJourneyStep(stored.mode === 'personalized' ? 'results' : 'reveal')
       return
     }
     setResponses({})
@@ -233,13 +271,39 @@ function ViewOneResultsContent() {
     setLockedCardOrder({})
     setErrors({})
     setTravellers(DEFAULT_TRAVELLERS)
-    setJourneyStep('strategy')
-  }, [region, runSimulation])
+    setTripType(DEFAULT_TRIP_TYPE)
+    setExistingCardBanks([])
+    setFocused('dream')
+    setJourneyStep('reveal')
+    void runSimulation(starterProfile(), supportedAirlines, true, false, true)
+  }, [region, runSimulation, supportedAirlines])
 
   const changeToggle = useCallback((airline: Airline, state: ToggleState) => {
     setToggles(current => ({ ...current, [airline]: state }))
     setAnnouncement('Miles timelines updated using your selected assumptions.')
   }, [])
+  const changeExistingCardBanks = useCallback((nextBanks: string[]) => {
+    const previous = new Set(existingCardBanks)
+    const selected = new Set(nextBanks)
+    const affectedBanks = new Set([...previous, ...selected])
+    setExistingCardBanks(nextBanks)
+    setToggles(current => {
+      const next = { ...current }
+      for (const airline of AIRLINES) {
+        const response = responses[airline]
+        if (!response) continue
+        const state = current[airline] ?? cloneDefaultToggle(response)
+        const newToBankByBank = { ...state.new_to_bank_by_bank }
+        for (const bankCode of affectedBanks) {
+          if (selected.has(bankCode)) newToBankByBank[bankCode] = false
+          else delete newToBankByBank[bankCode]
+        }
+        next[airline] = { ...state, new_to_bank_by_bank: newToBankByBank }
+      }
+      return next
+    })
+    setAnnouncement('Recommendations refreshed using your existing-card banks.')
+  }, [existingCardBanks, responses])
 
   const startOver = () => {
     controllersRef.current.forEach(controller => controller.abort())
@@ -262,23 +326,27 @@ function ViewOneResultsContent() {
   const partial = available.emirates !== available.etihad
   const totalSpend = profile ? Object.values(profile.spend).reduce((sum, value) => sum + value, 0) : 0
   const selectedCandidate = rankedCandidates(effectiveResponses, airlineScope, focused)[0] ?? null
-  const selectedResponse = selectedCandidate ? effectiveResponses[selectedCandidate.airline] : undefined
+  const selectedResponse = selectedCandidate
+    ? effectiveResponses[selectedCandidate.airline]
+    : responsesForScope(effectiveResponses, airlineScope)[0]?.[1]
   const selectedStrategy = selectedResponse?.interaction_catalog.strategies.find(strategy => strategy.strategy_id === focused) ?? null
+  const strategyDefinitions = new Map((selectedResponse?.interaction_catalog.strategies ?? []).map(strategy => [strategy.strategy_id, strategy]))
+  const displayedTargetMiles = selectedCandidate?.target_at_goal_miles ?? selectedStrategy?.original_target_miles ?? 0
   const maximumCashPrice = Math.max(0, ...(Object.values(effectiveResponses).map(response => (
     response.interaction_catalog.strategies.find(strategy => strategy.strategy_id === focused)?.cash_price_aed ?? 0
   ))))
   const travellerCount = travellers.adults + travellers.children
+  const tripLegs = tripType === 'return' ? 2 : 1
+  const tripLabel = tripType === 'return' ? 'return ticket' : 'one-way ticket'
   const journeyDestination = region.label
   const openPersonalization = (from: Exclude<JourneyStep, 'personalize'>) => {
     setReturnStep(from)
     setJourneyStep('personalize')
   }
-  const seeWhatItTakes = () => {
-    if (selectedCandidate) {
-      setJourneyStep('reveal')
-      return
-    }
-    void runSimulation(starterProfile(), AIRLINES, true).then(() => setJourneyStep('reveal'))
+  const openAssumptionEditor = () => setEditStep('strategy')
+  const saveAssumptions = () => {
+    setEditStep(null)
+    setAnnouncement('Your target miles have been updated using these trip assumptions.')
   }
   const adjustTraveller = (kind: keyof Travellers, delta: number) => {
     setTravellers(current => {
@@ -288,12 +356,12 @@ function ViewOneResultsContent() {
   }
 
   if (loading && journeyStep === 'personalize') return <main className={loadingOverlay.screen}><MilesLoadingState destination={region.label} /></main>
-  if (loading && journeyStep === 'strategy') return <main className={loadingOverlay.targetScreen}><MilesLoadingState destination={region.label} variant="target" /></main>
+  if (loading && journeyStep === 'reveal' && !Object.keys(effectiveResponses).length) return <main className={loadingOverlay.targetScreen}><MilesLoadingState destination={region.label} variant="target" /></main>
 
   return <div className={`${styles.page} ${journeyStep !== 'results' ? `${love.page} ${journey.page}` : ''}`}>
     <div className={styles.announcement} aria-live="polite">{announcement}</div>
 
-    {Object.keys(errors).length > 0 && <section className={styles.partial} role="status"><i className="ti ti-alert-triangle" /><div><strong>{Object.keys(effectiveResponses).length ? 'Some airline results are unavailable' : 'We could not build the plan yet'}</strong>{AIRLINES.filter(airline => errors[airline]).map(airline => <p key={airline}>{airlineLabel(airline)}: {errors[airline]} {profile && <button onClick={() => void runSimulation(profile, [airline], false)}>Retry</button>}</p>)}</div></section>}
+    {Object.keys(errors).length > 0 && <section className={styles.partial} role="status"><i className="ti ti-alert-triangle" /><div><strong>{Object.keys(effectiveResponses).length ? 'Some airline results are unavailable' : 'We could not build the plan yet'}</strong>{supportedAirlines.filter(airline => errors[airline]).map(airline => <p key={airline}>{airlineLabel(airline)}: {errors[airline]} {profile && <button onClick={() => void runSimulation(profile, [airline], false)}>Retry</button>}</p>)}</div></section>}
 
     {(journeyStep !== 'results' || Object.keys(effectiveResponses).length > 0) && (journeyStep === 'results' ? <>
       <div className={resultTopBar.bar}><button type="button" onClick={startOver}><i className="ti ti-search" /> New Search</button><Link href={`/miles/results?region=${encodeURIComponent(region.id)}&view=new`}>View 2.0</Link></div>
@@ -301,29 +369,38 @@ function ViewOneResultsContent() {
       {displayCards.length ? <section className={styles.summaryCards}>{displayCards.map(card => <MilesResultSummaryCard key={card.earnn_card_id} card={card} focused={focused} destinationLabel={region.label} monthlySpend={totalSpend} responses={effectiveResponses} toggles={toggles} onToggleChange={changeToggle} onCardNameClick={setDetailCardId} />)}</section> : <section className={styles.empty}><i className="ti ti-plane-off" /><h2>No route reaches this goal within 36 months</h2><p>Try another strategy, airline, or update your spending profile.</p></section>}
     </> : journeyStep === 'personalize' ? <section className={journey.shell} aria-label="Personalize your miles plan">
       <div className={journey.progress}><button type="button" onClick={closeDrawer}><i className="ti ti-arrow-left" /> Back</button></div>
-      <MilesCustomizeDrawer open embedded onClose={closeDrawer} onSubmit={submitProfile} initial={returnStep === 'results' ? profile : null} submitting={loading} />
-    </section> : <section className={journey.shell} aria-live="polite">
-      <div className={`${journey.progress} ${journeyStep === 'strategy' ? journey.strategyProgress : ''}`}>{journeyStep === 'strategy' ? <button type="button" onClick={() => router.push('/miles')}><i className="ti ti-arrow-left" /> Back</button> : <><span>YOUR FLIGHT PLAN</span><strong>{journeyDestination} · {STRATEGY_COPY[focused].label}</strong><button type="button" onClick={() => setJourneyStep(journeyStep === 'reveal' ? 'strategy' : 'reveal')}><i className="ti ti-arrow-left" /> Back</button></>}</div>
+      <MilesCustomizeDrawer open embedded onClose={closeDrawer} onSubmit={submitProfile} initial={returnStep === 'results' ? profile : null} submitting={loading} availableAirlines={supportedAirlines} />
+    </section> : <div className={editStep ? journey.editorBackdrop : undefined}><section className={`${journey.shell} ${editStep ? journey.editorDialog : ''}`} aria-live="polite">
+      <div className={journey.progress}>{editStep ? <><span>EDIT TRIP</span><strong>{editStep === 'strategy' ? 'How do you want to fly?' : 'Who is flying?'}</strong><button type="button" onClick={() => setEditStep(null)} aria-label="Close trip editor"><i className="ti ti-x" /></button></> : <><span>YOUR FLIGHT PLAN</span><strong>{journeyDestination} · {STRATEGY_COPY[focused].label}</strong><button type="button" onClick={openAssumptionEditor}><i className="ti ti-pencil" /> Edit assumptions</button></>}</div>
 
-      {journeyStep === 'strategy' && <section className={`${styles.strategySection} ${love.strategySection} ${density.section} ${journey.strategyStep}`} aria-label="How do you want to fly">
+      {editStep === 'strategy' && <section className={`${styles.strategySection} ${love.strategySection} ${density.section} ${journey.strategyStep}`} aria-label="How do you want to fly">
         <h2 className={journey.strategyPrompt}>How do you want to fly?</h2>
-        <div className={`${styles.strategyCards} ${love.strategyGrid}`}>{(Object.keys(STRATEGY_COPY) as StrategyId[]).map(strategyId => <button key={strategyId} type="button" className={`${styles.strategyCard} ${love.strategyCard} ${density.card} ${journey.strategyCard} ${focused === strategyId ? `${styles.strategySelected} ${love.strategySelected} ${density.selected}` : ''} ${strategyId === 'easiest' ? density.economyVisual : strategyId === 'dream' ? density.dreamNeutral : density.smartestVisual}`} aria-pressed={focused === strategyId} onClick={() => setFocused(strategyId)}>{focused === strategyId && <i className={`${density.selectedTick} ti ti-check`} aria-hidden="true" />}<span><i className={`ti ti-${strategyId === 'easiest' ? 'plane' : strategyId === 'dream' ? 'sparkles' : 'trending-up'}`} /> {STRATEGY_COPY[strategyId].eyebrow}{strategyId === 'dream' && ' ✨'}</span><strong>{strategyId === 'easiest' ? 'Fly more for less' : strategyId === 'dream' ? 'Fly Business Class' : 'Upgrade to Business'}</strong><b>{strategyId === 'easiest' ? 'Economy' : strategyId === 'dream' ? 'The dream, paid with miles.' : 'Use miles where they matter most.'}</b><p>{strategyId === 'easiest' ? <>Stretch your miles across <em>more travellers or more trips.</em></> : strategyId === 'dream' ? <>Turn your everyday spending into the <em>Business Class experience.</em></> : <>Pay for your ticket and use miles <em>only for the Business Class upgrade.</em></>}</p></button>)}</div>
-        <section className={journey.travellerBlock} aria-label="Who is flying"><h3>Who is flying?</h3><div className={journey.inlineTravellers}>{(['adults', 'children', 'infants'] as (keyof Travellers)[]).map(kind => <div key={kind}><div className={journey.travellerLabel}><span>{kind[0].toUpperCase() + kind.slice(1)}</span><small>{kind === 'adults' ? 'Age 12+' : kind === 'children' ? 'Age 2–11' : 'Under 2'}</small></div><div className={journey.counter}><button type="button" aria-label={`Remove ${kind}`} disabled={travellers[kind] === (kind === 'adults' ? 1 : 0)} onClick={() => adjustTraveller(kind, -1)}>−</button><strong>{travellers[kind]}</strong><button type="button" aria-label={`Add ${kind}`} disabled={travellers[kind] === 9} onClick={() => adjustTraveller(kind, 1)}>+</button></div></div>)}</div></section>
-        <div className={journey.stepAction}><button className="btn-primary" disabled={loading} onClick={seeWhatItTakes}>See What It Takes <i className="ti ti-arrow-right" /></button></div>
+        <div className={`${styles.strategyCards} ${love.strategyGrid}`}>{(Object.keys(STRATEGY_COPY) as StrategyId[]).map(strategyId => {
+          const strategy = strategyDefinitions.get(strategyId)
+          return <button key={strategyId} type="button" className={`${styles.strategyCard} ${love.strategyCard} ${density.card} ${journey.strategyCard} ${focused === strategyId ? `${styles.strategySelected} ${love.strategySelected} ${density.selected}` : ''} ${strategyId === 'easiest' ? density.economyVisual : strategyId === 'dream' ? density.dreamNeutral : density.smartestVisual}`} aria-pressed={focused === strategyId} onClick={() => setFocused(strategyId)}>{focused === strategyId && <i className={`${density.selectedTick} ti ti-check`} aria-hidden="true" />}<span><i className={`ti ti-${strategyId === 'easiest' ? 'plane' : strategyId === 'dream' ? 'sparkles' : 'trending-up'}`} /> {STRATEGY_COPY[strategyId].eyebrow}{strategyId === 'dream' && ' ✨'}</span><strong>{strategyId === 'easiest' ? 'Fly more for less' : strategyId === 'dream' ? 'Fly Business Class' : 'Upgrade to Business'}</strong><b>{strategyId === 'easiest' ? 'Economy' : strategyId === 'dream' ? 'The dream, paid with miles.' : 'Use miles where they matter most.'}</b><p>{strategyId === 'easiest' ? <>Stretch your miles across <em>more travellers or more trips.</em></> : strategyId === 'dream' ? <>Turn your everyday spending into the <em>Business Class experience.</em></> : <>Pay for your ticket and use miles <em>only for the Business Class upgrade.</em></>}</p><div className={`${journey.strategyEstimate} ${strategyId !== 'smartest' ? journey.strategyEstimateLight : ''} ${strategyId === 'easiest' ? journey.economyEstimate : ''}`}><span>~ {formatAed(strategy?.associated_cash_aed ?? 0)}</span><i aria-hidden="true">+</i><span>~ {formatNumber(strategy?.original_target_miles ?? 0)} miles</span><small className={journey.ticketSaving}>Saving per ticket: <b>{formatAed(Math.max(0, (strategy?.cash_price_aed ?? 0) - (strategy?.associated_cash_aed ?? 0)))}</b></small></div></button>
+        })}</div>
+        <div className={journey.stepAction}><button className="btn-primary" type="button" onClick={() => setEditStep('travellers')}>Next <i className="ti ti-arrow-right" /></button></div>
       </section>}
 
-      {journeyStep === 'reveal' && selectedStrategy && <section className={journey.centeredStep} aria-label="Dream and value reveal">
+      {editStep === 'travellers' && <section className={journey.compactTravellerStep} aria-label="Travellers and trip direction">
+        <div className={journey.tripTypeToggle} role="radiogroup" aria-label="Ticket direction"><button type="button" role="radio" aria-checked={tripType === 'one_way'} className={tripType === 'one_way' ? journey.tripTypeSelected : ''} onClick={() => setTripType('one_way')}>One way</button><button type="button" role="radio" aria-checked={tripType === 'return'} className={tripType === 'return' ? journey.tripTypeSelected : ''} onClick={() => setTripType('return')}>Return</button></div>
+        <div className={journey.inlineTravellers}>{(['adults', 'children', 'infants'] as (keyof Travellers)[]).map(kind => <div key={kind}><div className={journey.travellerLabel}><span>{kind[0].toUpperCase() + kind.slice(1)}</span><small>{kind === 'adults' ? 'Age 12+' : kind === 'children' ? 'Age 2–11' : 'Under 2'}</small></div><div className={journey.counter}><button type="button" aria-label={`Remove ${kind}`} disabled={travellers[kind] === (kind === 'adults' ? 1 : 0)} onClick={() => adjustTraveller(kind, -1)}>−</button><strong>{travellers[kind]}</strong><button type="button" aria-label={`Add ${kind}`} disabled={travellers[kind] === 9} onClick={() => adjustTraveller(kind, 1)}>+</button></div></div>)}</div>
+        <div className={journey.stepAction}><button type="button" onClick={() => setEditStep('strategy')}>Back</button><button className="btn-primary" type="button" onClick={saveAssumptions}>Update target <i className="ti ti-check" /></button></div>
+      </section>}
+
+      {!editStep && selectedStrategy && <section className={journey.centeredStep} aria-label="Flight target">
         <h2 className={journey.revealHeading}>Your trip, unlocked</h2>
-        <div className={journey.valueReveal}><div><span>PAY CASH</span><strong className={journey.strike}>{formatAed(maximumCashPrice * travellerCount)}</strong><small>Typical ticket cost</small></div><span className={journey.or}>OR</span><div className={journey.milesOption}><span>UNLOCK WITH MILES <i className="ti ti-sparkles" /></span><strong>{formatNumber(selectedStrategy.original_target_miles)} <small>miles</small></strong><small>+ airline taxes &amp; charges</small></div></div>
-        <div className={journey.goalCallout}><i className="ti ti-sparkles" /><p>Don&apos;t spend <strong>{formatAed(maximumCashPrice * travellerCount)}</strong> buying tickets. Earnn will help you unlock <strong>{formatNumber(selectedStrategy.original_target_miles)} miles.</strong></p></div>
+        <p className={journey.tripSummary}>Target miles for <strong>{journeyDestination}</strong> · <strong>{travellerCount} {travellerCount === 1 ? 'person' : 'people'}</strong> · <strong>{STRATEGY_COPY[focused].label}</strong> · <strong>{tripLabel}</strong> <button type="button" onClick={openAssumptionEditor} aria-label="Edit trip assumptions"><i className="ti ti-pencil" /> Edit</button></p>
+        <div className={journey.valueReveal}><div><span>PAY CASH</span><strong className={journey.strike}>{formatAed(maximumCashPrice * travellerCount * tripLegs)}</strong><small>Typical ticket cost</small></div><span className={journey.or}>OR</span><div className={journey.milesOption}><span>UNLOCK WITH MILES <i className="ti ti-sparkles" /></span><strong>{formatNumber(displayedTargetMiles)} <small>miles</small></strong><small>+ airline taxes &amp; charges</small></div></div>
+        <div className={journey.goalCallout}><i className="ti ti-sparkles" /><p>Earnn will help you unlock <strong>{formatNumber(displayedTargetMiles)} miles</strong> for this {tripLabel}.</p></div>
         <div className={journey.timelineCallout}><i className="ti ti-clock-hour-4" /><p>UAE residents could reach this goal in <strong>{selectedCandidate ? timelineBand(selectedCandidate.months_to_goal).replace(/^(As little as |Around )/, '') : 'a personalized timeline'}</strong></p></div>
         <button className="btn-primary" onClick={() => openPersonalization('reveal')}>Build My Plan <i className="ti ti-arrow-right" /></button>
       </section>}
-    </section>)}
+    </section></div>)}
 
     {loading && Object.keys(effectiveResponses).length > 0 && <div className={styles.updating} role="status"><span /><strong>Updating {loadingAirlines.map(airlineLabel).join(' and ')} plan…</strong></div>}
     <MilesDisclosure />
-    <MilesResultFilters open={filtersOpen} onClose={() => setFiltersOpen(false)} bank={bankFilter} onBankChange={setBankFilter} banks={bankOptions} airlineScope={airlineScope} onAirlineScopeChange={setAirlineScope} available={available} />
+    <MilesResultFilters open={filtersOpen} onClose={() => setFiltersOpen(false)} bank={bankFilter} onBankChange={setBankFilter} banks={bankOptions} airlineScope={airlineScope} onAirlineScopeChange={setAirlineScope} available={available} existingCardBanks={existingCardBanks} onExistingCardBanksChange={changeExistingCardBanks} />
     {detailCardId && <CardDetailPopup cardId={detailCardId} onClose={() => setDetailCardId(null)} />}
   </div>
 }

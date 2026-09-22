@@ -11,6 +11,7 @@ export default function MilesOpportunityCard({ event, display, active, currentMo
   onToggle: (enabled: boolean) => void
 }) {
   const effect = event.effect_type === 'target_reduce' ? `${event.effect_value}% fewer target miles`
+    : event.effect_type === 'ticket_reduce' ? `${event.effect_value} free companion ${event.effect_value === 1 ? 'ticket' : 'tickets'}`
     : event.effect_type === 'cost_reduce' ? `${formatAed(event.effect_value)} fee reduction`
       : `${formatMiles(event.effect_value)} reward`
   return <article className={styles.opportunity}>

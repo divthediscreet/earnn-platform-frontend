@@ -7,11 +7,15 @@ import type {
 /** Applies the selected seat count to the existing, per-traveller miles targets.
  * Infants are deliberately excluded by the caller because they do not use a miles seat.
  */
-export function withTravellerTarget(catalog: InteractionCatalog, travellerCount: number): InteractionCatalog {
-  const multiplier = Math.max(1, travellerCount)
-  if (multiplier === 1) return catalog
+export function withTravellerTarget(catalog: InteractionCatalog, travellerCount: number, tripLegs = 1): InteractionCatalog {
+  const travellers = Math.max(1, travellerCount)
+  const legs = Math.max(1, tripLegs)
+  const multiplier = travellers * legs
+  if (multiplier === 1) return { ...catalog, traveller_count: 1, trip_legs: 1 }
   return {
     ...catalog,
+    traveller_count: travellers,
+    trip_legs: legs,
     strategies: catalog.strategies.map(strategy => ({
       ...strategy,
       original_target_miles: strategy.original_target_miles * multiplier,
@@ -68,7 +72,9 @@ export function activeEvents(card: CardInteractionModel, route: string, state: T
         : bankState(card, state)
     }
     else if (event.toggle_key === 'balance_transfer') enabled = state.balance_transfer_default === event.toggle_required_value
-    else enabled = event.effect_type === 'target_reduce' ? event.default_on : (event.feasibility_gated || event.default_on)
+    else enabled = event.effect_type === 'target_reduce' || event.effect_type === 'ticket_reduce'
+      ? event.default_on
+      : (event.feasibility_gated || event.default_on)
     if (enabled) active.push(event)
   }
   const groups = new Set<string>()
@@ -91,6 +97,37 @@ function unlockMonths(event: ConditionalRewardEvent): number[] {
   return result
 }
 
+function appliesToStrategy(event: ConditionalRewardEvent, strategyId: string, travellerCount: number): boolean {
+  return event.effect_type !== 'ticket_reduce' || (travellerCount > 1 && (strategyId === 'easiest' || strategyId === 'dream'))
+}
+
+function targetForMonth(strategy: StrategyDefinition, events: ConditionalRewardEvent[], unlocks: Record<string, number[]>, month: number, travellerCount: number, tripLegs: number): number {
+  let target = strategy.original_target_miles
+  // The companion ticket is a selected target assumption. Its qualification
+  // date is enforced in findCrossing, keeping the required miles stable from
+  // the moment a user turns the benefit on.
+  const companionEvents = events.filter(event => event.effect_type === 'ticket_reduce' && unlocks[event.event_id].length > 0)
+  if (companionEvents.length) {
+    const freeTickets = Math.max(...companionEvents.map(event => event.effect_value))
+    const paidTickets = Math.max(1, travellerCount - Math.floor(freeTickets))
+    const perTicketTarget = strategy.original_target_miles / (travellerCount * tripLegs)
+    target = Math.ceil(perTicketTarget * paidTickets * tripLegs)
+  }
+  for (const event of events) {
+    if (event.effect_type === 'target_reduce' && unlocks[event.event_id].some(unlock => unlock <= month)) {
+      target = Math.ceil(target * (1 - event.effect_value / 100))
+    }
+  }
+  return target
+}
+
+function companionReadyMonth(events: ConditionalRewardEvent[], unlocks: Record<string, number[]>): number | null {
+  const companions = events.filter(event => event.effect_type === 'ticket_reduce' && unlocks[event.event_id].length > 0)
+  if (!companions.length) return null
+  const selected = companions.reduce((best, event) => event.effect_value > best.effect_value ? event : best)
+  return Math.min(...unlocks[selected.event_id])
+}
+
 interface Crossing {
   month: number
   target: number
@@ -101,18 +138,21 @@ interface Crossing {
 }
 
 function findCrossing(catalog: InteractionCatalog, card: CardInteractionModel, trajectory: BaseFeeTrajectory, strategy: StrategyDefinition, state: ToggleState): Crossing | null {
-  const events = activeEvents(card, trajectory.fee_route, state)
+  const events = activeEvents(card, trajectory.fee_route, state).filter(event => appliesToStrategy(event, strategy.strategy_id, catalog.traveller_count))
   const unlocks = Object.fromEntries(events.map(event => [event.event_id, unlockMonths(event)]))
+  const ticketReadyMonth = companionReadyMonth(events, unlocks)
   for (let month = 1; month <= catalog.horizon_months; month += 1) {
     let miles = catalog.current_usable_miles + trajectory.cumulative_base_miles_by_month[month - 1]
     let reduction = 0
-    let target = strategy.original_target_miles
+    const target = targetForMonth(strategy, events, unlocks, month, catalog.traveller_count, catalog.trip_legs)
+    // Do not complete a plan before the selected companion ticket can be
+    // issued, even though its target reduction is shown immediately.
+    if (ticketReadyMonth !== null && month < ticketReadyMonth) continue
     for (const event of events) {
       const occurred = unlocks[event.event_id].filter(unlock => unlock <= month).length
       const quantity = event.quantity_per_period ?? 1
       if (event.effect_type === 'miles_add') miles += occurred * event.effect_value * quantity
       if (event.effect_type === 'cost_reduce') reduction += occurred * event.effect_value * quantity
-      if (event.effect_type === 'target_reduce' && occurred) target = Math.ceil(strategy.original_target_miles * (1 - event.effect_value / 100))
     }
     const cost = Math.max(trajectory.cumulative_route_cost_aed_by_month[month - 1] - reduction, 0)
     if (miles >= target) return { month, target, miles, cost, events, unlocks }
