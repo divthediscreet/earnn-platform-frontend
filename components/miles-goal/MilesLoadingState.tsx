@@ -1,6 +1,7 @@
+import Image from 'next/image'
 import styles from './MilesLoadingState.module.css'
 
-export default function MilesLoadingState({ destination, variant = 'result' }: { destination: string; variant?: 'target' | 'result' }) {
+export default function MilesLoadingState({ destination, variant = 'result', headline, supportingText }: { destination: string; variant?: 'target' | 'result'; headline?: string; supportingText?: string }) {
   const targetCalculation = variant === 'target'
   if (targetCalculation) return <div className={`${styles.loading} ${styles.targetLoading}`} role="status" aria-live="polite">
     <div className={`${styles.sky} ${styles.flightSky}`} aria-hidden="true"><span className={styles.flightPath} /><i className="ti ti-plane" /></div>
@@ -14,8 +15,8 @@ export default function MilesLoadingState({ destination, variant = 'result' }: {
   </div>
 
   return <div className={styles.loading} role="status" aria-live="polite">
-    <div className={`${styles.sky} ${styles.targetSky}`} aria-hidden="true"><span className={styles.glow} /><img className={styles.realGlobe} src="/miles-goal/realistic-globe.png" alt="" /></div>
-    <strong>Finding your fastest way to {destination}…</strong>
-    <span>Comparing miles, welcome rewards, fee routes and flight targets.</span>
+    <div className={`${styles.sky} ${styles.targetSky}`} aria-hidden="true"><span className={styles.glow} /><Image className={styles.realGlobe} src="/miles-goal/realistic-globe.png" alt="" width={112} height={112} priority /></div>
+    <strong>{headline ?? `Finding your fastest way to ${destination}…`}</strong>
+    <span>{supportingText ?? 'Comparing miles, welcome rewards, fee routes and flight targets.'}</span>
   </div>
 }

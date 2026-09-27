@@ -126,6 +126,7 @@ export function getCardImageUrl(earnnCardId: string) {
 }
 
 export { simulateMilesGoal } from './miles-goal/api'
+export { simulateBulkSpendMiles } from './bulk-spend-miles/api'
 
 // ── Chatbot (Module 1) ────────────────────────────────────────────────────────
 export interface ChatMessage { role: 'user' | 'assistant'; content: string }
