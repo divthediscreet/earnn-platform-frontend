@@ -12,6 +12,7 @@ import resultStyles from './result-controls.module.css'
 import tileStyles from './travel-result-tile.module.css'
 import formStyles from './compact-spend-form.module.css'
 import loadingStyles from './BulkSpendLoading.module.css'
+import outcomeStyles from './BulkSpendOutcome.module.css'
 
 const MONTHS = [
   ['Jan', 1], ['Feb', 2], ['Mar', 3], ['Apr', 4], ['May', 5], ['Jun', 6],
@@ -89,6 +90,7 @@ export default function BulkSpendMilesPage() {
   const [selectedBanks, setSelectedBanks] = useState<string[]>([])
   const [includeNewCard, setIncludeNewCard] = useState(true)
   const [resultSort, setResultSort] = useState<BulkResultSort>('combined')
+  const [showOutcome, setShowOutcome] = useState(false)
 
   useEffect(() => {
     let current = true
@@ -143,7 +145,7 @@ export default function BulkSpendMilesPage() {
       setSelectedBanks([])
       setIncludeNewCard(true)
       setResultSort('combined')
-      requestAnimationFrame(() => document.getElementById('bulk-results')?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
+      setShowOutcome(true)
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'We could not calculate your miles plan right now.')
     } finally {
@@ -187,6 +189,11 @@ export default function BulkSpendMilesPage() {
     return aedResult.cards.filter(card => !selectedBanks.length || selectedBanks.includes(card.bank_name)).sort((left, right) => score(right) - score(left) || left.card_name.localeCompare(right.card_name))
   }, [aedResult, resultSort, selectedBanks])
 
+  const revealResults = () => {
+    setShowOutcome(false)
+    requestAnimationFrame(() => document.getElementById('bulk-results')?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
+  }
+
   if (loading) return <main className={loadingStyles.screen}><MilesLoadingState destination="your best reward" headline="Turning your expenses into a deal…" supportingText="Comparing every eligible card, reward rate, spending tier and welcome bonus." /></main>
 
   return <div className={styles.page}>
@@ -199,9 +206,9 @@ export default function BulkSpendMilesPage() {
       <form className={styles.formCard} onSubmit={submit}>
         <div className={styles.formHeading}><div><span>YOUR BIG-EXPENSE PLAN</span><h2>What big payments are coming up?</h2><p className={formStyles.formIntro}>Add the payments you already expect to make. We will find the card that makes them work harder for you.</p></div></div>
         <section className={formStyles.expensesPanel}>
-          <div className={formStyles.expensePanelHead}><h3>Upcoming big expenses</h3><p>Choose the category, amount and every month when the same payment is due.</p></div>
+          <div className={formStyles.expensePanelHead}><h3>Upcoming big expenses</h3><p>Choose what you are paying for, the amount and every month when the same payment is due.</p></div>
           <div className={formStyles.schedules}>{payments.map((payment, index) => <div className={formStyles.expenseRow} key={`${index}-${payment.topic_code}`}>
-            <label><span>Category</span><select value={payment.topic_code} disabled={topicsLoading || !topics.length} onChange={event => updatePayment(index, { topic_code: event.target.value })}><option value="">{topicsLoading ? 'Loading categories…' : 'Choose a category'}</option>{topics.map(topic => <option key={topic.topic_code} value={topic.topic_code}>{topic.topic_label}</option>)}</select></label>
+            <label><span>What are you paying for?</span><select value={payment.topic_code} disabled={topicsLoading || !topics.length} onChange={event => updatePayment(index, { topic_code: event.target.value })}><option value="">{topicsLoading ? 'Loading options…' : 'Choose an expense'}</option>{topics.map(topic => <option key={topic.topic_code} value={topic.topic_code}>{topic.topic_label}</option>)}</select></label>
             <label><span>Amount due</span><div className={formStyles.amountInput}><b>AED</b><input inputMode="decimal" type="number" min="0" step="100" value={payment.amount_aed || ''} onChange={event => updatePayment(index, { amount_aed: Number(event.target.value) || 0 })} placeholder="10,000" /></div></label>
             <fieldset><legend>Due in</legend><div className={formStyles.months}>{MONTHS.map(([name, value]) => <label key={value} className={payment.due_months.includes(value) ? formStyles.selectedMonth : ''}><input type="checkbox" checked={payment.due_months.includes(value)} onChange={() => toggleMonth(index, value)} /><span>{name}</span></label>)}</div></fieldset>
             <button type="button" className={formStyles.remove} onClick={() => setPayments(current => current.length === 1 ? [blankRow(topics)] : current.filter((_, rowIndex) => rowIndex !== index))} aria-label="Remove scheduled payment"><i className="ti ti-trash" /></button>
@@ -235,7 +242,25 @@ export default function BulkSpendMilesPage() {
         </> : null}
         <BulkSpendResultFilters open={filtersOpen} onClose={() => setFiltersOpen(false)} banks={bankOptions} selectedBanks={selectedBanks} onSelectedBanksChange={setSelectedBanks} includeNewCard={includeNewCard} onIncludeNewCardChange={onIncludeNewCardChange} sort={resultSort} onSortChange={setResultSort} />
       </section>}
+      {showOutcome && result && <BulkSpendOutcome result={result} onContinue={revealResults} />}
     </main>
+  </div>
+}
+
+function BulkSpendOutcome({ result, onContinue }: { result: BulkSpendMilesResponse, onContinue: () => void }) {
+  const topCard = result.cards[0]
+  const totalSpend = result.monthly_projection.reduce((total, month) => total + month.total_spend_aed, 0)
+  const topMiles = topCard ? combinedMilesAccumulation(topCard) : 0
+  const hook = topCard ? travelPotentialForMiles(topMiles).replace(/^[^ ]+ /, '') : 'More rewarding travel'
+  return <div className={outcomeStyles.overlay} role="dialog" aria-modal="true" aria-labelledby="bulk-outcome-title">
+    <section className={outcomeStyles.dialog}>
+      <div className={outcomeStyles.globe} aria-hidden="true"><i className="ti ti-world" /></div>
+      <span className={outcomeStyles.kicker}>YOUR REWARD OPPORTUNITY</span>
+      <p className={outcomeStyles.plan}>You are going to spend <b>{formatAed(totalSpend)}</b> in the next 1 year.<br />Turn your spending into luxury.</p>
+      <h2 id="bulk-outcome-title">{hook}</h2>
+      <p className={outcomeStyles.supporting}>This is what the right card could help make possible from the spending you already have planned.</p>
+      <button type="button" className="btn-primary" onClick={onContinue}>Turn my expenses into a deal <i className="ti ti-arrow-right" /></button>
+    </section>
   </div>
 }
 
