@@ -6,7 +6,7 @@ import styles from './Navbar.module.css'
 
 export default function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false)
-  const navLinkStyle = { padding: '8px 14px', borderRadius: 6, color: 'var(--earnn-text-muted)', fontSize: 15, fontWeight: 500, textDecoration: 'none' }
+  const navLinkStyle = { padding: '8px 14px', borderRadius: 6, color: 'var(--earnn-text-muted)', fontSize: 15, fontWeight: 500, textDecoration: 'none', whiteSpace: 'nowrap' as const }
 
   return (
     <nav style={{
@@ -42,6 +42,9 @@ export default function Navbar() {
           <Link href="/compare" style={navLinkStyle}>
             Compare
           </Link>
+          <Link href="/simulator" style={navLinkStyle}>
+            Simulator
+          </Link>
           <Link href="/merchant-lookup" style={navLinkStyle}>
             Card Match
           </Link>
@@ -63,6 +66,7 @@ export default function Navbar() {
         <div className={styles.mobileNavMenu}>
           <Link href="/analyse" onClick={() => setMenuOpen(false)}>Analyse</Link>
           <Link href="/compare" onClick={() => setMenuOpen(false)}>Compare</Link>
+          <Link href="/simulator" onClick={() => setMenuOpen(false)}>Simulator</Link>
           <Link href="/merchant-lookup" onClick={() => setMenuOpen(false)}>Card Match</Link>
           <Link href="/miles" onClick={() => setMenuOpen(false)}>Fly for Free ✈</Link>
           <Link href="/bulk-spend-miles" onClick={() => setMenuOpen(false)}>Max Miles</Link>
