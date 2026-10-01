@@ -184,3 +184,90 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
 .mony-md table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 8px 0; }
 .mony-md th    { background: #EEF3FF; color: #0E3785; font-weight: 600; padding: 6px 10px; text-align: left; }
 .mony-md td    { padding: 5px 10px; border-bottom: 1px solid #D6E0F5; }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Wallet Simulator (Phase D): Lovable layout, Earnn brand. All names are
+   namespaced `ws-` so no existing page is affected.
+   ══════════════════════════════════════════════════════════════════════════ */
+@theme inline {
+  --color-ws-bg:        #F8FAFF;
+  --color-ws-card:      #FFFFFF;
+  --color-ws-fg:        #0D1828;
+  --color-ws-muted:     #5A6A85;
+  --color-ws-border:    #D6E0F5;
+  --color-ws-secondary: #EEF3FF;
+  --color-ws-primary:   #0E3785;
+  --color-ws-ink:       #0A2A66;
+  --color-ws-ink-fg:    #F5F8FF;
+  --color-ws-accent:    #FFD76A;
+  --color-ws-accent-fg: #092962;
+  --color-ws-gain:      #00A67E;
+  --color-ws-loss:      #C26A12;
+  --shadow-ws-lift:     0 1px 2px rgba(14,55,133,0.05), 0 12px 32px -12px rgba(14,55,133,0.18);
+  --shadow-ws-plastic:  0 2px 4px rgba(10,42,102,0.12), 0 18px 40px -14px rgba(10,42,102,0.45);
+  --shadow-ws-dock:     0 -8px 40px -18px rgba(14,55,133,0.32);
+}
+
+/* The global h1–h6 rule above is unlayered, so it would beat Tailwind utilities; inside the
+   simulator, hand those properties back to the utility layer. */
+.ws-root :is(h1, h2, h3, h4, h5, h6) {
+  color: revert-layer;
+  font-weight: revert-layer;
+  line-height: revert-layer;
+  font-family: var(--font-display);
+  letter-spacing: -0.02em;
+}
+
+/* Fallback card art (used only when a real card image is unavailable) */
+@utility ws-finish-navy     { background-image: linear-gradient(135deg, #2553A8 0%, #0E3785 45%, #06183F 100%); }
+@utility ws-finish-obsidian { background-image: linear-gradient(135deg, #3b424e 0%, #232830 45%, #0e1116 100%); }
+@utility ws-finish-gold     { background-image: linear-gradient(135deg, #e6c47a 0%, #c9a24b 45%, #94712f 100%); }
+@utility ws-finish-emerald  { background-image: linear-gradient(135deg, #1DAA86 0%, #0A7A60 48%, #04392D 100%); }
+@utility ws-finish-plum     { background-image: linear-gradient(135deg, #6f4767 0%, #4c2e49 48%, #271426 100%); }
+@utility ws-finish-steel    { background-image: linear-gradient(135deg, #9fb0b6 0%, #6d7f87 48%, #3b474c 100%); }
+
+@utility ws-card-sheen {
+  position: relative;
+  overflow: hidden;
+  &::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: linear-gradient(108deg, transparent 32%, rgba(255,255,255,0.16) 46%, transparent 60%);
+  }
+}
+@utility ws-hairline { box-shadow: inset 0 0 0 1px rgba(255,255,255,0.14); }
+@utility ws-no-scrollbar {
+  scrollbar-width: none;
+  &::-webkit-scrollbar { display: none; }
+}
+
+@keyframes ws-rise {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes ws-settle {
+  0%   { opacity: 0; transform: translateY(-18px) scale(0.97); }
+  62%  { transform: translateY(3px) scale(1.008); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes ws-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
+@utility ws-animate-rise   { animation: ws-rise 0.6s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+@utility ws-animate-settle { animation: ws-settle 0.55s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+@utility ws-animate-pulse  { animation: ws-pulse 1.2s ease-in-out infinite; }
+
+/* Wallet Simulator: dashed connector lines that flow from the wallet to each category */
+@keyframes ws-dash-flow { to { stroke-dashoffset: -28; } }
+@utility ws-dash-flow { animation: ws-dash-flow 1.4s linear infinite; }
+@media (prefers-reduced-motion: reduce) { .ws-dash-flow { animation: none; } }
+
+/* Wallet Simulator: clearly visible, tinted scrollbar for scrollable panels */
+@utility ws-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #9DB4DE #EEF3FF;
+  &::-webkit-scrollbar { width: 10px; }
+  &::-webkit-scrollbar-track { background: #EEF3FF; border-radius: 999px; }
+  &::-webkit-scrollbar-thumb { background: #9DB4DE; border-radius: 999px; border: 2px solid #EEF3FF; }
+  &::-webkit-scrollbar-thumb:hover { background: #0E3785; }
+}
