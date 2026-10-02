@@ -23,33 +23,17 @@ export type PlaybookRow = {
   monthlyReward: number
   /**
    * single   — the whole group goes to one card.
-   * sequence — a cap-style split the backend output itself supports: use `entries[0]` for the
-   *            first `entries[0].amount` a month, then `entries[1]` (see `isCapSequence`).
-   * split    — the backend splits the spend across cards; show the amounts, no implied order.
+   * sequence — the backend splits the spend across cards: use `entries[0]` for the first
+   *            `entries[0].amount` a month, then the next card for the remainder. Entries are ordered by
+   *            the reward rate each card actually earns on its share (highest first), so the best rate
+   *            is used first (founder, 2026-10-02).
    */
-  kind: 'single' | 'sequence' | 'split'
+  kind: 'single' | 'sequence'
   entries: PlaybookEntry[]
 }
 
 const EPS = 1e-9
 const groupOf = (a: AllocationLine) => a.group ?? 'miscellaneous'
-
-/**
- * A two-card split is shown as a sequence only when the API output supports it:
- *   - the first card earns a strictly higher rate on this spend than the second,
- *   - its whole share earns that bonus rate (nothing past its limit on this line), and
- *   - the backend reports a reward limit reached on that card (caps_hit / card_cap_hit).
- * Otherwise the split is shown as amounts only — we never invent an order.
- */
-function isCapSequence(wallet: Wallet, group: string, first: string, second: string): boolean {
-  const rows = wallet.allocation.filter(a => groupOf(a) === group)
-  const a = rows.filter(r => r.card_id === first)
-  const b = rows.filter(r => r.card_id === second)
-  if (a.length !== 1 || b.length !== 1) return false
-  const card = wallet.per_card.find(c => c.card_id === first)
-  const limitReached = !!card && (card.caps_hit.length > 0 || card.card_cap_hit)
-  return a[0].rate > b[0].rate + EPS && a[0].post_cap_spend_aed <= EPS && limitReached
-}
 
 /** The card's best-rate spend, when this spend sits on the card at a lower rate and the card's
  *  current rates depend on a monthly minimum (band_min_spend_aed > 0). */
@@ -82,18 +66,9 @@ export function buildPlaybook(wallet: Wallet | null, groups: SpendGroup[]): Play
         limitReached: lines.some(l => l.post_cap_spend_aed > 0.005),
         threshold: thresholdNote(wallet, cardId, g.group, rate),
       }
-    }).sort((x, y) => y.monthlyReward - x.monthlyReward || y.amount - x.amount || x.cardId.localeCompare(y.cardId))
-    let kind: PlaybookRow['kind'] = entries.length === 1 ? 'single' : 'split'
-    if (entries.length === 2) {
-      // the sequence starts with the higher-rate card, not necessarily the larger share
-      for (const [f, s] of [[0, 1], [1, 0]] as const) {
-        if (isCapSequence(wallet, g.group, entries[f].cardId, entries[s].cardId)) {
-          kind = 'sequence'
-          if (f === 1) entries.reverse()
-          break
-        }
-      }
-    }
+    }).sort((x, y) => (y.monthlyReward / y.amount) - (x.monthlyReward / x.amount) || y.rate - x.rate
+      || y.amount - x.amount || x.cardId.localeCompare(y.cardId))
+    const kind: PlaybookRow['kind'] = entries.length === 1 ? 'single' : 'sequence'
     rows.push({
       group: g.group,
       monthlySpend: g.monthly_spend_aed,

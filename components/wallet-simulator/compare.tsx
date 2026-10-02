@@ -221,7 +221,6 @@ function Stack({ ids, card }: { ids: string[]; card: CardLookup }) {
   )
 }
 
-const yr = (monthly: number) => monthly * 12 // the backend's monthly figure shown per year
 
 /** Result: the two wallets, the outcome, then category by category. Both wallets are styled the
  *  same — whichever genuinely earns more in a row is marked, including the user's own wallet. */
@@ -229,14 +228,14 @@ function CompareResult({ smart, existing, groups, card }: { smart: Wallet; exist
   const s = byGroup(smart)
   const e = byGroup(existing)
   const rows = groups.filter(g => g.monthly_spend_aed > 0)
-  const gap = smart.annual_reward_aed - existing.annual_reward_aed
+  const gap = smart.monthly_reward_aed - existing.monthly_reward_aed
   const even = Math.abs(gap) < 1
   const grid = 'grid grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)_minmax(0,1fr)]'
   const amount = (v: number, wins: boolean) => (
     <div className="flex items-center justify-end gap-1.5 px-3 py-3 sm:px-5">
       {wins && <span aria-hidden className="size-1.5 shrink-0 rounded-full bg-ws-fg" />}
       <span className={`text-[14px] tabular-nums ${wins ? 'font-semibold text-ws-fg' : 'text-ws-muted'}`}>
-        {aed(v)}<span className="text-[11px] font-normal text-ws-muted">/yr</span>
+        {aed(v)}<span className="text-[11px] font-normal text-ws-muted">/mo</span>
       </span>
       {wins && <span className="sr-only">(earns more)</span>}
     </div>
@@ -245,9 +244,9 @@ function CompareResult({ smart, existing, groups, card }: { smart: Wallet; exist
     <div className="ws-scrollbar flex-1 overflow-y-auto px-5 py-5 sm:px-7">
       {/* the two wallets */}
       <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3 sm:gap-5">
-        <WalletSummary label="Earnn Smart Wallet" ids={smart.cards} annual={smart.annual_reward_aed} card={card} />
+        <WalletSummary label="Earnn Smart Wallet" ids={smart.cards} monthly={smart.monthly_reward_aed} card={card} />
         <span className="text-[13px] font-semibold text-ws-muted">vs.</span>
-        <WalletSummary label="Your current wallet" ids={existing.cards} annual={existing.annual_reward_aed} card={card} />
+        <WalletSummary label="Your current wallet" ids={existing.cards} monthly={existing.monthly_reward_aed} card={card} />
       </div>
 
       {/* the outcome */}
@@ -258,11 +257,11 @@ function CompareResult({ smart, existing, groups, card }: { smart: Wallet; exist
           </p>
         ) : gap > 0 ? (
           <p className="font-display text-[20px] leading-snug font-semibold text-balance sm:text-[24px]">
-            You&apos;re potentially leaving <span className="text-[#F7C948]">{aed(gap)}/year</span> on the table
+            You&apos;re potentially leaving <span className="text-[#F7C948]">{aed(gap)}/month</span> on the table
           </p>
         ) : (
           <p className="font-display text-[20px] leading-snug font-semibold text-balance sm:text-[24px]">
-            Your current wallet earns <span className="text-[#F7C948]">{aed(-gap)}/year</span> more than ours on this spending
+            Your current wallet earns <span className="text-[#F7C948]">{aed(-gap)}/month</span> more than ours on this spending
           </p>
         )}
         {!even && gap < 0 && <p className="mt-1.5 text-[13px] text-white/70">Keep what you have — it&apos;s working for you.</p>}
@@ -276,7 +275,7 @@ function CompareResult({ smart, existing, groups, card }: { smart: Wallet; exist
           <div className="px-3 py-2.5 text-right sm:px-5">Current wallet</div>
         </div>
         {rows.map(g => {
-          const sr = yr(s.get(g.group)?.reward ?? 0), er = yr(e.get(g.group)?.reward ?? 0)
+          const sr = s.get(g.group)?.reward ?? 0, er = e.get(g.group)?.reward ?? 0
           return (
             <div key={g.group} className={`${grid} items-center border-b border-ws-border last:border-b-0`}>
               <div className="flex min-w-0 items-center gap-2 px-3 py-3 sm:px-5">
@@ -299,7 +298,7 @@ function CompareResult({ smart, existing, groups, card }: { smart: Wallet; exist
       {/* the decision */}
       {gap >= 1 && (
         <div className="mt-6 rounded-2xl border border-ws-border p-5">
-          <p className="font-display text-[18px] font-semibold text-ws-fg">Switching could add {aed(gap)}/year</p>
+          <p className="font-display text-[18px] font-semibold text-ws-fg">Switching could add {aed(gap)}/month</p>
           <p className="text-[13px] text-ws-muted">without changing how much you spend.</p>
           <dl className="mt-4 space-y-2 border-t border-ws-border pt-4 text-[13px]">
             <div className="flex justify-between gap-4"><dt className="text-ws-muted">Extra rewards</dt><dd className="font-semibold text-ws-fg tabular-nums">+{aed(gap)}</dd></div>
@@ -312,12 +311,12 @@ function CompareResult({ smart, existing, groups, card }: { smart: Wallet; exist
   )
 }
 
-function WalletSummary({ label, ids, annual, card }: { label: string; ids: string[]; annual: number; card: CardLookup }) {
+function WalletSummary({ label, ids, monthly, card }: { label: string; ids: string[]; monthly: number; card: CardLookup }) {
   return (
     <div className="flex min-w-0 flex-col items-center rounded-2xl border border-ws-border px-3 py-4 text-center">
       <p className="text-[10px] font-bold tracking-[0.12em] text-ws-muted uppercase">{label}</p>
       <div className="mt-3"><Stack ids={ids} card={card} /></div>
-      <p className="mt-3 font-display text-[20px] font-semibold text-ws-fg tabular-nums sm:text-[24px]">{aed(annual)}<span className="text-[13px] font-normal text-ws-muted">/year</span></p>
+      <p className="mt-3 font-display text-[20px] font-semibold text-ws-fg tabular-nums sm:text-[24px]">{aed(monthly)}<span className="text-[13px] font-normal text-ws-muted">/month</span></p>
     </div>
   )
 }

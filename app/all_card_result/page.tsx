@@ -177,14 +177,14 @@ export default function AllCardResultPage() {
     if (typeof window === 'undefined') return
 
     const raw = sessionStorage.getItem('earnn_result')
-    if (!raw) { router.push('/analyse'); return }
+    if (!raw) { router.push('/analyse-old'); return }
 
     let parsed: { type: string; data: { scored_cards?: ScoredCard[]; user_spend?: Record<string, number> } }
-    try { parsed = JSON.parse(raw) } catch { router.push('/analyse'); return }
+    try { parsed = JSON.parse(raw) } catch { router.push('/analyse-old'); return }
 
     const scored = parsed?.data?.scored_cards
     const spend  = parsed?.data?.user_spend ?? {}
-    if (!scored || scored.length === 0) { router.push('/analyse'); return }
+    if (!scored || scored.length === 0) { router.push('/analyse-old'); return }
 
     setUserSpend(spend)
 

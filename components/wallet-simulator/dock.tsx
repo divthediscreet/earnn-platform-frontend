@@ -8,7 +8,7 @@ import { CardChip, RollingAed, type CardInfo } from './card-art'
 type CardLookup = (id: string) => CardInfo
 const cardName = (c: CardInfo) => c.name
 
-export function WalletDock({ ids, wallet, pick, isPick, status, card, onRemove, onReset, onRetry, open, onOpenChange, children }: {
+export function WalletDock({ ids, wallet, pick, isPick, status, card, onRemove, onAdd, onReset, onRetry, open, onOpenChange, children }: {
   children?: React.ReactNode // shown when the dock is expanded (the wallet's playbook)
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -19,20 +19,21 @@ export function WalletDock({ ids, wallet, pick, isPick, status, card, onRemove, 
   status: 'ready' | 'updating' | 'error'
   card: CardLookup
   onRemove: (id: string) => void
+  onAdd: () => void // opens the wallet customisation screen
   onReset: () => void
   onRetry: () => void
 }) {
-  const total = ids.length === 0 ? 0 : wallet?.annual_reward_aed ?? 0
-  const delta = total - pick.annual_reward_aed
+  const total = ids.length === 0 ? 0 : wallet?.monthly_reward_aed ?? 0
+  const delta = total - pick.monthly_reward_aed
   const fewer = pick.cards.length - ids.length
 
   let headline = 'This is Earnn Pick'
   if (ids.length === 0) headline = 'Add a card to start building'
   else if (!isPick && wallet) {
     if (Math.abs(delta) < 0.5) headline = 'Same rewards as Earnn Pick'
-    else if (delta > 0) headline = `${aed(delta)}/year more than Earnn Pick`
-    else if (fewer > 0) headline = `You're giving up ${aed(-delta)}/year to carry ${fewer === 1 ? 'one less card' : `${fewer} fewer cards`}`
-    else headline = `${aed(-delta)}/year less than Earnn Pick`
+    else if (delta > 0) headline = `${aed(delta)}/month more than Earnn Pick`
+    else if (fewer > 0) headline = `You're giving up ${aed(-delta)}/month to carry ${fewer === 1 ? 'one less card' : `${fewer} fewer cards`}`
+    else headline = `${aed(-delta)}/month less than Earnn Pick`
   }
   if (status === 'error') headline = "We couldn't update your wallet"
   const tone = status === 'error' ? 'text-ws-loss' : isPick || delta >= -0.5 || ids.length === 0 ? 'text-ws-gain' : 'text-ws-loss'
@@ -96,11 +97,11 @@ export function WalletDock({ ids, wallet, pick, isPick, status, card, onRemove, 
             </div>
           ))}
           {Array.from({ length: MAX_WALLET - ids.length }).map((_, i) => (
-            <a key={i} href="#discover" aria-label="Add a card" onClick={() => setOpen(false)}
+            <button key={i} type="button" aria-label="Add a card" onClick={() => { setOpen(false); onAdd() }}
               className="flex w-[60px] flex-col items-center gap-1 text-ws-muted">
               <span className="grid h-[35px] w-[56px] place-items-center rounded-[6px] border border-dashed border-ws-border text-[16px]">+</span>
               <span className="grid min-h-7 place-items-center text-[10px] font-semibold">Add</span>
-            </a>
+            </button>
           ))}
         </div>
 
@@ -112,7 +113,7 @@ export function WalletDock({ ids, wallet, pick, isPick, status, card, onRemove, 
           </p>
           <p className={`font-display text-[19px] leading-tight font-semibold tracking-tight text-ws-fg ${status !== 'ready' ? 'opacity-60' : ''}`}>
             AED <RollingAed value={total} />
-            <span className="ml-1 text-[12px] font-medium text-ws-muted">/year</span>
+            <span className="ml-1 text-[12px] font-medium text-ws-muted">/month</span>
           </p>
         </div>
 
@@ -135,8 +136,8 @@ export function WalletDock({ ids, wallet, pick, isPick, status, card, onRemove, 
       {open && (
         <div className="ws-scrollbar ws-animate-rise min-h-0 flex-1 overflow-y-auto overscroll-contain border-t border-ws-border">
           <div className="mx-auto max-w-6xl px-5 pb-10 sm:px-8">
-            <h2 className="pt-6 font-display text-[22px] font-semibold text-ws-fg">How to use your wallet</h2>
-            <p className="mt-1 text-[13px] text-ws-muted">Reach for the card next to each category. Scroll for more · tap outside or ↓ Close to hide.</p>
+            <h2 className="pt-6 font-display text-[22px] font-semibold text-ws-fg">Which card should I use?</h2>
+            <p className="mt-1 text-[13px] text-ws-muted">See where to use each card and how much it can earn you. Scroll for more · tap outside or ↓ Close to hide.</p>
             {children}
           </div>
         </div>
@@ -177,7 +178,7 @@ export function WalletFullDialog({ ids, wallet, card, onRemove, onClose }: {
                 <CardChip card={c} />
                 <span className="min-w-0 flex-1">
                   <span className="block truncate font-display text-[14px] font-semibold text-ws-fg">{cardName(c)}</span>
-                  {pc && <span className="block text-[12px] text-ws-muted">adds {aed(pc.contribution_annual_aed)}/year to your wallet</span>}
+                  {pc && <span className="block text-[12px] text-ws-muted">adds {aed(pc.contribution_annual_aed / 12)}/month to your wallet</span>}
                 </span>
                 <button onClick={() => onRemove(id)}
                   className="min-h-10 shrink-0 rounded-full border border-ws-border px-3 text-[12px] font-semibold text-ws-fg hover:bg-ws-secondary">

@@ -37,13 +37,11 @@ export default function Navbar() {
         {/* Desktop Nav */}
         <div style={{ alignItems: 'center', gap: 6 }} className={styles.desktopNav}>
           <Link href="/analyse" style={navLinkStyle}>
-            Analyse
+            Analyze
           </Link>
+          {/* Analyze-old (/analyse-old) is hidden from the nav for now; the page still works by URL. To be deleted later. */}
           <Link href="/compare" style={navLinkStyle}>
             Compare
-          </Link>
-          <Link href="/simulator" style={navLinkStyle}>
-            Simulator
           </Link>
           <Link href="/merchant-lookup" style={navLinkStyle}>
             Card Match
@@ -64,9 +62,8 @@ export default function Navbar() {
       </div>
       {menuOpen && (
         <div className={styles.mobileNavMenu}>
-          <Link href="/analyse" onClick={() => setMenuOpen(false)}>Analyse</Link>
+          <Link href="/analyse" onClick={() => setMenuOpen(false)}>Analyze</Link>
           <Link href="/compare" onClick={() => setMenuOpen(false)}>Compare</Link>
-          <Link href="/simulator" onClick={() => setMenuOpen(false)}>Simulator</Link>
           <Link href="/merchant-lookup" onClick={() => setMenuOpen(false)}>Card Match</Link>
           <Link href="/miles" onClick={() => setMenuOpen(false)}>Fly for Free ✈</Link>
           <Link href="/bulk-spend-miles" onClick={() => setMenuOpen(false)}>Max Miles</Link>

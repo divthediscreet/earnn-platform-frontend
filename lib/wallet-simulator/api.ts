@@ -27,6 +27,7 @@ export type CardInWallet = {
   caps_hit: string[]
   card_cap_hit: boolean
   salary_eligible: boolean | null
+  annual_fee_aed: number // true annual fee (waivers and fee benefits applied), as in Analyse
 }
 
 export type AllocationLine = {
@@ -45,8 +46,22 @@ export type Wallet = {
   cards: string[]
   monthly_reward_aed: number
   annual_reward_aed: number
+  total_fee_aed: number        // sum of the cards' true annual fees
+  net_annual_value_aed: number // annual rewards - fees
   per_card: CardInWallet[]
   allocation: AllocationLine[]
+}
+
+/** One of the three hero strategies, chosen as in the Analyse flow (net of fees). */
+export type Strategy = {
+  key: 'recommended' | 'second' | 'third'
+  title: string
+  message: string | null
+  n_cards: number
+  annual_reward_aed: number
+  total_fee_aed: number
+  net_annual_value_aed: number
+  wallet: Wallet
 }
 
 export type BestOfSize = { cards: string[]; annual_reward_aed: number }
@@ -68,6 +83,17 @@ export type DiscoveryBlock = {
   cards: BlockCard[]
 }
 
+export type CardScore = {
+  card_id: string
+  card_name: string
+  bank_name: string | null
+  card_family: string | null
+  summary_tag: string | null
+  annual_reward_aed: number // this card alone, on the whole profile
+  annual_fee_aed: number    // fee from year 2
+  groups: Record<string, { monthly_reward_aed: number; rate: number }> // rate = published (raw) rate
+}
+
 export type RecommendResponse = {
   spend: SpendSummary
   recommendation: {
@@ -79,6 +105,8 @@ export type RecommendResponse = {
   alternatives: Wallet[]
   best_by_size: Record<string, BestOfSize>
   discovery_blocks: DiscoveryBlock[]
+  card_scores?: CardScore[] // absent in results saved before the customiser existed
+  strategies?: Strategy[]   // absent in results saved before the strategies existed
   meta: {
     cards_considered: number
     candidates: number
@@ -164,6 +192,16 @@ export function saveSession(session: SimulatorSession) {
   try { sessionStorage.setItem(SIMULATOR_SESSION_KEY, JSON.stringify(session)) } catch { /* storage full/blocked */ }
 }
 
+/** Sessions saved before the in-store grocery input was renamed `grocery` -> `grocery_store`. */
+function migrate(session: SimulatorSession): SimulatorSession {
+  const spend = session.request?.form_spend
+  if (spend && 'grocery' in spend) {
+    const { grocery, ...rest } = spend
+    session.request.form_spend = { ...rest, grocery_store: (rest.grocery_store ?? 0) + grocery }
+  }
+  return session
+}
+
 const noopSubscribe = () => () => {}
 const readRaw = () => { try { return sessionStorage.getItem(SIMULATOR_SESSION_KEY) } catch { return null } }
 
@@ -172,14 +210,14 @@ export function useSimulatorSession(): SimulatorSession | null | undefined {
   const raw = useSyncExternalStore(noopSubscribe, readRaw, () => undefined)
   return useMemo(() => {
     if (raw === undefined) return undefined
-    try { return raw ? (JSON.parse(raw) as SimulatorSession) : null } catch { return null }
+    try { return raw ? migrate(JSON.parse(raw) as SimulatorSession) : null } catch { return null }
   }, [raw])
 }
 
 export function loadSession(): SimulatorSession | null {
   try {
     const raw = sessionStorage.getItem(SIMULATOR_SESSION_KEY)
-    return raw ? (JSON.parse(raw) as SimulatorSession) : null
+    return raw ? migrate(JSON.parse(raw) as SimulatorSession) : null
   } catch {
     return null
   }

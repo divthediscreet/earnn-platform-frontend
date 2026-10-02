@@ -9,7 +9,8 @@ export type SimulatorGroup = {
 }
 
 export const SIMULATOR_GROUPS: SimulatorGroup[] = [
-  { key: 'grocery',       label: 'Grocery',               short: 'Grocery',         icon: '🛒', hint: 'Supermarkets, LuLu, Carrefour, grocery apps' },
+  { key: 'grocery_store', label: 'Grocery store',        short: 'Grocery store',       icon: '🛒', hint: 'Supermarkets, LuLu, Carrefour' },
+  { key: 'grocery_online', label: 'Online grocery',        short: 'Online grocery',  icon: '📱', hint: 'talabat Mart, noon, grocery apps' },
   { key: 'dineout',       label: 'Dining out',            short: 'Dining out',      icon: '🍽️', hint: 'Restaurants and cafés' },
   { key: 'food_delivery', label: 'Food delivery',         short: 'Food delivery',   icon: '🛵', hint: 'talabat, Deliveroo, noon Food, Careem Food' },
   { key: 'travel',        label: 'Travel',                short: 'Travel',          icon: '✈️', hint: 'Flights, hotels, booking sites' },
@@ -23,7 +24,8 @@ export const SIMULATOR_GROUPS: SimulatorGroup[] = [
   { key: 'miscellaneous', label: 'Everything else',       short: 'Everything else', icon: '✨', hint: 'Anything not listed above' },
 ]
 
-const BY_KEY = Object.fromEntries(SIMULATOR_GROUPS.map(g => [g.key, g]))
+const BY_KEY: Record<string, SimulatorGroup> = Object.fromEntries(SIMULATOR_GROUPS.map(g => [g.key, g]))
+BY_KEY.grocery = BY_KEY.grocery_store // results saved before the key was renamed
 
 export function groupShort(key: string | null | undefined, fallback = 'Everything else'): string {
   return (key && BY_KEY[key]?.short) || fallback
