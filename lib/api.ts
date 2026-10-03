@@ -74,11 +74,11 @@ export interface MerchantLookupResult {
   cards:         MerchantLookupCard[]
 }
 
-export async function lookupMerchant(merchantName: string): Promise<MerchantLookupResult> {
+export async function lookupMerchant(merchantName: string, rewardMode: 'cashback' | 'miles' = 'cashback'): Promise<MerchantLookupResult> {
   const res = await fetch(`${API_BASE}/api/rewards/merchant-lookup`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ merchant_name: merchantName }),
+    body: JSON.stringify({ merchant_name: merchantName, reward_mode: rewardMode }),
   })
   if (!res.ok) throw new Error(`Merchant lookup failed: ${res.statusText}`)
   return res.json()

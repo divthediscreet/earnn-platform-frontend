@@ -21,7 +21,12 @@ function tierRangeLabel(min: number | null, max: number | null): string {
   return 'No min monthly spend required'
 }
 
-function CardRow({ card, rank, onShowMalls }: { card: MerchantLookupCard; rank: number; onShowMalls: (card: MerchantLookupCard) => void }) {
+type ViewMode = 'cashback' | 'miles'
+
+// Miles view: the API sends rates and reward caps already converted (rate_pct = miles per AED 100); spend stays in AED.
+const fmtReward = (mode: ViewMode, n: number) => (mode === 'miles' ? `${Math.round(n).toLocaleString()} miles` : `AED ${Math.round(n).toLocaleString()}`)
+
+function CardRow({ card, rank, mode, onShowMalls }: { card: MerchantLookupCard; rank: number; mode: ViewMode; onShowMalls: (card: MerchantLookupCard) => void }) {
   return (
     <div style={{
       display: 'flex', gap: 16, alignItems: 'flex-start',
@@ -53,10 +58,10 @@ function CardRow({ card, rank, onShowMalls }: { card: MerchantLookupCard; rank: 
               display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap',
               padding: '5px 9px', borderRadius: 6, background: '#F4F8FF', fontSize: 12.5,
             }}>
-              <strong style={{ color: COLORS.earn }}>{tier.rate_pct.toFixed(2)}%</strong>
+              <strong style={{ color: COLORS.earn }}>{mode === 'miles' ? `${tier.rate_pct.toFixed(1)} mi` : `${tier.rate_pct.toFixed(2)}%`}</strong>
               <span style={{ color: COLORS.secondary }}>: {tierRangeLabel(tier.min_monthly_spend_aed, tier.max_monthly_spend_aed)}</span>
               <span style={{ color: '#7A8BA8', fontSize: 11.5 }}>
-                (Category Cap: {tier.cap_aed ? `AED ${Math.round(tier.cap_aed).toLocaleString()}` : 'No'} ; Card Level Cap: {tier.card_cap_aed ? `AED ${Math.round(tier.card_cap_aed).toLocaleString()}` : 'No'})
+                (Category Cap: {tier.cap_aed ? fmtReward(mode, tier.cap_aed) : 'No'} ; Card Level Cap: {tier.card_cap_aed ? fmtReward(mode, tier.card_cap_aed) : 'No'})
               </span>
             </div>
           ))}
@@ -126,15 +131,17 @@ export default function MerchantLookupPage() {
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<MerchantLookupResult | null>(null)
   const [mallPopupCard, setMallPopupCard] = useState<MerchantLookupCard | null>(null)
+  const [mode, setMode] = useState<ViewMode>('cashback') // always opens on cashback
+  const [searched, setSearched] = useState('')           // the name the current results are for
 
-  async function runSearch() {
-    const name = query.trim()
+  async function runSearch(name = query.trim(), viewMode: ViewMode = mode, keepResults = false) {
     if (!name) return
     setLoading(true)
     setError(null)
-    setResult(null)
+    if (!keepResults) setResult(null) // a view switch keeps the list (and the toggle) on screen until the new one arrives
     try {
-      const res = await lookupMerchant(name)
+      const res = await lookupMerchant(name, viewMode)
+      setSearched(name)
       setResult(res)
     } catch (e) {
       setError('Something went wrong looking that up. Please try again.')
@@ -164,7 +171,7 @@ export default function MerchantLookupPage() {
           }}
         />
         <button
-          onClick={runSearch}
+          onClick={() => runSearch()}
           disabled={loading || !query.trim()}
           style={{
             padding: '12px 22px', fontSize: 15, fontWeight: 700, borderRadius: 10, border: 'none',
@@ -182,15 +189,40 @@ export default function MerchantLookupPage() {
 
       {result && result.resolved && (
         <div style={{ marginTop: 28 }}>
-          <div style={{ fontSize: 13.5, color: COLORS.secondary, marginBottom: 14 }}>
-            Showing results for <strong style={{ color: COLORS.text }}>{result.merchant_name}</strong>
-            {result.category ? <> — category: <strong style={{ color: COLORS.text }}>{result.category.replace(/_/g, ' ')}</strong></> : null}
-            {' · '}{result.cards.length} card{result.cards.length === 1 ? '' : 's'}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', marginBottom: 14 }}>
+            <div style={{ fontSize: 13.5, color: COLORS.secondary }}>
+              Showing results for <strong style={{ color: COLORS.text }}>{result.merchant_name}</strong>
+              {result.category ? <> — category: <strong style={{ color: COLORS.text }}>{result.category.replace(/_/g, ' ')}</strong></> : null}
+              {' · '}{result.cards.length} card{result.cards.length === 1 ? '' : 's'}
+            </div>
+            <div role="radiogroup" aria-label="Reward view" style={{ display: 'inline-flex', gap: 2, padding: 2, borderRadius: 8, background: COLORS.bgTint, border: `1px solid ${COLORS.border}` }}>
+              {(['cashback', 'miles'] as const).map(m => (
+                <button key={m} type="button" role="radio" aria-checked={mode === m} disabled={loading}
+                  onClick={() => { if (m !== mode) { setMode(m); runSearch(searched, m, true) } }}
+                  style={{ border: 'none', cursor: 'pointer', padding: '3px 11px', borderRadius: 6, fontSize: 11.5, fontWeight: 800,
+                    background: mode === m ? COLORS.primary : 'transparent', color: mode === m ? '#fff' : COLORS.primary }}>
+                  {m === 'cashback' ? 'Cashback' : 'Miles'}
+                </button>
+              ))}
+            </div>
           </div>
+          {mode === 'miles' && <div style={{ fontSize: 11.5, color: COLORS.secondary, margin: '-6px 0 12px' }}>mi = miles earned per AED 100 spent</div>}
+          <div style={{ position: 'relative' }}>
+          {loading && (
+            <div role="status" aria-live="polite" style={{
+              position: 'absolute', inset: 0, zIndex: 5, display: 'flex', flexDirection: 'column', alignItems: 'center',
+              paddingTop: 90, gap: 12, background: 'rgba(255,255,255,0.88)', borderRadius: 12,
+            }}>
+              <style>{'@keyframes earnn-spin { to { transform: rotate(360deg) } }'}</style>
+              <div style={{ width: 44, height: 44, borderRadius: '50%', border: `4px solid ${COLORS.border}`, borderTopColor: COLORS.primary, animation: 'earnn-spin 0.8s linear infinite' }} />
+              <div style={{ fontSize: 13.5, fontWeight: 700, color: COLORS.primary }}>Finding the best {mode === 'miles' ? 'miles' : 'cashback'} cards…</div>
+            </div>
+          )}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {result.cards.map((card, i) => (
-              <CardRow key={card.earnn_card_id} card={card} rank={i + 1} onShowMalls={setMallPopupCard} />
+              <CardRow key={card.earnn_card_id} card={card} rank={i + 1} mode={mode} onShowMalls={setMallPopupCard} />
             ))}
+          </div>
           </div>
         </div>
       )}
