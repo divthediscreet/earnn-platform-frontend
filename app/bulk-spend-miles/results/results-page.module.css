@@ -1,0 +1,7 @@
+.band{display:flex;align-items:center;gap:18px;padding:18px max(24px,calc((100vw - 1120px)/2));background:radial-gradient(circle at 85% 20%,#305cae 0,transparent 32%),linear-gradient(125deg,#071b43,#0e3785);color:#fff}
+.back{display:inline-flex;align-items:center;gap:7px;border:1px solid rgba(255,255,255,.4);border-radius:999px;padding:9px 16px;background:rgba(255,255,255,.1);color:#fff;font-size:13px;font-weight:800;cursor:pointer;transition:background .15s}
+.back:hover{background:rgba(255,255,255,.22)}
+.bandTitle{color:#dbe6ff;font-size:13px;font-weight:700;letter-spacing:.04em}
+.content{width:min(1120px,calc(100% - 48px));margin:24px auto 0}
+.errorWrap{display:grid;gap:16px;justify-items:start;width:min(640px,calc(100% - 48px));margin:60px auto}
+@media(max-width:800px){.content{width:min(100% - 28px,1120px)}.band{padding:14px 18px}}
