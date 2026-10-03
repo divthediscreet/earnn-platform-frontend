@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { getCardImageUrl } from '@/lib/api'
 import CardDetailPopup from '@/components/CardDetailPopup'
+import { useRewardMode } from '@/lib/wallet-simulator/reward-mode'
 
 // Shared "Build Your Wallet" step. Used by the Analyse results page and by the Wallet Simulator's
 // "Open wallet customization" popup — only the inputs (scoredCards / spend / wallet) differ.
@@ -122,6 +123,8 @@ export function BuildYourWallet({ scoredCards, walletData, wallet, setWallet, on
   /** Show rewards and net value per month instead of per year (the Wallet Simulator). Fees stay annual. */
   monthly?: boolean
 }) {
+  const { isMiles } = useRewardMode()   // the Wallet Simulator's miles view (cashback everywhere else)
+  const reward = (n: number) => (isMiles ? `${fmt(n)} miles` : `AED ${fmt(n)}`)   // a reward amount
   const per = monthly ? 12 : 1
   const unit = monthly ? '/mo' : '/yr'
   const [q, setQ] = useState('')
@@ -327,6 +330,7 @@ export function BuildYourWallet({ scoredCards, walletData, wallet, setWallet, on
             })}
           </div>
 
+          {isMiles && <p className="mt-2 text-[10px] text-muted-foreground">mi = miles earned per AED 100 spent</p>}
           <ul className="mt-4 grid flex-1 min-h-0 gap-2 overflow-y-auto pr-1">
             {[...filtered].sort((a, b) => {
               const aIn = wallet.includes(a.earnn_card_id) ? 0 : 1
@@ -349,7 +353,7 @@ export function BuildYourWallet({ scoredCards, walletData, wallet, setWallet, on
                         <span className="text-muted-foreground">Fee {fmt(c.true_annual_fee_aed)}</span>
                         <span className="text-muted-foreground/40">·</span>
                         <span className="text-muted-foreground">Est Reward </span>
-                        <span className="font-medium text-emerald">{fmt(c.expected_annual_return_aed / per)}{unit}</span>
+                        <span className="font-medium text-emerald">{isMiles ? `${fmt(c.expected_annual_return_aed / per)} miles` : fmt(c.expected_annual_return_aed / per)}{unit}</span>
                       </div>
                       <div className="mt-1 flex flex-nowrap gap-1 overflow-hidden">
                         {Object.entries(c.category_effective_rates)
@@ -358,7 +362,7 @@ export function BuildYourWallet({ scoredCards, walletData, wallet, setWallet, on
                           .slice(0, 4)
                           .map(([cat, rate]) => (
                             <span key={cat} className="inline-flex items-center gap-0.5 rounded-md bg-surface-2 px-1.5 py-px text-[10px] text-muted-foreground whitespace-nowrap">
-                              {CAT_EMOJI[cat] || CAT_LABELS[cat] || cat} <span className="font-semibold text-primary">{(rate * 100).toFixed(1)}%</span>
+                              {CAT_EMOJI[cat] || CAT_LABELS[cat] || cat} <span className="font-semibold text-primary">{(rate * 100).toFixed(1)}{isMiles ? ' mi' : '%'}</span>
                             </span>
                           ))}
                       </div>
@@ -430,11 +434,16 @@ export function BuildYourWallet({ scoredCards, walletData, wallet, setWallet, on
                 </div>
               </div>
               <div className="mt-3">
-                <div className="text-xs text-primary-foreground/70">{monthly ? 'Net monthly value' : 'Net annual value'}</div>
-                <div className="font-display text-4xl font-bold tabular">{pgScore ? `AED ${fmt(Math.max(net, 0) / per)}` : 'AED XX,XXX'}</div>
+                <div className="text-xs text-primary-foreground/70">{isMiles ? 'Miles per month' : monthly ? 'Net monthly value' : 'Net annual value'}</div>
+                <div className="font-display text-4xl font-bold tabular">
+                  {isMiles ? (pgScore ? `${fmt(gross / per)} miles` : 'X,XXX miles') : pgScore ? `AED ${fmt(Math.max(net, 0) / per)}` : 'AED XX,XXX'}
+                </div>
               </div>
               <div className="mt-4 grid grid-cols-3 gap-3 text-xs">
-                {[{ l: monthly ? 'Gross / mo' : 'Gross', v: pgScore ? `AED ${fmt(gross / per)}` : 'AED XX,XXX' }, { l: monthly ? 'Annual fees' : 'Fees', v: pgScore ? `AED ${fmt(fees)}` : 'AED XX,XXX' }, { l: 'Effective', v: pgScore ? `${effective}%` : 'X.XX%' }].map(st => (
+                {(isMiles
+                  ? [{ l: 'Miles / year', v: pgScore ? fmt(gross) : 'XX,XXX' }, { l: 'Annual fees', v: pgScore ? `AED ${fmt(fees)}` : 'AED XX,XXX' }, { l: 'Per AED 100', v: pgScore ? `${effective} miles` : 'X.XX miles' }]
+                  : [{ l: monthly ? 'Gross / mo' : 'Gross', v: pgScore ? `AED ${fmt(gross / per)}` : 'AED XX,XXX' }, { l: monthly ? 'Annual fees' : 'Fees', v: pgScore ? `AED ${fmt(fees)}` : 'AED XX,XXX' }, { l: 'Effective', v: pgScore ? `${effective}%` : 'X.XX%' }]
+                ).map(st => (
                   <div key={st.l} className="rounded-xl bg-primary-foreground/10 p-3">
                     <div className="text-[10px] uppercase tracking-wider text-primary-foreground/70">{st.l}</div>
                     <div className="mt-0.5 font-display text-sm font-bold tabular text-primary-foreground">{st.v}</div>
@@ -542,7 +551,7 @@ export function BuildYourWallet({ scoredCards, walletData, wallet, setWallet, on
                                       </div>
                                       <div style={{ paddingLeft: 10, borderLeft: '1px solid #E6EEFC', textAlign: 'right', flexShrink: 0 }}>
                                         <div style={{ fontSize: 9, color: '#7485A3', fontWeight: 700 }}>YOU COULD EARN</div>
-                                        <div style={{ marginTop: 2, fontSize: 14, color: '#00A67E', fontWeight: 700 }}>AED {fmt(Math.round(route.annual_aed / 12))}</div>
+                                        <div style={{ marginTop: 2, fontSize: 14, color: '#00A67E', fontWeight: 700 }}>{reward(Math.round(route.annual_aed / 12))}</div>
                                         <div style={{ fontSize: 9, color: '#7485A3' }}>/ month</div>
                                       </div>
                                     </div>
@@ -553,7 +562,7 @@ export function BuildYourWallet({ scoredCards, walletData, wallet, setWallet, on
 
                             {isSplit && <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '8px 12px', background: '#F0FBF7', borderTop: '1px solid #D6F2E6' }}>
                               <span style={{ fontSize: 11, color: '#287257', fontWeight: 700 }}>Total {label} rewards</span>
-                              <span style={{ fontSize: 13, color: '#00A67E', fontWeight: 700 }}>AED {fmt(Math.round(category.monthlyReward))} / month</span>
+                              <span style={{ fontSize: 13, color: '#00A67E', fontWeight: 700 }}>{reward(Math.round(category.monthlyReward))} / month</span>
                             </div>}
                           </section>
                         )
@@ -627,7 +636,7 @@ export function BuildYourWallet({ scoredCards, walletData, wallet, setWallet, on
                                 </div>
                                 <div style={{ textAlign: 'right', flexShrink: 0 }}>
                                   <div style={{ fontSize: 10, color: '#9DAEC8', fontWeight: 600, marginBottom: 1 }}>Reward</div>
-                                  <div style={{ fontSize: 13, fontWeight: 700, color: '#00A67E' }}>AED {fmt(monthlyReward)}</div>
+                                  <div style={{ fontSize: 13, fontWeight: 700, color: '#00A67E' }}>{reward(monthlyReward)}</div>
                                 </div>
                               </div>
                             )
@@ -640,7 +649,7 @@ export function BuildYourWallet({ scoredCards, walletData, wallet, setWallet, on
                           <span style={{ fontSize: 12, color: '#0D1828', fontWeight: 700 }}>AED {fmt(totalSpendOnCard)} / month</span>
                           <div style={{ width: 1, background: '#D6E0F5', alignSelf: 'stretch', margin: '0 2px' }} />
                           <span style={{ fontSize: 11, color: '#5A6A85', fontWeight: 600 }}>Total reward</span>
-                          <span style={{ fontSize: 13, color: '#00A67E', fontWeight: 700 }}>AED {fmt(totalMonthly)}</span>
+                          <span style={{ fontSize: 13, color: '#00A67E', fontWeight: 700 }}>{reward(totalMonthly)}</span>
                         </div>
                       </div>
                     ))}
@@ -700,7 +709,7 @@ export function BuildYourWallet({ scoredCards, walletData, wallet, setWallet, on
                           <span>{c.bank_name}</span>
                           <span>·</span>
                           <span>Fee AED {fmt(c.true_annual_fee_aed)}</span>
-                          <span className="text-emerald">+AED {fmt(c.expected_annual_return_aed / per)}{unit}</span>
+                          <span className="text-emerald">+{reward(c.expected_annual_return_aed / per)}{unit}</span>
                         </div>
                       </div>
                       <div className="relative flex-shrink-0 group/add">

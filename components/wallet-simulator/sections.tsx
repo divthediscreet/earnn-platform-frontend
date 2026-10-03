@@ -1,5 +1,6 @@
 'use client'
 
+import { useRewardMode } from '@/lib/wallet-simulator/reward-mode'
 import { Fragment, useCallback, useEffect, useRef, useState } from 'react'
 import type { BestOfSize, SpendGroup, Strategy, Wallet } from '@/lib/wallet-simulator/api'
 import { aed, groupIcon, groupShort, pct } from '@/lib/wallet-simulator/groups'
@@ -33,6 +34,7 @@ export function Hero({ pick, strategies, monthlySpend, card, onCustomize, onHowT
   onHowTo: () => void       // opens the "how to use your wallet" panel
   onDetails: CardDetails
 }) {
+  const { rw, isMiles } = useRewardMode()
   const transforms: Record<number, string[]> = {
     1: ['left-1/2 top-8 -translate-x-1/2 -rotate-3'],
     2: ['left-0 bottom-0 -rotate-6', 'left-[22%] top-0 rotate-4'],
@@ -51,7 +53,7 @@ export function Hero({ pick, strategies, monthlySpend, card, onCustomize, onHowT
         </h1>
         <p className="mt-3 max-w-[70ch] text-[15px] leading-relaxed text-ws-muted sm:text-[17px]">
           Based on your <span className="text-[19px] font-semibold text-ws-fg sm:text-[22px]">{aed(monthlySpend)} monthly spend</span>, we tested thousands of
-          UAE card combinations to find your highest-value wallet.
+          UAE card combinations to find {isMiles ? 'the wallet that earns you the most miles.' : 'your highest-value wallet.'}
         </p>
 
         {/* the recommended strategy, in the Analyse result style */}
@@ -69,7 +71,9 @@ export function Hero({ pick, strategies, monthlySpend, card, onCustomize, onHowT
 
               <p className="mt-5 text-[12px] font-medium tracking-[0.1em] text-white/70 uppercase">Potential monthly rewards</p>
               <p className="mt-1 flex items-baseline gap-2 tabular-nums">
-                <span className="font-display text-5xl font-bold text-[#F5D76E] sm:text-6xl">AED <RollingAed value={monthly} /></span>
+                <span className="font-display text-5xl font-bold text-[#F5D76E] sm:text-6xl">
+                  {isMiles ? <><RollingAed value={monthly} /> miles</> : <>AED <RollingAed value={monthly} /></>}
+                </span>
                 <span className="text-[16px] text-[#F5D76E]/75">/ month</span>
               </p>
               <p className="mt-3 flex flex-wrap items-center gap-2 text-[12px]">
@@ -80,7 +84,7 @@ export function Hero({ pick, strategies, monthlySpend, card, onCustomize, onHowT
                   Annual fees {aed(pick.total_fee_aed)}
                 </span>
                 <span className="rounded-full border border-[#6EF0BF]/30 bg-[#6EF0BF]/10 px-3 py-1 font-semibold text-[#6EF0BF]">
-                  Net {aed(pick.net_annual_value_aed / 12)} / month
+                  {isMiles ? `${rw(pick.annual_reward_aed)} a year` : `Net ${rw(pick.net_annual_value_aed / 12)} / month`}
                 </span>
               </p>
 
@@ -98,7 +102,7 @@ export function Hero({ pick, strategies, monthlySpend, card, onCustomize, onHowT
                           <span className="font-bold">{cardName(c)}</span>
                           <span className="text-white/60"> — {groups.slice(0, 2).map(g => groupShort(g)).join(' & ') || 'Backup card'}</span>
                         </span>
-                        <span className="shrink-0 text-[12px] font-bold tabular-nums text-[#6EF0BF]">+{aed(pc.monthly_reward_aed)}/mo</span>
+                        <span className="shrink-0 text-[12px] font-bold tabular-nums text-[#6EF0BF]">+{rw(pc.monthly_reward_aed)}/mo</span>
                       </button>
                     </li>
                   )
@@ -147,6 +151,18 @@ const STRATEGY_FAN: Record<number, string[]> = {
 
 const STRATEGY_TAGS = ['Recommended · Maximum Rewards', 'Best Balance · Low Effort', 'Keep It Simple · Minimum Effort']
 
+/** "2nd Best Single Card" with the "nd" / "rd" set small and raised. */
+function Ordinals({ text }: { text: string }) {
+  return (
+    <>
+      {text.split(/(\d+(?:st|nd|rd|th))/).map((part, i) => {
+        const m = /^(\d+)(st|nd|rd|th)$/.exec(part)
+        return m ? <span key={i}>{m[1]}<sup className="ml-px align-super text-[0.55em] font-semibold">{m[2]}</sup></span> : part
+      })}
+    </>
+  )
+}
+
 /** A secondary strategy (second / third best): a light header with the net value and the fanned cards,
  *  a white body with the numbers behind it, and a one-tap switch. */
 function StrategyBox({ strategy, tag, lessBy, card, inUse, onUse, onDetails }: {
@@ -158,6 +174,7 @@ function StrategyBox({ strategy, tag, lessBy, card, inUse, onUse, onDetails }: {
   onUse: () => void
   onDetails: CardDetails
 }) {
+  const { rw, isMiles } = useRewardMode()
   const ids = strategy.wallet.cards
   return (
     <div className="flex flex-col overflow-hidden rounded-2xl border border-ws-border bg-white shadow-ws-lift">
@@ -167,10 +184,10 @@ function StrategyBox({ strategy, tag, lessBy, card, inUse, onUse, onDetails }: {
         <div className="relative flex flex-wrap items-start justify-between gap-x-3 gap-y-2">
           <span className="rounded-full bg-white px-3 py-1 text-[10px] font-semibold tracking-[0.1em] whitespace-nowrap text-ws-muted uppercase ring-1 ring-ws-border">{tag}</span>
           {Math.abs(lessBy) > 0.5 && (
-            <span title="Net value a month compared with the recommended wallet"
+            <span title={isMiles ? 'Miles a month compared with the recommended wallet' : 'Net value a month compared with the recommended wallet'}
               className={`ml-auto shrink-0 rounded-xl px-3 py-1.5 text-right leading-tight tabular-nums ${lessBy > 0 ? 'bg-[#FFF1DB] text-[#B45309]' : 'bg-[#E3F6EC] text-ws-gain'}`}>
               <span className="block text-[13px] font-bold whitespace-nowrap">
-                {Math.round(Math.abs(lessBy)).toLocaleString('en-US')} AED/mo {lessBy > 0 ? 'less' : 'more'}
+                {Math.round(Math.abs(lessBy)).toLocaleString('en-US')} {isMiles ? 'miles' : 'AED'}/mo {lessBy > 0 ? 'less' : 'more'}
               </span>
               <span className="block text-[11px] font-medium opacity-80">{lessBy > 0 ? 'from' : 'than'} best selection</span>
             </span>
@@ -179,10 +196,10 @@ function StrategyBox({ strategy, tag, lessBy, card, inUse, onUse, onDetails }: {
 
         <div className="relative mt-4 grid grid-cols-[1fr_auto] items-center gap-3">
           <div className="min-w-0">
-            <p className="line-clamp-2 h-[2.75em] font-display text-[19px] leading-snug font-semibold">{strategy.title}</p>
+            <p className="line-clamp-2 h-[2.75em] font-display text-[19px] leading-snug font-semibold"><Ordinals text={strategy.title} /></p>
             <p className="mt-0.5 line-clamp-2 h-[2.75em] text-[12.5px] leading-snug text-ws-muted">{strategy.message ?? '\u00a0'}</p>
-            <p className="mt-3 font-display text-[34px] leading-none font-semibold tracking-tight whitespace-nowrap text-ws-fg">{aed(strategy.net_annual_value_aed / 12)}</p>
-            <p className="mt-1.5 text-[12px] text-ws-muted">net per month, after fees</p>
+            <p className="mt-3 font-display text-[34px] leading-none font-semibold tracking-tight whitespace-nowrap text-ws-fg">{isMiles ? rw(strategy.annual_reward_aed / 12) : rw(strategy.net_annual_value_aed / 12)}</p>
+            <p className="mt-1.5 text-[12px] text-ws-muted">{isMiles ? 'earned per month' : 'net per month, after fees'}</p>
           </div>
           <div aria-hidden className="relative h-[120px] w-[150px] shrink-0">
             <div className="absolute top-1/2 left-1/2 size-[112px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-ws-fg/[0.05]" />
@@ -215,15 +232,15 @@ function StrategyBox({ strategy, tag, lessBy, card, inUse, onUse, onDetails }: {
         <div className="mt-4 grid shrink-0 grid-cols-3 gap-2 text-center">
           <div className="rounded-xl bg-[#F3F5F9] px-2 py-2.5">
             <p className="text-[9px] font-semibold tracking-[0.12em] text-ws-muted uppercase">Rewards / mo</p>
-            <p className="mt-0.5 font-display text-[15px] font-semibold text-ws-fg tabular-nums">{aed(strategy.annual_reward_aed / 12)}</p>
+            <p className="mt-0.5 font-display text-[15px] font-semibold text-ws-fg tabular-nums">{rw(strategy.annual_reward_aed / 12)}</p>
           </div>
           <div className="rounded-xl bg-[#FFF3E0] px-2 py-2.5">
             <p className="text-[9px] font-semibold tracking-[0.12em] text-ws-muted uppercase">Annual fees</p>
             <p className="mt-0.5 font-display text-[15px] font-semibold text-[#B45309] tabular-nums">{aed(strategy.total_fee_aed)}</p>
           </div>
           <div className="rounded-xl bg-[#E3F6EC] px-2 py-2.5">
-            <p className="text-[9px] font-semibold tracking-[0.12em] text-ws-muted uppercase">Net / mo</p>
-            <p className="mt-0.5 font-display text-[15px] font-semibold text-ws-gain tabular-nums">{aed(strategy.net_annual_value_aed / 12)}</p>
+            <p className="text-[9px] font-semibold tracking-[0.12em] text-ws-muted uppercase">{isMiles ? 'Miles / year' : 'Net / mo'}</p>
+            <p className="mt-0.5 font-display text-[15px] font-semibold text-ws-gain tabular-nums">{isMiles ? rw(strategy.annual_reward_aed) : rw(strategy.net_annual_value_aed / 12)}</p>
           </div>
         </div>
 
@@ -292,14 +309,16 @@ const FAN: Record<number, string[]> = {
   3: ['left-0 top-[6px] -rotate-[18deg]', 'left-[13px] top-[19px] -rotate-[9deg]', 'left-[26px] top-[32px] -rotate-[3deg]'],
 }
 
-export function Ladder({ bestBySize, increments, pickSize, currentIds, card, onUse }: {
+export function Ladder({ bestBySize, increments, pickSize, currentIds, card, onUse, feeOf }: {
   bestBySize: Record<string, BestOfSize>
   increments: Record<string, number>
   pickSize: number
   currentIds: string[]
   card: CardLookup
   onUse: (ids: string[]) => void
+  feeOf?: (ids: string[]) => number | null   // the wallet's total annual fee in AED (null when unknown)
 }) {
+  const { rw, isMiles } = useRewardMode()
   const sizes = Object.keys(bestBySize).map(Number).filter(n => n >= 1 && n <= 3).sort((a, b) => a - b)
   if (sizes.length < 2) return null
   const titleWord = NUMBER_WORD[pickSize]?.toLowerCase() ?? String(pickSize)
@@ -346,7 +365,8 @@ export function Ladder({ bestBySize, increments, pickSize, currentIds, card, onU
             const gain = increments[`${s}_vs_${s - 1}`]
             const more = s !== sizes[0] && base > 0 ? Math.round(((rung.annual_reward_aed - base) / base) * 100) : null
             const inUse = sameCards(rung.cards, currentIds)
-            const features = LADDER_FEATURES[s] ?? []
+            const fee = feeOf?.(rung.cards) ?? null
+            const features = (LADDER_FEATURES[s] ?? []).map(f => (isMiles && f.title === 'Maximise rewards' ? { ...f, sub: 'Earn the most miles.' } : f))
             return (
               <div key={s}
                 className={`relative flex flex-col rounded-2xl p-5 ${
@@ -380,14 +400,17 @@ export function Ladder({ bestBySize, increments, pickSize, currentIds, card, onU
                 {/* big yearly amount, with the gain and the wallet's real cards fanned beneath it */}
                 <div className="mt-2">
                   <p className="font-display text-[40px] leading-none font-semibold tracking-tight whitespace-nowrap sm:text-[44px]">
-                    {aed(rung.annual_reward_aed)}
+                    {rw(rung.annual_reward_aed)}
                   </p>
                   <div className="mt-2 flex items-end justify-between gap-2">
                     <div className="min-w-0">
                       <p className={`h-[22px] text-[16px] font-semibold whitespace-nowrap ${isPick ? 'text-[#F7C948]' : 'text-ws-gain'}`}>
-                        {gain === undefined ? '' : gain >= 0 ? `+ ${aed(gain)} a year` : `${aed(-gain)} a year less`}
+                        {gain === undefined ? '' : gain >= 0 ? `+ ${rw(gain)} a year` : `${rw(-gain)} a year less`}
                       </p>
                       <p className={`text-[12px] whitespace-nowrap ${isPick ? 'text-white/70' : 'text-ws-muted'}`}>estimated rewards per year</p>
+                      {fee !== null && (
+                        <p className={`mt-0.5 text-[10px] whitespace-nowrap tabular-nums ${isPick ? 'text-white/55' : 'text-ws-muted/80'}`}>Annual fees {aed(fee)}</p>
+                      )}
                     </div>
                     <div aria-hidden className="relative h-[78px] w-[92px] shrink-0">
                       <div className={`absolute top-1/2 left-1/2 size-[78px] -translate-x-1/2 -translate-y-1/2 rounded-full ${isPick ? 'bg-white/[0.07]' : 'bg-ws-secondary/80'}`} />
@@ -417,12 +440,12 @@ export function Ladder({ bestBySize, increments, pickSize, currentIds, card, onU
 
                 <button onClick={() => onUse(rung.cards)} disabled={inUse}
                   className={`mt-auto inline-flex min-h-10 w-fit items-center gap-2 rounded-full px-4 py-2 text-[13px] font-semibold transition-all ${
-                    isPick
-                      ? 'bg-white text-[#0D1828] hover:-translate-y-0.5'
-                      : 'border border-ws-fg/25 bg-ws-card text-ws-fg hover:-translate-y-0.5 hover:border-ws-primary'
-                  } disabled:translate-y-0 disabled:cursor-default disabled:opacity-60`}>
-                  {inUse ? 'In your wallet' : <>Try this wallet <span aria-hidden>→</span></>}
-                </button>
+                      isPick
+                        ? 'bg-white text-[#0D1828] hover:-translate-y-0.5'
+                        : 'border border-ws-fg/25 bg-ws-card text-ws-fg hover:-translate-y-0.5 hover:border-ws-primary'
+                    } disabled:translate-y-0 disabled:cursor-default disabled:opacity-60`}>
+                    {inUse ? 'In your wallet' : <>Try this wallet <span aria-hidden>→</span></>}
+                  </button>
               </div>
             )
           })}
@@ -492,6 +515,7 @@ export function Playbook({ onOpen, wallet, groups, card }: {
   groups: SpendGroup[]
   card: CardLookup
 }) {
+  const { rw } = useRewardMode()
   // top categories by reward (up to 5), only those that actually earn — amounts from the backend allocation
   const chips = buildPlaybook(wallet, groups).filter(r => r.monthlyReward > 0.005).slice(0, 5)
   return (
@@ -527,7 +551,7 @@ export function Playbook({ onOpen, wallet, groups, card }: {
                 <CategoryGlyph group={row.group} className="size-10" iconClass="size-5" />
                 <span className="min-w-0">
                   <span className="block truncate text-[14px] font-semibold text-ws-fg">{groupShort(row.group)}</span>
-                  <span className="block text-[12px] text-ws-muted">Earn {aed(row.monthlyReward)}/mo</span>
+                  <span className="block text-[12px] text-ws-muted">Earn {rw(row.monthlyReward)}/mo</span>
                 </span>
               </div>
             ))}
@@ -541,6 +565,7 @@ export function Playbook({ onOpen, wallet, groups, card }: {
 /** The user's real cards in a tilted wallet, with animated dashed lines flowing out to their top
  *  categories. Lines are drawn from the measured positions of the wallet and each chip. */
 function WalletIllustration({ ids, chips, card }: { ids: string[]; chips: PlaybookRow[]; card: CardLookup }) {
+  const { rw } = useRewardMode()
   const boxRef = useRef<HTMLDivElement>(null)
   const walletRef = useRef<HTMLDivElement>(null)
   const chipRefs = useRef<(HTMLDivElement | null)[]>([])
@@ -620,7 +645,7 @@ function WalletIllustration({ ids, chips, card }: { ids: string[]; chips: Playbo
             <CategoryGlyph group={row.group} className="size-[43px]" iconClass="size-[22px]" />
             <span className="whitespace-nowrap">
               <span className="block font-display text-[13.5px] font-semibold text-ws-fg">{groupShort(row.group)}</span>
-              <span className="block text-[12px] text-ws-muted">Earn {aed(row.monthlyReward)}/mo</span>
+              <span className="block text-[12px] text-ws-muted">Earn {rw(row.monthlyReward)}/mo</span>
             </span>
           </div>
         )
@@ -631,6 +656,7 @@ function WalletIllustration({ ids, chips, card }: { ids: string[]; chips: Playbo
 
 /** The playbook itself (summary strip + where to use each card). Also shown in the expanded wallet. */
 export function PlaybookBody({ wallet, groups, monthlySpend, card, updating, onDetails }: PlaybookProps) {
+  const { rw, isMiles } = useRewardMode()
   const [view, setView] = useState<'card' | 'category'>('card')
   const rows = buildPlaybook(wallet, groups)
   const full = rows.filter((r, i) => i < FULL_ROWS || r.kind !== 'single' || r.entries.some(e => e.threshold))
@@ -647,8 +673,10 @@ export function PlaybookBody({ wallet, groups, monthlySpend, card, updating, onD
     <div className={`mt-8 transition-opacity ${updating ? 'opacity-60' : ''}`}>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         <SummaryTile label="Monthly spend" value={aed(monthlySpend)} />
-        <SummaryTile label="Your rewards" value={`${aed(monthlyReward)} / mo`} tone="gain" />
-        <SummaryTile label="After annual fees" value={`${aed((wallet?.net_annual_value_aed ?? 0) / 12)} / mo`} tone="highlight" className="col-span-2 sm:col-span-1" />
+        <SummaryTile label="Your rewards" value={`${rw(monthlyReward)} / mo`} tone="gain" />
+        {isMiles
+          ? <SummaryTile label="Annual fees" value={aed(wallet?.total_fee_aed ?? 0)} tone="highlight" className="col-span-2 sm:col-span-1" />
+          : <SummaryTile label="After annual fees" value={`${rw((wallet?.net_annual_value_aed ?? 0) / 12)} / mo`} tone="highlight" className="col-span-2 sm:col-span-1" />}
       </div>
 
       <div className="mt-8 flex items-center justify-between gap-3">
@@ -686,7 +714,7 @@ export function PlaybookBody({ wallet, groups, monthlySpend, card, updating, onD
                       </p>
                       <p className="truncate text-[12px] text-ws-muted">Use {cardName(card(row.entries[0].cardId))}</p>
                     </div>
-                    <span className="shrink-0 text-[13px] font-semibold text-ws-gain tabular-nums">{aed(row.monthlyReward)}/mo</span>
+                    <span className="shrink-0 text-[13px] font-semibold text-ws-gain tabular-nums">{rw(row.monthlyReward)}/mo</span>
                   </div>
                 ))}
               </div>
@@ -701,6 +729,7 @@ export function PlaybookBody({ wallet, groups, monthlySpend, card, updating, onD
 /** Card view: one block per card (photo, name, what it earns a month, the categories it alone pays for).
  *  A category paid by two or more cards is never folded into a card — it gets its own block below. */
 function PlaybookByCard({ wallet, rows, card, onDetails }: { wallet: Wallet | null; rows: PlaybookRow[]; card: CardLookup; onDetails: CardDetails }) {
+  const { rw, rate } = useRewardMode()
   const cards = [...(wallet?.per_card ?? [])].sort((a, b) => b.monthly_reward_aed - a.monthly_reward_aed)
   const shared = rows.filter(r => r.kind !== 'single')
   return (
@@ -721,7 +750,7 @@ function PlaybookByCard({ wallet, rows, card, onDetails }: { wallet: Wallet | nu
                   {info.bank && <p className="truncate text-[12px] text-ws-muted">{info.bank}</p>}
                   <p className="mt-1.5 text-[10px] font-semibold tracking-[0.12em] text-ws-muted uppercase">You could earn</p>
                   <p className="font-display text-[20px] leading-tight font-semibold text-ws-gain tabular-nums">
-                    {aed(pc.monthly_reward_aed)} <span className="text-[12px] font-medium text-ws-muted">/ month</span>
+                    {rw(pc.monthly_reward_aed)} <span className="text-[12px] font-medium text-ws-muted">/ month</span>
                   </p>
                 </div>
               </div>
@@ -734,9 +763,9 @@ function PlaybookByCard({ wallet, rows, card, onDetails }: { wallet: Wallet | nu
                         <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-ws-secondary text-[17px]">{groupIcon(row.group)}</span>
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-[14px] font-semibold text-ws-fg">{groupShort(row.group)}</p>
-                          <p className="text-[12px] text-ws-muted">{aed(row.monthlySpend)} / month · {pct(e.rate)}</p>
+                          <p className="text-[12px] text-ws-muted">{aed(row.monthlySpend)} / month · {rate(e.rate)}</p>
                         </div>
-                        <p className="shrink-0 text-[14px] font-semibold text-ws-gain tabular-nums">{aed(row.monthlyReward)}<span className="text-[10px] font-normal text-ws-muted"> /mo</span></p>
+                        <p className="shrink-0 text-[14px] font-semibold text-ws-gain tabular-nums">{rw(row.monthlyReward)}<span className="text-[10px] font-normal text-ws-muted"> /mo</span></p>
                       </div>
                       {e.threshold && (
                         <p className="mt-1.5 rounded-md bg-ws-secondary px-2 py-1 text-[10px] leading-tight text-ws-primary/80">
@@ -784,6 +813,7 @@ function SummaryTile({ label, value, tone, className = '' }: { label: string; va
 }
 
 function PlaybookCard({ row, card, onDetails }: { row: PlaybookRow; card: CardLookup; onDetails: CardDetails }) {
+  const { rw } = useRewardMode()
   const multi = row.entries.length > 1
   return (
     <div className={`overflow-hidden rounded-2xl border border-ws-border bg-ws-card shadow-ws-lift ${multi ? 'md:col-span-2' : ''}`}>
@@ -832,7 +862,7 @@ function PlaybookCard({ row, card, onDetails }: { row: PlaybookRow; card: CardLo
                   <div className="mt-2.5 border-t border-ws-border pt-2">
                     <p className="text-[9px] font-semibold tracking-[0.12em] text-ws-muted uppercase">You could earn</p>
                     <p className="font-display text-[16px] leading-tight font-semibold text-ws-gain tabular-nums">
-                      {aed(e.monthlyReward)} <span className="text-[10px] font-normal text-ws-muted">/ month</span>
+                      {rw(e.monthlyReward)} <span className="text-[10px] font-normal text-ws-muted">/ month</span>
                     </p>
                   </div>
                   {e.threshold && (
@@ -857,7 +887,7 @@ function PlaybookCard({ row, card, onDetails }: { row: PlaybookRow; card: CardLo
       {multi && (
         <div className="flex items-center justify-between gap-3 border-t border-ws-border bg-ws-gain/10 px-4 py-2.5">
           <p className="text-[12px] font-semibold text-ws-fg">Total {groupShort(row.group).toLowerCase()} rewards</p>
-          <p className="font-display text-[15px] font-semibold text-ws-gain tabular-nums">{aed(row.monthlyReward)} / month</p>
+          <p className="font-display text-[15px] font-semibold text-ws-gain tabular-nums">{rw(row.monthlyReward)} / month</p>
         </div>
       )}
     </div>
@@ -865,6 +895,7 @@ function PlaybookCard({ row, card, onDetails }: { row: PlaybookRow; card: CardLo
 }
 
 function PlaybookEntryRow({ entry, label, info, bordered, onDetails }: { entry: PlaybookEntry; label: string | null; info: CardInfo; bordered: boolean; onDetails: CardDetails }) {
+  const { rw } = useRewardMode()
   return (
     <div className={`py-2.5 ${bordered ? 'border-t border-dashed border-ws-border' : ''}`}>
       {label && <p className="mb-1.5 text-[10px] font-semibold tracking-[0.12em] text-ws-muted uppercase">{label}</p>}
@@ -878,7 +909,7 @@ function PlaybookEntryRow({ entry, label, info, bordered, onDetails }: { entry: 
         </div>
         <div className="shrink-0 border-l border-ws-border pl-3 text-right">
           <p className="text-[9px] font-semibold tracking-[0.12em] text-ws-muted uppercase">You could earn</p>
-          <p className="font-display text-[16px] leading-tight font-semibold text-ws-gain tabular-nums">{aed(entry.monthlyReward)}</p>
+          <p className="font-display text-[16px] leading-tight font-semibold text-ws-gain tabular-nums">{rw(entry.monthlyReward)}</p>
           <p className="text-[10px] text-ws-muted">/ month</p>
         </div>
       </div>
@@ -908,6 +939,7 @@ export function Alternatives({ strategies, alternatives, pick, currentIds, card,
   onUse: (ids: string[]) => void
   onDetails: CardDetails
 }) {
+  const { isMiles } = useRewardMode()
   const tiles: { strategy: Strategy; tag: string }[] = strategies.slice(1, 3).map((st, i) => ({ strategy: st, tag: STRATEGY_TAGS[i + 1] }))
   // the first different mix: a wallet not already shown, preferring the recommended wallet's size
   const shown = new Set([pick, ...tiles.map(t => t.strategy.wallet)].map(w => [...w.cards].sort().join('|')))
@@ -933,7 +965,7 @@ export function Alternatives({ strategies, alternatives, pick, currentIds, card,
         <div className="mt-8 grid gap-3 lg:grid-cols-3">
           {tiles.map(({ strategy, tag }) => (
             <StrategyBox key={strategy.wallet.cards.join('|')} strategy={strategy} tag={tag} card={card}
-              lessBy={(best - strategy.net_annual_value_aed) / 12}
+              lessBy={isMiles ? ((strategies[0]?.annual_reward_aed ?? pick.annual_reward_aed) - strategy.annual_reward_aed) / 12 : (best - strategy.net_annual_value_aed) / 12}
               inUse={sameCards(strategy.wallet.cards, currentIds)} onUse={() => onUse(strategy.wallet.cards)} onDetails={onDetails} />
           ))}
         </div>

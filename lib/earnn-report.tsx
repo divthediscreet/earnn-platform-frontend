@@ -35,6 +35,8 @@ const CAT: Record<string,string> = {
   retail:'Retail', telecom:'Telecom', transport:'Transport',
   utility:'Utilities', education:'Education', miscellaneous:'Other',
   all_spend:'All Spend',
+  // Wallet Simulator spend groups
+  dineout:'Dining out', food_delivery:'Food delivery', grocery_store:'Grocery store', grocery_online:'Online grocery', taxi:'Taxi',
 }
 
 const fmt = (n: number) => Math.round(n).toLocaleString('en-AE')

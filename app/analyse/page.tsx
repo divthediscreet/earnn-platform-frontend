@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { recommendWallet, saveSession, SimulatorApiError, useSimulatorSession, type SimulatorRequest } from '@/lib/wallet-simulator/api'
+import { recommendWallet, saveSession, SimulatorApiError, useSimulatorSession, type RewardMode, type SimulatorRequest } from '@/lib/wallet-simulator/api'
 import { SIMULATOR_GROUPS, aed } from '@/lib/wallet-simulator/groups'
 import { CardColumnsLoader, loadCardIds, preloadCardImages } from '@/components/wallet-simulator/loading-columns'
 
@@ -46,6 +46,7 @@ function SpendForm({ initial }: { initial?: SimulatorRequest }) {
   const [spend, setSpend] = useState<Record<string, string>>(() => Object.fromEntries(
     Object.entries(initial?.form_spend ?? {}).filter(([k, v]) => v > 0 && !SPLIT_KEYS.has(k)).map(([k, v]) => [k, String(v)])))
   const [splits, setSplits] = useState<SplitState>(() => splitFromAmounts(initial?.form_spend))
+  const [rewardMode, setRewardMode] = useState<RewardMode>(initial?.reward_mode ?? 'cashback') // cashback unless the user picks miles
   const [salary, setSalary] = useState(initial?.salary_aed ? String(initial.salary_aed) : '')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -75,7 +76,7 @@ function SpendForm({ initial }: { initial?: SimulatorRequest }) {
     if (salaryNum <= 0) return setError('Enter your monthly salary so we only suggest cards you can apply for.')
     setError('')
     setLoading(true)
-    const request = { form_spend: amounts, salary_aed: salaryNum }
+    const request: SimulatorRequest = { form_spend: amounts, salary_aed: salaryNum, reward_mode: rewardMode }
     try {
       const result = await recommendWallet(request)
       saveSession({ request, result })
@@ -112,6 +113,13 @@ function SpendForm({ initial }: { initial?: SimulatorRequest }) {
           <div className="sim-setup-heading">
             <div className="sim-eyebrow">A LITTLE ABOUT YOU</div>
             <p>This helps us check which cards you could be eligible for.</p>
+          </div>
+          <div className="sim-mode" role="radiogroup" aria-label="Which rewards do you want?">
+            <span>I want to earn</span>
+            {(['cashback', 'miles'] as const).map(m => (
+              <button key={m} type="button" role="radio" aria-checked={rewardMode === m} className={rewardMode === m ? 'on' : ''}
+                onClick={() => setRewardMode(m)}>{m === 'cashback' ? 'Cashback' : 'Miles'}</button>
+            ))}
           </div>
           <label className="sim-salary">
             <span>Monthly salary</span>
@@ -254,6 +262,10 @@ function SpendForm({ initial }: { initial?: SimulatorRequest }) {
         .sim-setup { background:#fff; border:1px solid #D6E0F5; border-radius:12px; padding:8px 14px; display:flex; flex-wrap:wrap; gap:6px 18px; box-shadow:0 3px 10px rgba(14,55,133,.04); margin-bottom:16px; align-items:center; justify-content:space-between; }
         .sim-setup-heading { display:flex; align-items:baseline; flex-wrap:wrap; gap:2px 12px; }
         .sim-setup-heading p { margin-top:0; line-height:1.4; }
+        .sim-mode { display:flex; align-items:center; gap:4px; border:1px solid #D6E0F5; background:#F8FAFF; border-radius:9px; padding:3px; }
+        .sim-mode > span { color:#5A6A85; font-size:11px; font-weight:700; white-space:nowrap; padding:0 8px; }
+        .sim-mode button { border:0; background:transparent; color:#0E3785; font-size:13px; font-weight:700; padding:6px 14px; border-radius:7px; cursor:pointer; }
+        .sim-mode button.on { background:#0E3785; color:#fff; }
         .sim-salary { display:flex; align-items:center; gap:10px; border:1px solid #D6E0F5; background:#F8FAFF; border-radius:9px; padding:5px 11px; }
         .sim-salary > span { color:#5A6A85; font-size:11px; font-weight:700; white-space:nowrap; }
         .sim-salary > div { display:flex; align-items:center; gap:6px; }

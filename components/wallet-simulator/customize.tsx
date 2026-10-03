@@ -2,9 +2,10 @@
 
 import { useEffect, useMemo } from 'react'
 import type { CardScore, RecommendResponse, SpendGroup, Wallet } from '@/lib/wallet-simulator/api'
-import { MAX_WALLET, aed, groupShort } from '@/lib/wallet-simulator/groups'
+import { MAX_WALLET, groupShort } from '@/lib/wallet-simulator/groups'
 import { buildPlaybook, cardGroups } from '@/lib/wallet-simulator/playbook'
 import { BuildYourWallet, type CustomScore, type ScoredCard } from '@/components/wallet-builder/BuildYourWallet'
+import { useRewardMode } from '@/lib/wallet-simulator/reward-mode'
 import { CardArt, RollingAed, type CardInfo } from './card-art'
 
 type CardLookup = (id: string) => CardInfo
@@ -41,6 +42,7 @@ export function WalletCustomizeBanner({ ids, wallet, bestBySize, card, status, o
   status: 'ready' | 'updating' | 'error'
   onOpen: () => void
 }) {
+  const { rw, isMiles } = useRewardMode()
   const monthly = wallet?.monthly_reward_aed ?? 0
   const smaller = ids.length > 1 ? bestBySize[String(ids.length - 1)] : undefined
   const delta = smaller && wallet ? monthly - smaller.annual_reward_aed / 12 : null
@@ -107,11 +109,11 @@ export function WalletCustomizeBanner({ ids, wallet, bestBySize, card, status, o
                 Estimated monthly rewards
               </p>
               <p className={`mt-1 text-center text-[30px] leading-tight font-bold tracking-tight text-ws-fg transition-opacity ${status === 'updating' ? 'opacity-50' : ''}`}>
-                AED <RollingAed value={monthly} />
+                {isMiles ? <><RollingAed value={monthly} /> miles</> : <>AED <RollingAed value={monthly} /></>}
               </p>
               {delta !== null && Math.abs(delta) >= 1 && (
                 <p className={`mx-auto mt-2 w-fit rounded-full px-3 py-1 text-[12.5px] font-semibold ${delta > 0 ? 'bg-[#E3F6EC] text-ws-gain' : 'bg-[#FDECEA] text-[#C0392B]'}`}>
-                  {delta > 0 ? '↑ +' : '↓ −'}{aed(Math.abs(delta))} vs {ids.length - 1} card{ids.length - 1 === 1 ? '' : 's'}
+                  {delta > 0 ? '↑ +' : '↓ −'}{rw(Math.abs(delta))} vs {ids.length - 1} card{ids.length - 1 === 1 ? '' : 's'}
                 </p>
               )}
             </div>

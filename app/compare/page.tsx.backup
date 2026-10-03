@@ -1,0 +1,738 @@
+'use client'
+import { useMemo, useRef, useState, useEffect, useCallback } from 'react'
+import Link from 'next/link'
+import Image from 'next/image'
+import { fetchCards, fetchCardDetail } from '@/lib/api'
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TYPES
+// ─────────────────────────────────────────────────────────────────────────────
+interface ApiCard {
+  earnn_card_id: string
+  card_name: string
+  bank_name: string
+  network: string
+  reward_program_type: string | null
+  reward_currency_name: string | null
+  earnn_highlight: string | null
+  min_salary_aed: number | null
+  annual_fee_year1_aed: number | null
+  annual_fee_from_year2_aed: number | null
+  free_for_life: boolean
+  has_lounge_access: boolean
+  has_golf_benefit: boolean
+  has_cinema_benefit: boolean
+  has_dining_benefit: boolean
+  has_travel_insurance: boolean
+  has_welcome_bonus: boolean
+  earnn_score: number
+  rating_band: string
+  card_ranking: number
+  effective_reward_rate: number
+  expected_annual_return_aed: number
+  true_annual_fee_aed: number
+  nav_aed: number
+  effective_reward_rate_dining: number
+  effective_reward_rate_grocery: number
+  effective_reward_rate_travel: number
+  effective_reward_rate_fuel: number
+  effective_reward_rate_online: number
+  effective_reward_rate_retail: number
+  effective_reward_rate_utility: number
+  effective_reward_rate_all_spend: number
+}
+
+interface CardDetail {
+  card: Record<string, unknown>
+  benefits: string[]
+  best_for: string[]
+  card_disclaimer: string[]
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CONSTANTS
+// ─────────────────────────────────────────────────────────────────────────────
+// Score-based gradient: dark green (100) → dark red (0)
+function scoreColor(score: number): string {
+  // Clamp 0-100, then lerp HSL: 142° green → 0° red
+  const t = Math.max(0, Math.min(100, score)) / 100
+  const hue = Math.round(t * 142)          // 0=red, 142=green
+  const sat  = 72
+  const light = 28 + (1 - t) * 8          // slightly lighter at bottom
+  return `hsl(${hue}, ${sat}%, ${light}%)`
+}
+
+const RATE_PILLS = [
+  { key: 'effective_reward_rate_dining',    name: 'Dining',    icon: '🍽️' },
+  { key: 'effective_reward_rate_grocery',   name: 'Grocery',   icon: '🛒' },
+  { key: 'effective_reward_rate_travel',    name: 'Travel',    icon: '✈️' },
+  { key: 'effective_reward_rate_fuel',      name: 'Fuel',      icon: '⛽' },
+  { key: 'effective_reward_rate_online',    name: 'Online',    icon: '📦' },
+  { key: 'effective_reward_rate_retail',    name: 'Retail',    icon: '🛍️' },
+  { key: 'effective_reward_rate_utility',   name: 'Utility',   icon: '💡' },
+  { key: 'effective_reward_rate_all_spend', name: 'All Other', icon: '➕' },
+]
+
+const SALARY_BANDS = [
+  { label: 'Any salary', min: 0 },
+  { label: 'AED 5,000+', min: 5000 },
+  { label: 'AED 8,000+', min: 8000 },
+  { label: 'AED 15,000+', min: 15000 },
+  { label: 'AED 20,000+', min: 20000 },
+]
+
+const NETWORK_OPTIONS = ['All Networks', 'Visa', 'Mastercard', 'Amex']
+const PAGE_SIZE = 10
+
+// ─────────────────────────────────────────────────────────────────────────────
+// HELPERS
+// ─────────────────────────────────────────────────────────────────────────────
+function fmtRate(r: number): string {
+  if (!r) return '0%'
+  return `${(r * 100).toFixed(1)}%`
+}
+
+function effectiveFeeAed(card: ApiCard): number {
+  if (card.free_for_life) return 0
+  return card.true_annual_fee_aed ?? card.annual_fee_from_year2_aed ?? 0
+}
+
+function fmtScore(score: number): string {
+  return score.toFixed(1)
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PAGE
+// ─────────────────────────────────────────────────────────────────────────────
+export default function ComparePage() {
+  const [cards, setCards]           = useState<ApiCard[]>([])
+  const [loading, setLoading]       = useState(true)
+  const [error, setError]           = useState<string | null>(null)
+  const [details, setDetails]       = useState<Record<string, CardDetail>>({})
+  const [detailLoading, setDetailLoading] = useState<string | null>(null)
+
+  const [salaryMin, setSalaryMin]   = useState(0)
+  const [network, setNetwork]       = useState('All Networks')
+  const [freeOnly, setFreeOnly]     = useState(false)
+  const [page, setPage]             = useState(1)
+  const [compareIds, setCompareIds] = useState<string[]>([])
+  const [hoverNav, setHoverNav]     = useState<string | null>(null)
+  const [expanded, setExpanded]     = useState<string | null>(null)
+  const [comingSoon, setComingSoon] = useState(false)
+
+  // ── Fetch all cards on mount ────────────────────────────────────────────
+  useEffect(() => {
+    fetchCards({ sort_by: 'card_ranking' })
+      .then(d => setCards(d.cards || []))
+      .catch(e => setError(e.message))
+      .finally(() => setLoading(false))
+  }, [])
+
+  // ── Fetch card detail lazily on expand ──────────────────────────────────
+  const loadDetail = useCallback(async (cardId: string) => {
+    if (details[cardId] || detailLoading === cardId) return
+    setDetailLoading(cardId)
+    try {
+      const d = await fetchCardDetail(cardId)
+      setDetails(prev => ({ ...prev, [cardId]: d }))
+    } catch { /* non-fatal — expanded section shows fallback */ }
+    finally { setDetailLoading(null) }
+  }, [details, detailLoading])
+
+  const handleExpand = useCallback((cardId: string) => {
+    const next = expanded === cardId ? null : cardId
+    setExpanded(next)
+    if (next) loadDetail(next)
+  }, [expanded, loadDetail])
+
+  useEffect(() => {
+    if (!comingSoon) return
+    const t = setTimeout(() => setComingSoon(false), 2200)
+    return () => clearTimeout(t)
+  }, [comingSoon])
+
+  // ── Client-side filtering ───────────────────────────────────────────────
+  const filtered = useMemo(() => cards.filter(c => {
+    if (salaryMin > 0 && c.min_salary_aed && c.min_salary_aed > salaryMin) return false
+    if (network !== 'All Networks' && c.network?.toLowerCase() !== network.toLowerCase()) return false
+    if (freeOnly && !c.free_for_life) return false
+    return true
+  }), [cards, salaryMin, network, freeOnly])
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
+  const pageCards  = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+
+  const toggleCompare = useCallback((id: string, e?: React.MouseEvent) => {
+    e?.stopPropagation()
+    setCompareIds(prev => {
+      if (prev.includes(id)) return prev.filter(x => x !== id)
+      if (prev.length >= 3) return prev
+      return [...prev, id]
+    })
+  }, [])
+
+  const compareCards = compareIds.map(id => cards.find(c => c.earnn_card_id === id)!).filter(Boolean)
+
+  // ── Loading / error states ──────────────────────────────────────────────
+  if (loading) return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', flexDirection: 'column', gap: 16 }}>
+      <div style={{ width: 40, height: 40, border: '3px solid #EEF3FF', borderTopColor: '#0E3785', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+      <p style={{ color: '#5A6A85', fontSize: 14 }}>Loading 155 UAE credit cards…</p>
+      <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
+    </div>
+  )
+
+  if (error) return (
+    <div style={{ textAlign: 'center', padding: '80px 24px', color: '#DC2626' }}>
+      <div style={{ fontSize: 32, marginBottom: 12 }}>⚠️</div>
+      <p style={{ fontWeight: 700 }}>Could not load cards</p>
+      <p style={{ fontSize: 13, color: '#5A6A85' }}>{error}</p>
+    </div>
+  )
+
+  return (
+    <div style={{ maxWidth: 1100, margin: '0 auto', padding: '48px 24px 100px' }}>
+
+      {/* ── HERO ─────────────────────────────────────────────────────────── */}
+      <div style={{
+        position: 'relative', overflow: 'hidden', borderRadius: 24,
+        background: 'linear-gradient(120deg, #0A2860 0%, #0E3785 60%, #163E8C 100%)',
+        padding: '40px 40px', marginBottom: 28, color: 'white',
+        boxShadow: '0 12px 44px rgba(14,55,133,0.25)'
+      }}>
+        <div style={{ position: 'absolute', inset: 0, opacity: 0.05, backgroundImage: 'linear-gradient(white 1px, transparent 1px), linear-gradient(90deg, white 1px, transparent 1px)', backgroundSize: '44px 44px' }} />
+        <div style={{ position: 'relative', maxWidth: 760 }}>
+          <div style={{ display: 'inline-block', fontSize: 11, fontWeight: 700, letterSpacing: '0.14em', color: '#C9A84C', textTransform: 'uppercase', marginBottom: 12 }}>
+            Compare UAE Credit Cards
+          </div>
+          <h1 style={{ fontSize: 'clamp(24px, 3.4vw, 32px)', fontWeight: 800, lineHeight: 1.25, marginBottom: 10, color: 'white' }}>
+            Credit card rewards are highly personal.
+          </h1>
+          <p style={{ fontSize: 15.5, color: 'rgba(255,255,255,0.78)', lineHeight: 1.7, marginBottom: 24 }}>
+            Rankings below are calculated using spending patterns of an average UAE resident.
+          </p>
+          <Link href="/analyse" style={{
+            display: 'inline-flex', alignItems: 'center', gap: 10,
+            background: '#C9A84C', color: '#0A2860', padding: '14px 30px', borderRadius: 10,
+            fontSize: 15, fontWeight: 800, textDecoration: 'none',
+            boxShadow: '0 8px 28px rgba(201,168,76,0.35)'
+          }}>
+            🎯 Calculate My Personal Rewards →
+          </Link>
+        </div>
+      </div>
+
+      {/* ── FILTER BAR ───────────────────────────────────────────────────── */}
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap',
+        background: 'white', borderRadius: 14, border: '1px solid #D6E0F5',
+        padding: '12px 16px', marginBottom: 28, boxShadow: '0 2px 14px rgba(14,55,133,0.05)'
+      }}>
+        {/* Salary */}
+        <span style={{ fontSize: 12.5, fontWeight: 700, color: '#5A6A85', letterSpacing: '0.04em', textTransform: 'uppercase' }}>💼 Salary</span>
+        <select value={salaryMin} onChange={e => { setSalaryMin(Number(e.target.value)); setPage(1) }} style={selectStyle}>
+          {SALARY_BANDS.map(b => <option key={b.label} value={b.min}>{b.label}</option>)}
+        </select>
+
+        <div style={{ width: 1, height: 24, background: '#EEF3FF' }} />
+
+        {/* Network */}
+        <span style={{ fontSize: 12.5, fontWeight: 700, color: '#5A6A85', letterSpacing: '0.04em', textTransform: 'uppercase' }}>🌐 Network</span>
+        <select value={network} onChange={e => { setNetwork(e.target.value); setPage(1) }} style={selectStyle}>
+          {NETWORK_OPTIONS.map(n => <option key={n}>{n}</option>)}
+        </select>
+
+        <div style={{ width: 1, height: 24, background: '#EEF3FF' }} />
+
+        {/* Free for life toggle */}
+        <button onClick={() => { setFreeOnly(f => !f); setPage(1) }} style={{
+          display: 'flex', alignItems: 'center', gap: 7, padding: '8px 14px', borderRadius: 8,
+          border: freeOnly ? '1.5px solid #00A67E' : '1.5px solid #D6E0F5',
+          background: freeOnly ? '#EAFBF5' : '#F8FAFF',
+          color: freeOnly ? '#00785C' : '#5A6A85', fontSize: 13, fontWeight: 600, cursor: 'pointer'
+        }}>
+          🆓 Free for life {freeOnly && '✓'}
+        </button>
+
+        <span style={{ marginLeft: 'auto', fontSize: 12.5, color: '#5A6A85' }}>
+          <strong style={{ color: '#0D1828' }}>{filtered.length}</strong> cards · page {page}/{totalPages}
+        </span>
+      </div>
+
+      {/* ── CARD TILES ───────────────────────────────────────────────────── */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {pageCards.map(card => (
+          <CardTile
+            key={card.earnn_card_id}
+            card={card}
+            detail={details[card.earnn_card_id] || null}
+            detailLoading={detailLoading === card.earnn_card_id}
+            inCompare={compareIds.includes(card.earnn_card_id)}
+            compareFull={compareIds.length >= 3 && !compareIds.includes(card.earnn_card_id)}
+            onToggleCompare={(e) => { toggleCompare(card.earnn_card_id, e); setComingSoon(true) }}
+            expanded={expanded === card.earnn_card_id}
+            onExpand={() => handleExpand(card.earnn_card_id)}
+            onHover={() => loadDetail(card.earnn_card_id)}
+            hoverNav={hoverNav}
+            setHoverNav={setHoverNav}
+          />
+        ))}
+      </div>
+
+      {/* ── PAGINATION ───────────────────────────────────────────────────── */}
+      {totalPages > 1 && (
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 8, marginTop: 32, flexWrap: 'wrap' }}>
+          <button disabled={page <= 1} onClick={() => setPage(p => Math.max(1, p - 1))} style={pagerBtn(page <= 1)}>← Prev</button>
+          {Array.from({ length: totalPages }, (_, i) => i + 1).map(n => (
+            <button key={n} onClick={() => setPage(n)} style={{
+              ...pagerBtn(false),
+              background: page === n ? '#0E3785' : 'white',
+              color: page === n ? 'white' : '#5A6A85',
+              borderColor: page === n ? '#0E3785' : '#D6E0F5', minWidth: 40
+            }}>{n}</button>
+          ))}
+          <button disabled={page >= totalPages} onClick={() => setPage(p => Math.min(totalPages, p + 1))} style={pagerBtn(page >= totalPages)}>Next →</button>
+        </div>
+      )}
+
+      {/* ── COMPARISON TABLE ─────────────────────────────────────────────── */}
+      {compareCards.length > 0 && (
+        <div style={{ marginTop: 56 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18, flexWrap: 'wrap', gap: 10 }}>
+            <h2 style={{ fontSize: 22, fontWeight: 800, color: '#0E3785' }}>
+              ⚖️ Comparing {compareCards.length} card{compareCards.length > 1 ? 's' : ''}{' '}
+              <span style={{ color: '#5A6A85', fontWeight: 500, fontSize: 14 }}>(up to 3)</span>
+            </h2>
+            <button onClick={() => setCompareIds([])} style={{ fontSize: 13, fontWeight: 600, color: '#5A6A85', background: '#EEF3FF', border: 'none', borderRadius: 8, padding: '8px 16px', cursor: 'pointer' }}>
+              Clear all
+            </button>
+          </div>
+          <ComparisonTable
+            cards={compareCards}
+            details={details}
+            onRemove={(id) => toggleCompare(id)}
+            hoverNav={hoverNav}
+            setHoverNav={setHoverNav}
+          />
+        </div>
+      )}
+
+      {/* Coming soon toast */}
+      {comingSoon && (
+        <div style={{
+          position: 'fixed', bottom: 36, left: '50%', transform: 'translateX(-50%)', zIndex: 200,
+          background: '#0D1828', color: 'white', padding: '14px 28px', borderRadius: 100,
+          fontSize: 14, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 10,
+          boxShadow: '0 16px 48px rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)'
+        }}>
+          <span style={{ fontSize: 17 }}>🚀</span> Coming Soon — apply directly through earnn very soon!
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CARD TILE
+// ─────────────────────────────────────────────────────────────────────────────
+function CardTile({ card, detail, detailLoading, inCompare, compareFull, onToggleCompare, expanded, onExpand, onHover, hoverNav, setHoverNav }: {
+  card: ApiCard
+  detail: CardDetail | null
+  detailLoading: boolean
+  inCompare: boolean
+  compareFull: boolean
+  onToggleCompare: (e?: React.MouseEvent) => void
+  expanded: boolean
+  onExpand: () => void
+  onHover: () => void
+  hoverNav: string | null
+  setHoverNav: (v: string | null) => void
+}) {
+  return (
+    <div
+      onClick={onExpand}
+      onMouseEnter={onHover}
+      style={{
+        position: 'relative', background: 'white', borderRadius: 16, cursor: 'pointer', overflow: 'hidden',
+        border: inCompare ? '2px solid #0E3785' : expanded ? '1.5px solid #C2CCDD' : '1px solid #D6E0F5',
+        boxShadow: inCompare ? '0 8px 28px rgba(14,55,133,0.14)' : '0 2px 12px rgba(14,55,133,0.05)',
+        transition: 'all 0.18s'
+      }}>
+
+      {/* Name row */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '14px 16px', borderBottom: '1px solid #EEF3FF' }}>
+        <div>
+          <div style={{ fontSize: 16, fontWeight: 800, color: '#0D1828', lineHeight: 1.25 }}>{card.card_name}</div>
+          <div style={{ fontSize: 12, color: '#5A6A85', marginTop: 2 }}>{card.bank_name} · {card.network}</div>
+        </div>
+        <button onClick={(e) => { e.stopPropagation(); onToggleCompare(e) }} disabled={compareFull} style={{
+          display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0,
+          padding: '8px 14px 8px 16px', borderRadius: 100, border: 'none',
+          cursor: compareFull ? 'not-allowed' : 'pointer',
+          background: inCompare ? '#0E3785' : '#EEF3FF',
+          color: inCompare ? 'white' : compareFull ? '#C2CCDD' : '#0E3785',
+          fontSize: 12, fontWeight: 700
+        }}>
+          <span>{inCompare ? 'Added ✓' : 'View & Apply'}</span>
+          <span style={{
+            width: 22, height: 22, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            border: inCompare ? '1.5px solid rgba(255,255,255,0.5)' : '1.5px solid #0E3785',
+            background: inCompare ? 'rgba(255,255,255,0.15)' : 'white', fontSize: 13, fontWeight: 800
+          }}>{inCompare ? '✓' : '+'}</span>
+        </button>
+      </div>
+
+      {/* Main row */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 24, padding: '18px 16px' }}>
+
+        {/* Score badge */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
+          <Image src="/card-dummy.svg" alt={card.card_name} width={120} height={70}
+            style={{ borderRadius: 9, objectFit: 'cover', boxShadow: '0 6px 18px rgba(14,55,133,0.18)', flexShrink: 0 }} />
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 4 }}>
+            <span style={{ fontSize: 11, fontWeight: 700, color: '#5A6A85', textTransform: 'uppercase', letterSpacing: '0.05em' }}>earnn score</span>
+            <span style={{
+              display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2,
+              width: 88, height: 56, borderRadius: 10,
+              background: scoreColor(card.earnn_score), color: 'white',
+              fontSize: 16, fontWeight: 800, lineHeight: 1.15
+            }}>
+              <span>⭐ {fmtScore(card.earnn_score)}</span>
+              <span style={{ fontSize: 10.5, fontWeight: 700, opacity: 0.9, letterSpacing: '0.03em' }}>{card.rating_band}</span>
+            </span>
+          </div>
+        </div>
+
+        {/* Rate pills — always 8, 4 per row */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px 8px', flex: 1 }}>
+          {RATE_PILLS.map(p => {
+            const rate = (card[p.key as keyof ApiCard] as number) || 0
+            return (
+              <div key={p.key} style={{
+                display: 'flex', alignItems: 'center', gap: 5,
+                background: '#F8FAFF', borderRadius: 8, padding: '6px 10px', border: '1px solid #EEF3FF'
+              }}>
+                <span style={{ fontSize: 12 }}>{p.icon}</span>
+                <span style={{ fontSize: 11, color: '#5A6A85', whiteSpace: 'nowrap' }}>{p.name}</span>
+                <span style={{ fontSize: 13, fontWeight: 700, color: rate > 0 ? '#0E3785' : '#C2CCDD', marginLeft: 'auto' }}>{fmtRate(rate)}</span>
+              </div>
+            )
+          })}
+        </div>
+
+        {/* Effective Fee + Earn Up To — same-size boxes */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+          {/* Effective Fee box */}
+          {(() => {
+            const fee = effectiveFeeAed(card)
+            const boxStyle: React.CSSProperties = {
+              width: 128, borderRadius: 10, textAlign: 'center',
+              padding: '9px 8px 7px', boxSizing: 'border-box',
+              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
+              background: fee === 0 ? '#EAFBF4' : '#FFF4EC',
+              border: `1px solid ${fee === 0 ? '#CFEFE3' : '#FDDCBC'}`
+            }
+            return (
+              <div style={boxStyle}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: '#5A6A85', textTransform: 'uppercase', letterSpacing: '0.03em', lineHeight: 1 }}>Effective Fee</span>
+                <span style={{ fontSize: 17, fontWeight: 800, color: fee === 0 ? '#00A67E' : '#C95B00', lineHeight: 1 }}>AED {fee.toLocaleString()}</span>
+                <span style={{ fontSize: 10, color: '#9CA3AF', lineHeight: 1 }}>/yr</span>
+              </div>
+            )
+          })()}
+
+          {/* Earn Up To box */}
+          {(() => {
+            const navKey = `earn_${card.earnn_card_id}`
+            return (
+              <div
+                style={{
+                  width: 128, borderRadius: 10, textAlign: 'center',
+                  padding: '9px 8px 7px', boxSizing: 'border-box' as const,
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
+                  background: '#EAFBF4', border: '1px solid #CFEFE3', position: 'relative'
+                }}
+                onMouseEnter={() => setHoverNav(navKey)}
+                onMouseLeave={() => setHoverNav(null)}
+                onClick={e => e.stopPropagation()}
+              >
+                <span style={{ fontSize: 11, fontWeight: 700, color: '#5A6A85', textTransform: 'uppercase', letterSpacing: '0.03em', lineHeight: 1, borderBottom: '1.5px dotted #5A6A85', cursor: 'help' }}>Earn Up To</span>
+                <span style={{ fontSize: 17, fontWeight: 800, color: '#00A67E', lineHeight: 1 }}>AED {Math.round(card.nav_aed).toLocaleString()}</span>
+                <span style={{ fontSize: 10, color: '#9CA3AF', lineHeight: 1 }}>/yr</span>
+                {hoverNav === navKey && <Tooltip text="Expected yearly rewards minus the true annual fee (after waivers) — what this card puts in your pocket." />}
+              </div>
+            )
+          })()}
+
+        </div>
+      </div>
+
+      {/* Centered expand arrow at bottom of tile */}
+      {!expanded && (
+        <div style={{ display: 'flex', justifyContent: 'center', paddingBottom: 6 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5, color: '#C2CCDD', fontSize: 11, fontWeight: 600 }}>
+            <span style={{ letterSpacing: '0.04em' }}>MORE DETAILS</span>
+            <span style={{ fontSize: 10 }}>▼</span>
+          </div>
+        </div>
+      )}
+
+      {/* Expanded — 3 columns: Benefits | Best For | Disclaimer */}
+      {expanded && (
+        <div onClick={e => e.stopPropagation()} style={{
+          borderTop: '1px solid #EEF3FF', padding: '20px 24px', background: '#FBFCFF',
+          display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 24
+        }}>
+          {detailLoading ? (
+            <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '20px 0', color: '#5A6A85', fontSize: 13 }}>
+              Loading card details…
+            </div>
+          ) : detail ? (
+            <>
+              {/* Benefits */}
+              <div>
+                <div style={{ fontSize: 11.5, fontWeight: 700, color: '#0E3785', letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: 10 }}>🎁 Top Benefits</div>
+                <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 7 }}>
+                  {detail.benefits.length > 0
+                    ? detail.benefits.map((b, i) => <li key={i} style={{ fontSize: 13, color: '#0D1828', lineHeight: 1.5 }}>• {b}</li>)
+                    : <li style={{ fontSize: 13, color: '#9CA3AF' }}>No featured benefits listed</li>
+                  }
+                </ul>
+              </div>
+              {/* Best For */}
+              <div>
+                <div style={{ fontSize: 11.5, fontWeight: 700, color: '#00A67E', letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: 10 }}>💡 Best For</div>
+                <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 7 }}>
+                  {detail.best_for.length > 0
+                    ? detail.best_for.map((b, i) => <li key={i} style={{ fontSize: 13, color: '#0D1828', lineHeight: 1.5 }}>• {b}</li>)
+                    : <li style={{ fontSize: 13, color: '#9CA3AF' }}>—</li>
+                  }
+                </ul>
+              </div>
+              {/* Disclaimer */}
+              <div>
+                <div style={{ fontSize: 11.5, fontWeight: 700, color: '#5A6A85', letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: 10 }}>⚠️ Things To Note</div>
+                <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 7 }}>
+                  {detail.card_disclaimer.length > 0
+                    ? detail.card_disclaimer.map((d, i) => <li key={i} style={{ fontSize: 12.5, color: '#5A6A85', lineHeight: 1.6, fontStyle: 'italic' }}>• {d}</li>)
+                    : <li style={{ fontSize: 13, color: '#9CA3AF' }}>—</li>
+                  }
+                </ul>
+              </div>
+            </>
+          ) : (
+            <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '20px 0', color: '#9CA3AF', fontSize: 13 }}>
+              Could not load card details
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// COMPARISON TABLE
+// ─────────────────────────────────────────────────────────────────────────────
+function ComparisonTable({ cards, details, onRemove, hoverNav, setHoverNav }: {
+  cards: ApiCard[]
+  details: Record<string, CardDetail>
+  onRemove: (id: string) => void
+  hoverNav: string | null
+  setHoverNav: (v: string | null) => void
+}) {
+  const rowLabel = (): React.CSSProperties => ({
+    fontSize: 12.5, fontWeight: 700, color: '#5A6A85', letterSpacing: '0.04em',
+    textTransform: 'uppercase', padding: '16px 20px', verticalAlign: 'top', whiteSpace: 'nowrap'
+  })
+  const cell: React.CSSProperties = { padding: '16px 20px', verticalAlign: 'top', borderLeft: '1px solid #EEF3FF' }
+
+  return (
+    <div style={{ background: 'white', borderRadius: 20, border: '1px solid #D6E0F5', overflow: 'hidden', boxShadow: '0 8px 32px rgba(14,55,133,0.08)' }}>
+      <div style={{ overflowX: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 640 }}>
+          <thead>
+            <tr style={{ background: 'linear-gradient(135deg, #0E3785 0%, #0A2860 100%)' }}>
+              <th style={{ ...rowLabel(), color: 'rgba(255,255,255,0.65)', background: 'transparent' }}>Card</th>
+              {cards.map(c => (
+                <th key={c.earnn_card_id} style={{ ...cell, borderLeft: '1px solid rgba(255,255,255,0.12)', minWidth: 220 }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'flex-start' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'flex-start' }}>
+                      <div>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.6)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{c.bank_name}</div>
+                        <div style={{ fontSize: 15, fontWeight: 800, color: 'white', marginTop: 2 }}>{c.card_name}</div>
+                      </div>
+                      <button onClick={() => onRemove(c.earnn_card_id)} style={{
+                        background: 'rgba(255,255,255,0.12)', border: 'none', borderRadius: 6, color: 'white',
+                        width: 24, height: 24, fontSize: 13, cursor: 'pointer', flexShrink: 0
+                      }}>✕</button>
+                    </div>
+                    <Image src="/card-dummy.svg" alt={c.card_name} width={110} height={70} style={{ borderRadius: 8, objectFit: 'cover' }} />
+                  </div>
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            <tr style={{ background: '#F8FAFF' }}>
+              <td style={rowLabel()}>⭐ earnn Score</td>
+              {cards.map(c => (
+                <td key={c.earnn_card_id} style={cell}>
+                  <span style={{
+                    display: 'inline-block', padding: '5px 12px', borderRadius: 100, fontSize: 13, fontWeight: 800,
+                    background: scoreColor(c.earnn_score) + '22', color: scoreColor(c.earnn_score)
+                  }}>{fmtScore(c.earnn_score)} · {c.rating_band}</span>
+                </td>
+              ))}
+            </tr>
+            <tr>
+              <td style={rowLabel()}>💳 Effective Fee</td>
+              {cards.map(c => {
+                const fee = effectiveFeeAed(c)
+                return (
+                  <td key={c.earnn_card_id} style={{ ...cell, fontSize: 15, fontWeight: 800, color: fee === 0 ? '#00A67E' : '#C95B00' }}>
+                    AED {fee.toLocaleString()} /yr
+                  </td>
+                )
+              })}
+            </tr>
+            <tr style={{ background: '#F8FAFF' }}>
+              <td style={rowLabel()}>📈 Estimated Reward</td>
+              {cards.map(c => (
+                <td key={c.earnn_card_id} style={{ ...cell, fontSize: 15, fontWeight: 800, color: '#00A67E' }}>
+                  <NavTableTooltip id={c.earnn_card_id} value={c.nav_aed} hoverNav={hoverNav} setHoverNav={setHoverNav} />
+                </td>
+              ))}
+            </tr>
+            <tr>
+              <td style={rowLabel()}>🏆 Effective Rates</td>
+              {cards.map(c => (
+                <td key={c.earnn_card_id} style={cell}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    {RATE_PILLS.map(p => {
+                      const rate = c[p.key as keyof ApiCard] as number
+                      if (!rate) return null
+                      return (
+                        <div key={p.key} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12.5 }}>
+                          <span style={{ color: '#5A6A85' }}>{p.icon} {p.name}</span>
+                          <span style={{ fontWeight: 800, color: '#0E3785' }}>{fmtRate(rate)}</span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </td>
+              ))}
+            </tr>
+            <tr style={{ background: '#F8FAFF' }}>
+              <td style={rowLabel()}>🎁 Top Benefits</td>
+              {cards.map(c => {
+                const d = details[c.earnn_card_id]
+                return (
+                  <td key={c.earnn_card_id} style={cell}>
+                    {d ? (
+                      <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 5 }}>
+                        {d.benefits.slice(0, 4).map((b, i) => <li key={i} style={{ fontSize: 12, color: '#0D1828', lineHeight: 1.5 }}>• {b}</li>)}
+                        {d.benefits.length === 0 && <li style={{ fontSize: 12, color: '#9CA3AF' }}>—</li>}
+                      </ul>
+                    ) : <span style={{ fontSize: 12, color: '#9CA3AF' }}>Expand card to load</span>}
+                  </td>
+                )
+              })}
+            </tr>
+            <tr>
+              <td style={rowLabel()}>💡 Best For</td>
+              {cards.map(c => {
+                const d = details[c.earnn_card_id]
+                return (
+                  <td key={c.earnn_card_id} style={{ ...cell, fontSize: 12.5, color: '#0D1828', lineHeight: 1.6 }}>
+                    {d ? (
+                      <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 5 }}>
+                        {d.best_for.slice(0, 3).map((b, i) => <li key={i} style={{ fontSize: 12, color: '#0D1828', lineHeight: 1.5 }}>• {b}</li>)}
+                        {d.best_for.length === 0 && <li style={{ fontSize: 12, color: '#9CA3AF' }}>—</li>}
+                      </ul>
+                    ) : <span style={{ fontSize: 12, color: '#9CA3AF' }}>Expand card to load</span>}
+                  </td>
+                )
+              })}
+            </tr>
+            <tr style={{ background: '#F8FAFF' }}>
+              <td style={rowLabel()}>⚠️ Things To Note</td>
+              {cards.map(c => {
+                const d = details[c.earnn_card_id]
+                return (
+                  <td key={c.earnn_card_id} style={{ ...cell, fontSize: 11.5, color: '#5A6A85', lineHeight: 1.6, fontStyle: 'italic' }}>
+                    {d ? (
+                      <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 5 }}>
+                        {d.card_disclaimer.slice(0, 3).map((d2, i) => <li key={i} style={{ fontSize: 11.5, color: '#5A6A85', lineHeight: 1.5 }}>• {d2}</li>)}
+                        {d.card_disclaimer.length === 0 && <li style={{ fontSize: 12, color: '#9CA3AF' }}>—</li>}
+                      </ul>
+                    ) : <span style={{ fontSize: 12, color: '#9CA3AF' }}>Expand card to load</span>}
+                  </td>
+                )
+              })}
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div style={{ padding: '20px 24px', background: '#EEF3FF', textAlign: 'center' }}>
+        <Link href="/analyse" style={{ background: '#0E3785', color: 'white', padding: '13px 32px', borderRadius: 10, textDecoration: 'none', fontWeight: 700, fontSize: 14.5 }}>
+          🎯 Get my personalised numbers for these cards →
+        </Link>
+      </div>
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SMALL HELPERS
+// ─────────────────────────────────────────────────────────────────────────────
+function NavTooltip({ id, hoverNav, setHoverNav }: { id: string; hoverNav: string | null; setHoverNav: (v: string | null) => void }) {
+  const key = `earn_${id}`
+  return (
+    <span style={{ position: 'relative', lineHeight: 1 }}
+      onMouseEnter={() => setHoverNav(key)} onMouseLeave={() => setHoverNav(null)}
+      onClick={e => e.stopPropagation()}>
+      <span style={{ fontSize: 11, fontWeight: 700, color: '#5A6A85', borderBottom: '1.5px dotted #5A6A85', cursor: 'help', textTransform: 'uppercase', letterSpacing: '0.03em', lineHeight: 1 }}>Earn Up To</span>
+      {hoverNav === key && <Tooltip text="Expected yearly rewards minus the true annual fee (after waivers) — what this card puts in your pocket." />}
+    </span>
+  )
+}
+
+function NavTableTooltip({ id, value, hoverNav, setHoverNav }: { id: string; value: number; hoverNav: string | null; setHoverNav: (v: string | null) => void }) {
+  const key = `nav_tbl_${id}`
+  return (
+    <span style={{ position: 'relative', display: 'inline-block' }}
+      onMouseEnter={() => setHoverNav(key)} onMouseLeave={() => setHoverNav(null)}>
+      <span style={{ borderBottom: '1.5px dotted #5A6A85', cursor: 'help' }}>
+        AED {Math.round(value).toLocaleString()}
+      </span>
+      {hoverNav === key && <Tooltip text="Expected yearly rewards minus the true annual fee (after waivers)." />}
+    </span>
+  )
+}
+
+function Tooltip({ text }: { text: string }) {
+  return (
+    <span style={{
+      position: 'absolute', bottom: '130%', right: 0,
+      background: '#0D1828', color: 'white', fontSize: 12, lineHeight: 1.5, fontWeight: 400,
+      padding: '10px 14px', borderRadius: 10, width: 220, zIndex: 80,
+      boxShadow: '0 8px 24px rgba(0,0,0,0.25)', textAlign: 'left', fontStyle: 'normal'
+    }}>{text}</span>
+  )
+}
+
+const selectStyle: React.CSSProperties = {
+  padding: '8px 14px', borderRadius: 8, border: '1.5px solid #D6E0F5',
+  background: '#F8FAFF', color: '#0D1828', fontSize: 13, fontWeight: 600,
+  cursor: 'pointer', outline: 'none'
+}
+
+function pagerBtn(disabled: boolean): React.CSSProperties {
+  return {
+    padding: '9px 16px', borderRadius: 8, fontSize: 13.5, fontWeight: 600,
+    border: '1.5px solid #D6E0F5', background: 'white',
+    color: disabled ? '#C2CCDD' : '#5A6A85',
+    cursor: disabled ? 'not-allowed' : 'pointer', transition: 'all 0.15s'
+  }
+}

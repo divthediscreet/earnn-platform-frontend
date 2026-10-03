@@ -15,6 +15,8 @@ import { CompareDialog } from '@/components/wallet-simulator/compare'
 import CardDetailPopup from '@/components/CardDetailPopup'
 import { WalletCustomizeBanner, WalletCustomizeDialog } from '@/components/wallet-simulator/customize'
 import { Alternatives, Hero, Ladder, Playbook, PlaybookBody } from '@/components/wallet-simulator/sections'
+import { RewardModeProvider } from '@/lib/wallet-simulator/reward-mode'
+import { GetCardsDialog } from '@/components/wallet-simulator/get-cards'
 import { CompareBand } from '@/components/wallet-simulator/compare-band'
 
 export default function SimulatorResultPage() {
@@ -24,7 +26,11 @@ export default function SimulatorResultPage() {
     if (session === null) router.replace('/analyse')
   }, [session, router])
   if (!session) return <div className="ws-root min-h-[60vh] bg-ws-bg" />
-  return <SmartWallet request={session.request} result={session.result} />
+  return (
+    <RewardModeProvider mode={session.request.reward_mode ?? session.result.mode}>
+      <SmartWallet request={session.request} result={session.result} />
+    </RewardModeProvider>
+  )
 }
 
 function SmartWallet({ request, result }: { request: SimulatorRequest; result: RecommendResponse }) {
@@ -42,6 +48,7 @@ function SmartWallet({ request, result }: { request: SimulatorRequest; result: R
   const [walletOpen, setWalletOpen] = useState(false) // expanded wallet panel (playbook)
   const [compareOpen, setCompareOpen] = useState(false) // compare against the user's current cards
   const [detailCardId, setDetailCardId] = useState<string | null>(null) // card-information popup
+  const [getOpen, setGetOpen] = useState(false) // "Get these cards" (final plan) popup
   const [customizeOpen, setCustomizeOpen] = useState(false) // "Open wallet customization" popup
   const [extraInfo, setExtraInfo] = useState<Record<string, CardInfo>>({})
 
@@ -109,6 +116,9 @@ function SmartWallet({ request, result }: { request: SimulatorRequest; result: R
   const closeCompare = useCallback(() => setCompareOpen(false), [])
 
   const isPick = sameCards(ids, pick.cards)
+  // a wallet's annual fee = its cards' fees (the backend's per-card true fee); unknown for results saved before card scores existed
+  const feeById = useMemo(() => new Map((result.card_scores ?? []).map(c => [c.card_id, c.annual_fee_aed])), [result.card_scores])
+  const feeOf = useCallback((cardIds: string[]) => (cardIds.every(c => feeById.has(c)) ? cardIds.reduce((sum, c) => sum + feeById.get(c)!, 0) : null), [feeById])
 
   return (
     <div className="ws-root min-h-screen bg-ws-bg font-sans text-ws-fg">
@@ -130,7 +140,7 @@ function SmartWallet({ request, result }: { request: SimulatorRequest; result: R
         <Hero pick={pick} strategies={strategies} monthlySpend={result.spend.eligible_spend_aed} card={card}
           onCustomize={() => setCustomizeOpen(true)} onHowTo={() => setWalletOpen(true)} onDetails={setDetailCardId} />
         <Ladder bestBySize={result.best_by_size} increments={result.recommendation.increments_annual_aed}
-          pickSize={pick.cards.length} currentIds={ids} card={card} onUse={changeIds} />
+          pickSize={pick.cards.length} currentIds={ids} card={card} onUse={changeIds} feeOf={feeOf} />
         <Playbook onOpen={() => setWalletOpen(true)} wallet={displayWallet} groups={result.spend.groups} card={card} />
         <WalletCustomizeBanner ids={ids} wallet={displayWallet} bestBySize={result.best_by_size} card={card}
           status={status} onOpen={() => setCustomizeOpen(true)} />
@@ -145,7 +155,7 @@ function SmartWallet({ request, result }: { request: SimulatorRequest; result: R
       <div className="h-24" />
 
       <WalletDock ids={ids} wallet={displayWallet} pick={pick} isPick={isPick} status={status} card={card}
-        onRemove={removeCard} onAdd={() => setCustomizeOpen(true)} onReset={reset} onRetry={retry} open={walletOpen} onOpenChange={setWalletOpen}>
+        onRemove={removeCard} onAdd={() => setCustomizeOpen(true)} onGetCards={() => setGetOpen(true)} onReset={reset} onRetry={retry} open={walletOpen} onOpenChange={setWalletOpen}>
         <PlaybookBody wallet={displayWallet} groups={result.spend.groups} monthlySpend={result.spend.eligible_spend_aed}
           card={card} updating={status === 'updating'} onDetails={setDetailCardId} />
       </WalletDock>
@@ -154,6 +164,10 @@ function SmartWallet({ request, result }: { request: SimulatorRequest; result: R
       {customizeOpen && (
         <WalletCustomizeDialog cardScores={result.card_scores ?? []} groups={result.spend.groups} ids={ids}
           wallet={displayWallet} status={status} onChange={changeIds} onRetry={retry} onClose={() => setCustomizeOpen(false)} />
+      )}
+      {getOpen && displayWallet && (
+        <GetCardsDialog wallet={displayWallet} groups={result.spend.groups} cardScores={result.card_scores ?? []} card={card}
+          onDetails={setDetailCardId} onClose={() => setGetOpen(false)} />
       )}
       {compareOpen && (
         <CompareDialog request={request} smart={current} groups={result.spend.groups} card={card}

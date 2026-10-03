@@ -2,13 +2,14 @@
 
 import { useEffect, useRef } from 'react'
 import type { Wallet } from '@/lib/wallet-simulator/api'
-import { MAX_WALLET, aed } from '@/lib/wallet-simulator/groups'
+import { MAX_WALLET } from '@/lib/wallet-simulator/groups'
+import { useRewardMode } from '@/lib/wallet-simulator/reward-mode'
 import { CardChip, RollingAed, type CardInfo } from './card-art'
 
 type CardLookup = (id: string) => CardInfo
 const cardName = (c: CardInfo) => c.name
 
-export function WalletDock({ ids, wallet, pick, isPick, status, card, onRemove, onAdd, onReset, onRetry, open, onOpenChange, children }: {
+export function WalletDock({ ids, wallet, pick, isPick, status, card, onRemove, onAdd, onGetCards, onReset, onRetry, open, onOpenChange, children }: {
   children?: React.ReactNode // shown when the dock is expanded (the wallet's playbook)
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -20,9 +21,11 @@ export function WalletDock({ ids, wallet, pick, isPick, status, card, onRemove, 
   card: CardLookup
   onRemove: (id: string) => void
   onAdd: () => void // opens the wallet customisation screen
+  onGetCards: () => void // opens the "get these cards" screen for the current wallet
   onReset: () => void
   onRetry: () => void
 }) {
+  const { rw, isMiles } = useRewardMode()
   const total = ids.length === 0 ? 0 : wallet?.monthly_reward_aed ?? 0
   const delta = total - pick.monthly_reward_aed
   const fewer = pick.cards.length - ids.length
@@ -31,9 +34,9 @@ export function WalletDock({ ids, wallet, pick, isPick, status, card, onRemove, 
   if (ids.length === 0) headline = 'Add a card to start building'
   else if (!isPick && wallet) {
     if (Math.abs(delta) < 0.5) headline = 'Same rewards as Earnn Pick'
-    else if (delta > 0) headline = `${aed(delta)}/month more than Earnn Pick`
-    else if (fewer > 0) headline = `You're giving up ${aed(-delta)}/month to carry ${fewer === 1 ? 'one less card' : `${fewer} fewer cards`}`
-    else headline = `${aed(-delta)}/month less than Earnn Pick`
+    else if (delta > 0) headline = `${rw(delta)}/month more than Earnn Pick`
+    else if (fewer > 0) headline = `You're giving up ${rw(-delta)}/month to carry ${fewer === 1 ? 'one less card' : `${fewer} fewer cards`}`
+    else headline = `${rw(-delta)}/month less than Earnn Pick`
   }
   if (status === 'error') headline = "We couldn't update your wallet"
   const tone = status === 'error' ? 'text-ws-loss' : isPick || delta >= -0.5 || ids.length === 0 ? 'text-ws-gain' : 'text-ws-loss'
@@ -112,25 +115,30 @@ export function WalletDock({ ids, wallet, pick, isPick, status, card, onRemove, 
             My wallet{status === 'updating' && <span className="ws-animate-pulse ml-2 normal-case tracking-normal">updating…</span>}
           </p>
           <p className={`font-display text-[19px] leading-tight font-semibold tracking-tight text-ws-fg ${status !== 'ready' ? 'opacity-60' : ''}`}>
-            AED <RollingAed value={total} />
+            {isMiles ? <><RollingAed value={total} /> miles</> : <>AED <RollingAed value={total} /></>}
             <span className="ml-1 text-[12px] font-medium text-ws-muted">/month</span>
           </p>
         </div>
 
-        <div className="flex w-full items-center justify-between gap-3 md:ml-auto md:w-auto">
-          <p className={`text-[12px] leading-snug font-semibold md:text-[13px] ${tone}`}>{headline}</p>
-          {status === 'error' ? (
-            <button onClick={onRetry} className="min-h-10 shrink-0 rounded-full bg-ws-ink px-4 py-2 text-[13px] font-semibold text-ws-ink-fg">
-              Try again
-            </button>
-          ) : (
-            <button onClick={onReset} disabled={isPick}
-              className={`min-h-10 shrink-0 rounded-full px-4 py-2 text-[13px] font-semibold transition-colors ${
-                isPick ? 'border border-ws-border text-ws-muted' : 'bg-ws-ink text-ws-ink-fg hover:bg-ws-primary'
-              }`}>
-              {isPick ? 'Earnn Pick' : 'Back to Earnn Pick'}
-            </button>
-          )}
+        <div className="flex w-full items-center justify-between gap-3 md:min-w-0 md:flex-1">
+          <div className="flex min-w-0 flex-col items-start gap-1 md:ml-4">
+            <p className={`text-[12px] leading-snug font-semibold md:text-[13px] ${tone}`}>{headline}</p>
+            {status === 'error' ? (
+              <button onClick={onRetry} className="rounded-full bg-ws-ink px-2.5 py-0.5 text-[10px] font-semibold text-ws-ink-fg">
+                Try again
+              </button>
+            ) : !isPick && (
+              // only shown once the user has moved away from Earnn Pick
+              <button onClick={onReset}
+                className="rounded-full border border-ws-border bg-white/60 px-2.5 py-0.5 text-[10px] font-semibold text-ws-primary transition-colors hover:bg-ws-ink hover:text-ws-ink-fg">
+                Back to Earnn Pick
+              </button>
+            )}
+          </div>
+          <button type="button" onClick={() => { setOpen(false); onGetCards() }} disabled={ids.length === 0 || !wallet}
+            className="min-h-10 shrink-0 rounded-full bg-ws-ink px-4 py-2 text-[13px] font-semibold text-ws-ink-fg hover:bg-ws-primary disabled:cursor-not-allowed disabled:opacity-50">
+            Get these cards
+          </button>
         </div>
       </div>
       {open && (
@@ -155,6 +163,7 @@ export function WalletFullDialog({ ids, wallet, card, onRemove, onClose }: {
   onRemove: (id: string) => void
   onClose: () => void
 }) {
+  const { rw } = useRewardMode()
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
     window.addEventListener('keydown', onKey)
@@ -178,7 +187,7 @@ export function WalletFullDialog({ ids, wallet, card, onRemove, onClose }: {
                 <CardChip card={c} />
                 <span className="min-w-0 flex-1">
                   <span className="block truncate font-display text-[14px] font-semibold text-ws-fg">{cardName(c)}</span>
-                  {pc && <span className="block text-[12px] text-ws-muted">adds {aed(pc.contribution_annual_aed / 12)}/month to your wallet</span>}
+                  {pc && <span className="block text-[12px] text-ws-muted">adds {rw(pc.contribution_annual_aed / 12)}/month to your wallet</span>}
                 </span>
                 <button onClick={() => onRemove(id)}
                   className="min-h-10 shrink-0 rounded-full border border-ws-border px-3 text-[12px] font-semibold text-ws-fg hover:bg-ws-secondary">

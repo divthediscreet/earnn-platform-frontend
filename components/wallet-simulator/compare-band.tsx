@@ -3,7 +3,7 @@
 // The "Already have cards?" band at the end of the result page: opens the compare-with-your-cards popup.
 
 import type { Wallet } from '@/lib/wallet-simulator/api'
-import { aed } from '@/lib/wallet-simulator/groups'
+import { useRewardMode } from '@/lib/wallet-simulator/reward-mode'
 import { CardArt, type CardInfo } from './card-art'
 
 /* "Already have cards?": compact text on the left; dummy cards -> arrow -> your Earnn wallet on the right */
@@ -16,6 +16,7 @@ const DUMMY_CARDS = [
 ]
 
 export function CompareBand({ wallet, card, onCompare }: { wallet: Wallet | null; card: (id: string) => CardInfo; onCompare: () => void }) {
+  const { rw } = useRewardMode()
   const ids = wallet?.cards ?? []
   const m = wallet?.monthly_reward_aed ?? 0
   return (
@@ -65,7 +66,7 @@ export function CompareBand({ wallet, card, onCompare }: { wallet: Wallet | null
             </div>
           ))}
           <span className="absolute right-2 bottom-0 rounded-full bg-white/10 px-3 py-1 text-[12px] font-medium text-white/80 ring-1 ring-white/15">
-            Earnn wallet · <span className="font-semibold text-[#F7C948] tabular-nums">{aed(m)}</span> / month
+            Earnn wallet · <span className="font-semibold text-[#F7C948] tabular-nums">{rw(m)}</span> / month
           </span>
         </div>
       </div>

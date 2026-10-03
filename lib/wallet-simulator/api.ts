@@ -95,6 +95,7 @@ export type CardScore = {
 }
 
 export type RecommendResponse = {
+  mode?: RewardMode
   spend: SpendSummary
   recommendation: {
     wallet: Wallet
@@ -118,14 +119,20 @@ export type RecommendResponse = {
 }
 
 export type EvaluateResponse = {
+  mode?: RewardMode
   spend: SpendSummary
   wallet: Wallet
   meta: { elapsed_ms: number }
 }
 
+/** The view: AED cashback (default) or miles. In the miles view every `*_aed` reward figure from the
+ *  backend is in miles; fees (`annual_fee_aed`, `total_fee_aed`) stay in AED. */
+export type RewardMode = 'cashback' | 'miles'
+
 export type SimulatorRequest = {
   form_spend: Record<string, number>
   salary_aed?: number
+  reward_mode?: RewardMode
 }
 
 export class SimulatorApiError extends Error {
@@ -171,10 +178,10 @@ export function evaluateWallet(request: SimulatorRequest, cardIds: string[], sig
 export type SimulatorCard = { card_id: string; card_name: string; bank_name: string | null }
 
 /** Every card the simulator can evaluate, from the backend's cached rules (sorted by bank, then name). */
-export async function listSimulatorCards(signal?: AbortSignal): Promise<SimulatorCard[]> {
+export async function listSimulatorCards(mode: RewardMode = 'cashback', signal?: AbortSignal): Promise<SimulatorCard[]> {
   let res: Response
   try {
-    res = await fetch(`${API_BASE}/api/simulator/cards`, { signal })
+    res = await fetch(`${API_BASE}/api/simulator/cards?mode=${mode}`, { signal })
   } catch (e) {
     if ((e as Error).name === 'AbortError') throw e
     throw new SimulatorApiError(0, "We couldn't reach Earnn. Check your connection and try again.")

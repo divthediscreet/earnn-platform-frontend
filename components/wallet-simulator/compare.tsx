@@ -1,21 +1,22 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { evaluateWallet, listSimulatorCards, SimulatorApiError, type SimulatorRequest, type SpendGroup, type Wallet } from '@/lib/wallet-simulator/api'
+import { evaluateWallet, listSimulatorCards, SimulatorApiError, type RewardMode, type SimulatorRequest, type SpendGroup, type Wallet } from '@/lib/wallet-simulator/api'
+import { useRewardMode } from '@/lib/wallet-simulator/reward-mode'
 import { aed, groupIcon, groupShort, MAX_WALLET } from '@/lib/wallet-simulator/groups'
 import { CardArt, CardChip, type CardInfo } from './card-art'
 
 type CardLookup = (id: string) => CardInfo
 
-// The card list is fetched once per page load and shared by every open of the dialog.
-let cardListPromise: Promise<CardInfo[]> | null = null
-function loadCardList(): Promise<CardInfo[]> {
-  // the simulator's own card list (same cached rules as the engine), with one automatic retry
-  cardListPromise ??= listSimulatorCards()
-    .catch(() => new Promise(r => setTimeout(r, 1200)).then(() => listSimulatorCards()))
+// The card list is fetched once per page load and view (cashback / miles) and shared by every open of the dialog.
+const cardListPromise: Partial<Record<RewardMode, Promise<CardInfo[]>>> = {}
+function loadCardList(mode: RewardMode): Promise<CardInfo[]> {
+  // the simulator's own card list for this view (same cached rules as the engine), with one automatic retry
+  cardListPromise[mode] ??= listSimulatorCards(mode)
+    .catch(() => new Promise(r => setTimeout(r, 1200)).then(() => listSimulatorCards(mode)))
     .then(cards => cards.map(c => ({ id: c.card_id, name: c.card_name, bank: c.bank_name })))
-    .catch(e => { cardListPromise = null; throw e })
-  return cardListPromise
+    .catch(e => { delete cardListPromise[mode]; throw e })
+  return cardListPromise[mode]!
 }
 
 /** Monthly reward per spend group, summed from the backend's allocation (no reward maths here). */
@@ -50,11 +51,11 @@ export function CompareDialog({ request, smart, groups, card, onClose }: {
   const [attempt, setAttempt] = useState(0)
   useEffect(() => {
     let alive = true
-    loadCardList()
+    loadCardList(request.reward_mode ?? 'cashback')
       .then(c => { if (alive) { setCards(c); setListError(false) } })
       .catch(() => { if (alive) setListError(true) })
     return () => { alive = false }
-  }, [attempt])
+  }, [attempt, request.reward_mode])
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
@@ -225,6 +226,7 @@ function Stack({ ids, card }: { ids: string[]; card: CardLookup }) {
 /** Result: the two wallets, the outcome, then category by category. Both wallets are styled the
  *  same — whichever genuinely earns more in a row is marked, including the user's own wallet. */
 function CompareResult({ smart, existing, groups, card }: { smart: Wallet; existing: Wallet; groups: SpendGroup[]; card: CardLookup }) {
+  const { rw, isMiles } = useRewardMode()
   const s = byGroup(smart)
   const e = byGroup(existing)
   const rows = groups.filter(g => g.monthly_spend_aed > 0)
@@ -235,7 +237,7 @@ function CompareResult({ smart, existing, groups, card }: { smart: Wallet; exist
     <div className="flex items-center justify-end gap-1.5 px-3 py-3 sm:px-5">
       {wins && <span aria-hidden className="size-1.5 shrink-0 rounded-full bg-ws-fg" />}
       <span className={`text-[14px] tabular-nums ${wins ? 'font-semibold text-ws-fg' : 'text-ws-muted'}`}>
-        {aed(v)}<span className="text-[11px] font-normal text-ws-muted">/mo</span>
+        {rw(v)}<span className="text-[11px] font-normal text-ws-muted">/mo</span>
       </span>
       {wins && <span className="sr-only">(earns more)</span>}
     </div>
@@ -257,11 +259,11 @@ function CompareResult({ smart, existing, groups, card }: { smart: Wallet; exist
           </p>
         ) : gap > 0 ? (
           <p className="font-display text-[20px] leading-snug font-semibold text-balance sm:text-[24px]">
-            You&apos;re potentially leaving <span className="text-[#F7C948]">{aed(gap)}/month</span> on the table
+            You&apos;re potentially leaving <span className="text-[#F7C948]">{rw(gap)}/month</span> on the table
           </p>
         ) : (
           <p className="font-display text-[20px] leading-snug font-semibold text-balance sm:text-[24px]">
-            Your current wallet earns <span className="text-[#F7C948]">{aed(-gap)}/month</span> more than ours on this spending
+            Your current wallet earns <span className="text-[#F7C948]">{rw(-gap)}/month</span> more than ours on this spending
           </p>
         )}
         {!even && gap < 0 && <p className="mt-1.5 text-[13px] text-white/70">Keep what you have — it&apos;s working for you.</p>}
@@ -298,12 +300,14 @@ function CompareResult({ smart, existing, groups, card }: { smart: Wallet; exist
       {/* the decision */}
       {gap >= 1 && (
         <div className="mt-6 rounded-2xl border border-ws-border p-5">
-          <p className="font-display text-[18px] font-semibold text-ws-fg">Switching could add {aed(gap)}/month</p>
+          <p className="font-display text-[18px] font-semibold text-ws-fg">Switching could add {rw(gap)}/month</p>
           <p className="text-[13px] text-ws-muted">without changing how much you spend.</p>
           <dl className="mt-4 space-y-2 border-t border-ws-border pt-4 text-[13px]">
-            <div className="flex justify-between gap-4"><dt className="text-ws-muted">Extra rewards</dt><dd className="font-semibold text-ws-fg tabular-nums">+{aed(gap)}</dd></div>
+            <div className="flex justify-between gap-4"><dt className="text-ws-muted">Extra rewards</dt><dd className="font-semibold text-ws-fg tabular-nums">+{rw(gap)}</dd></div>
             <div className="flex justify-between gap-4"><dt className="text-ws-muted">Extra annual fees</dt><dd className="text-ws-muted">TBD</dd></div>
-            <div className="flex justify-between gap-4 border-t border-ws-border pt-2"><dt className="font-semibold text-ws-fg">Net benefit of switching</dt><dd className="text-ws-muted">TBD — fees coming soon</dd></div>
+            {!isMiles && (
+              <div className="flex justify-between gap-4 border-t border-ws-border pt-2"><dt className="font-semibold text-ws-fg">Net benefit of switching</dt><dd className="text-ws-muted">TBD — fees coming soon</dd></div>
+            )}
           </dl>
         </div>
       )}
@@ -312,11 +316,12 @@ function CompareResult({ smart, existing, groups, card }: { smart: Wallet; exist
 }
 
 function WalletSummary({ label, ids, monthly, card }: { label: string; ids: string[]; monthly: number; card: CardLookup }) {
+  const { rw } = useRewardMode()
   return (
     <div className="flex min-w-0 flex-col items-center rounded-2xl border border-ws-border px-3 py-4 text-center">
       <p className="text-[10px] font-bold tracking-[0.12em] text-ws-muted uppercase">{label}</p>
       <div className="mt-3"><Stack ids={ids} card={card} /></div>
-      <p className="mt-3 font-display text-[20px] font-semibold text-ws-fg tabular-nums sm:text-[24px]">{aed(monthly)}<span className="text-[13px] font-normal text-ws-muted">/month</span></p>
+      <p className="mt-3 font-display text-[20px] font-semibold text-ws-fg tabular-nums sm:text-[24px]">{rw(monthly)}<span className="text-[13px] font-normal text-ws-muted">/month</span></p>
     </div>
   )
 }
