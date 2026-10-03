@@ -153,7 +153,7 @@ export default function BulkSpendResultsPage() {
         {resultTab === 'miles' ? (
           !milesPlans.length ? <div className={styles.empty}><i className="ti ti-plane-off" /><h3>No cards match these filters.</h3><p>Clear the bank or airline filter to see all eligible cards.</p>{filterButton}</div>
             : <BulkResultView key={`miles-${includeNewCard}-${resultSort}`} unit="miles" plans={milesPlans} sort={resultSort} includeNewCard={includeNewCard} projection={result.monthly_projection} onOpenFilters={() => setFiltersOpen(true)} activeFilters={selectedAirlines.length + selectedBanks.length} />
-        ) : aedLoading ? <div className={styles.empty}><i className="ti ti-loader-2" /><h3>Calculating AED rewards…</h3><p>Applying the same spend caps, bonuses and first-year fees.</p></div>
+        ) : aedLoading ? <div className={`${styles.empty} ${pageStyles.calculating}`} role="status" aria-live="polite"><span className={pageStyles.spinner} aria-hidden="true" /><h3>Calculating AED rewards…</h3><p>Applying the same spend caps, bonuses and first-year fees.</p></div>
           : aedError ? <p className={styles.error}>{aedError}</p>
           : aedResult ? (
             !aedPlans.length ? <div className={styles.empty}><i className="ti ti-cash-off" /><h3>No cards match this bank filter.</h3><p>Clear the bank filter to see all eligible cards.</p>{filterButton}</div>
