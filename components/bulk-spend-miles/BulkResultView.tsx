@@ -502,7 +502,7 @@ function Opportunities({ plan, unit, items, alternatives }: { plan: PlanCard, un
         {progress ? <>
           <div className={styles.progressLabels}><span>{formatAed(progress.have)} / {formatAed(progress.target)}</span><span>{percent}%</span></div>
           <div className={styles.progress} role="progressbar" aria-valuenow={percent} aria-valuemin={0} aria-valuemax={100}><i style={{ width: `${percent}%` }} /></div>
-          <p className={styles.reachAsk}>Just <b>{formatAed(progress.need)}</b> more within {progress.window}{reward ? <> could unlock <b>{reward.replace(/^\+/, '')}</b></> : null}.</p>
+          <p className={styles.reachAsk}>{percent >= 80 ? 'Just ' : 'Add '}<b>{formatAed(progress.need)}</b> more within {progress.window}{reward ? <> could unlock <b>{reward.replace(/^\+/, '')}</b></> : null}.{percent >= 80 ? ' Try to prepone any future expense.' : ''}</p>
         </> : <p className={styles.reachAsk}>{item.detail}</p>}
         {item.inTotal && <small className={styles.inTotal}>Included in the ranking above even though the target is not reached.</small>}
       </article>

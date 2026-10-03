@@ -8,7 +8,7 @@ import { consumeBulkOutcomeFlag, readBulkRequest } from '@/lib/bulk-spend-miles/
 import { fetchCards } from '@/lib/api'
 import { airlineGroupForCurrency, type AirlineGroup } from '@/lib/bulk-spend-miles/airline-reach'
 import BulkSpendResultFilters, { type BulkResultSort } from '@/components/bulk-spend-miles/BulkSpendResultFilters'
-import BulkResultView, { aedPlan, formatAed, formatMiles, milesPlan, planMetric, travelPotentialForMiles } from '@/components/bulk-spend-miles/BulkResultView'
+import BulkResultView, { aedPlan, formatAed, milesPlan, planMetric, travelPotentialForMiles } from '@/components/bulk-spend-miles/BulkResultView'
 import MilesLoadingState from '@/components/miles-goal/MilesLoadingState'
 import styles from '../page.module.css'
 import resultStyles from '../result-controls.module.css'
@@ -167,20 +167,19 @@ export default function BulkSpendResultsPage() {
 }
 
 function BulkSpendOutcome({ result, onContinue }: { result: BulkSpendMilesResponse, onContinue: () => void }) {
+  // A hook, not a summary: the numbers are in the hero. Only the cabin and headline change with the plan.
   const topCard = result.cards[0]
-  const totalSpend = result.monthly_projection.reduce((total, month) => total + month.total_spend_aed, 0)
-  const plan = topCard ? milesPlan(topCard, true) : null
-  const guaranteed = plan?.total ?? 0
-  const withinReach = plan?.potential ?? 0
-  return <div className={outcomeStyles.overlay} role="dialog" aria-modal="true" aria-labelledby="bulk-outcome-title">
-    <section className={outcomeStyles.dialog}>
-      <div className={outcomeStyles.globe} aria-hidden="true"><i className="ti ti-world" /></div>
-      <span className={outcomeStyles.kicker}>YOUR REWARD OPPORTUNITY</span>
-      <p className={outcomeStyles.plan}>You have <b>{formatAed(totalSpend)}</b> planned over the next 12 months.<br />Make those payments work harder.</p>
-      <h2 id="bulk-outcome-title">✈️ {formatMiles(guaranteed)} guaranteed</h2>
-      {withinReach > 0 && <p className={outcomeStyles.supporting} style={{ margin: '10px auto 0', color: '#f0cc65', fontWeight: 700 }}>+ up to {formatMiles(withinReach)} more within reach</p>}
-      <p className={outcomeStyles.supporting}>That is already enough for {travelPotentialForMiles(guaranteed)}.</p>
-      <button type="button" className="btn-primary" onClick={onContinue}>See my plan <i className="ti ti-arrow-right" /></button>
+  const guaranteed = topCard ? milesPlan(topCard, true).total : 0
+  const business = travelPotentialForMiles(guaranteed).startsWith('Business')
+  // Each banner is a finished image (headline and airline logos are part of it); only the button is live.
+  const banner = business
+    ? { src: '/miles-goal/banner-business-v3.webp', ratio: '1024 / 493', alt: 'Turn your expenses into a world of luxury. Fly Business with Emirates or Etihad.' }
+    : { src: '/miles-goal/banner-economy.png', ratio: '1024 / 377', alt: 'Your expense could get you a flight ticket. Fly with Emirates or Etihad.' }
+  /* eslint-disable @next/next/no-img-element */
+  return <div className={outcomeStyles.overlay} role="dialog" aria-modal="true" aria-label={banner.alt}>
+    <section className={`${outcomeStyles.dialog} ${outcomeStyles.banner}`} style={{ aspectRatio: banner.ratio }}>
+      <img src={banner.src} alt={banner.alt} />
+      <button type="button" className="btn-primary" onClick={onContinue}>Show me how <i className="ti ti-arrow-right" /></button>
     </section>
   </div>
 }
