@@ -93,8 +93,11 @@ export async function fetchCards(params?: {
   sort_by?: string
   search?: string
   limit?: number
+  /** The Compare tab's reward view; omit for the unfiltered AED list. */
+  mode?: 'cashback' | 'miles'
 }) {
   const q = new URLSearchParams()
+  if (params?.mode)      q.set('mode', params.mode)
   if (params?.bank)      q.set('bank', params.bank)
   if (params?.network)   q.set('network', params.network)
   if (params?.free_only) q.set('free_only', 'true')

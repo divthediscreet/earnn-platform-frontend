@@ -166,6 +166,14 @@ function fmtRate(r: number): string {
   return `${(r * 100).toFixed(1)}%`
 }
 
+// The two reward views. In the miles view the API sends rates, caps and rewards already converted to miles
+// (same field names); fees and spend thresholds stay in AED. Rates are miles per AED spent, shown as "mi" =
+// miles per AED 100.
+type ViewMode = 'cashback' | 'miles'
+const fmtRateIn = (mode: ViewMode, r: number): string => (mode === 'miles' ? `${(r * 100).toFixed(1)} mi` : fmtRate(r))
+const fmtRewardIn = (mode: ViewMode, n: number): string =>
+  mode === 'miles' ? `${Math.round(n).toLocaleString()} miles` : `AED ${Math.round(n).toLocaleString()}`
+
 function effectiveFeeAed(card: ApiCard): number {
   if (card.free_for_life) return 0
   return card.true_annual_fee_aed ?? card.annual_fee_from_year2_aed ?? 0
@@ -192,6 +200,7 @@ function bestForSectionItems(
 // ─────────────────────────────────────────────────────────────────────────────
 export default function ComparePage() {
   const [fromResults, setFromResults] = useState(false)
+  const [mode, setMode] = useState<ViewMode>('cashback') // cashback by default; miles shows miles cards in miles
 
   const [cards, setCards]           = useState<ApiCard[]>([])
   const [catalogueRewardRates, setCatalogueRewardRates] = useState<number[]>([])
@@ -244,7 +253,8 @@ export default function ComparePage() {
 
   useEffect(() => {
     let active = true
-    fetchCards({ sort_by: 'card_ranking', min_salary: salaryMin ?? undefined })
+    setLoading(true)
+    fetchCards({ sort_by: 'card_ranking', min_salary: salaryMin ?? undefined, mode })
       .then(d => {
         if (!active) return
         setCards(promoteOneFamilyMember(d.cards || []))
@@ -257,13 +267,13 @@ export default function ComparePage() {
         if (active) setLoading(false)
       })
     return () => { active = false }
-  }, [salaryMin])
+  }, [salaryMin, mode])
 
   // The reward-rate badge is benchmarked against the full active catalogue,
   // independent of the user’s temporary salary or card filters.
   useEffect(() => {
     let active = true
-    fetchCards({ sort_by: 'card_ranking' })
+    fetchCards({ sort_by: 'card_ranking', mode })
       .then(data => {
         if (!active) return
         setCatalogueRewardRates((data.cards || [])
@@ -461,6 +471,7 @@ export default function ComparePage() {
           .compare-filter-actions { position: sticky; bottom: -18px; padding: 12px 0 calc(2px + env(safe-area-inset-bottom)) !important; background: white; }
           .compare-filter-actions > button { flex: 1; min-width: 0 !important; }
         }
+        @media (max-width: 1000px) { .compare-hero-deco { display: none !important; } }
       `}</style>
 
       {/* ── HERO ─────────────────────────────────────────────────────────── */}
@@ -471,29 +482,62 @@ export default function ComparePage() {
         boxShadow: '0 12px 44px rgba(14,55,133,0.25)'
       }}>
         <div style={{ position: 'absolute', inset: 0, opacity: 0.05, backgroundImage: 'linear-gradient(white 1px, transparent 1px), linear-gradient(90deg, white 1px, transparent 1px)', backgroundSize: '44px 44px' }} />
-        <div style={{ position: 'relative', maxWidth: 860 }}>
-          <div style={{ display: 'inline-block', fontSize: 11, fontWeight: 700, letterSpacing: '0.14em', color: '#C9A84C', textTransform: 'uppercase', marginBottom: 12 }}>
+        {/* soft bar-chart decoration, bottom right */}
+        <svg className="compare-hero-deco" aria-hidden viewBox="0 0 440 260" preserveAspectRatio="xMaxYMax meet"
+          style={{ position: 'absolute', right: 0, bottom: 0, width: '42%', height: '78%', pointerEvents: 'none', opacity: 0.55 }}>
+          <defs><linearGradient id="cmpBar" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#3B6FE0" stopOpacity="0.85" /><stop offset="1" stopColor="#1B3F9A" stopOpacity="0.15" /></linearGradient></defs>
+          {[[20, 150], [75, 120], [130, 160], [185, 100], [240, 135], [295, 85], [350, 55]].map(([x, y]) => (
+            <rect key={x} x={x} y={y} width="38" height={260 - y} rx="5" fill="url(#cmpBar)" />
+          ))}
+          <path d="M20 190 C 120 175, 180 150, 250 120 S 340 70, 392 40" fill="none" stroke="#5B8CFF" strokeWidth="3" strokeLinecap="round" />
+          <circle cx="392" cy="40" r="7" fill="white" />
+        </svg>
+        <div style={{ position: 'relative' }}>
+          <div style={{ display: 'inline-block', fontSize: 11.5, fontWeight: 700, letterSpacing: '0.2em', color: '#C9A84C', textTransform: 'uppercase', marginBottom: 14 }}>
             DISCOVER UAE CREDIT CARDS
           </div>
-          <h1 style={{ fontSize: 'clamp(21px, 2.6vw, 28px)', fontWeight: 800, letterSpacing: '-0.025em', lineHeight: 1.25, marginBottom: 10, color: 'white' }}>
-            Compare Real Earning Potential, Not Headline Rates
+          <h1 style={{ fontSize: 'clamp(26px, 3.3vw, 40px)', fontWeight: 800, letterSpacing: '-0.03em', lineHeight: 1.12, margin: '0 0 24px', color: 'white' }}>
+            Compare real earning potential,<br />
+            <span style={{ color: '#F7C948' }}>not just headline rates.</span>
           </h1>
-          <p style={{ fontSize: 15.5, color: 'rgba(255,255,255,0.78)', lineHeight: 1.7, marginBottom: 24 }}>
-            We estimate each UAE credit card&apos;s <strong>effective reward rate</strong> and <strong>earning potential</strong>, taking reward rules, caps and conditions into account, so you can see how cards may perform in practice.
-            <span style={{ display: 'block', marginTop: 10, fontWeight: 800, color: 'rgba(255,255,255,0.9)' }}>
-              Select up to 3 cards to compare side by side.
-            </span>
-          </p>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '14px 0', marginBottom: 28 }}>
+            {[
+              { text: 'Includes rules, caps and conditions', bg: 'linear-gradient(145deg,#6C6CF0,#4B4BC8)', icon: <><rect x="5" y="3" width="14" height="18" rx="2.5" /><rect x="8" y="6" width="8" height="3.5" rx="0.8" /><path d="M8.5 13h.01M12 13h.01M15.5 13h.01M8.5 16.5h.01M12 16.5h.01M15.5 16.5h.01" strokeWidth="2.4" /></> },
+              { text: 'Compare on your actual terms', bg: 'linear-gradient(145deg,#1FAE8E,#0E7C68)', icon: <><path d="M4 7h9M17 7h3M4 12h3M11 12h9M4 17h11M19 17h1" /><circle cx="15" cy="7" r="2" /><circle cx="9" cy="12" r="2" /><circle cx="17" cy="17" r="2" /></> },
+              { text: 'See how cards perform in practice', bg: 'linear-gradient(145deg,#2F6FF0,#1B49C4)', icon: <><path d="M6 20V11M12 20V5M18 20v-6" strokeWidth="3" /></> },
+              { text: 'Compare up to 3 cards', bg: 'linear-gradient(145deg,#E8A93B,#C4801A)', icon: <><rect x="3" y="5" width="5" height="14" rx="1.5" /><rect x="9.5" y="5" width="5" height="14" rx="1.5" /><rect x="16" y="5" width="5" height="14" rx="1.5" /></> },
+            ].map((f, i, all) => (
+              <div key={f.text} style={{ display: 'flex', alignItems: 'center', gap: 9, paddingRight: 14, marginRight: 14, borderRight: i < all.length - 1 ? '1px solid rgba(255,255,255,0.12)' : 'none' }}>
+                <span aria-hidden style={{ flexShrink: 0, width: 36, height: 36, borderRadius: '50%', background: f.bg, display: 'grid', placeItems: 'center', boxShadow: '0 6px 16px rgba(0,0,0,0.25)' }}>
+                  <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">{f.icon}</svg>
+                </span>
+                <span style={{ maxWidth: 122, fontSize: 12, lineHeight: 1.35, color: 'rgba(255,255,255,0.88)' }}>{f.text}</span>
+              </div>
+            ))}
+          </div>
           <Link href="/analyse" style={{
-            display: 'inline-flex', alignItems: 'center', gap: 10,
-            background: '#C9A84C', color: '#0A2860', padding: '14px 30px', borderRadius: 10,
-            fontSize: 15, fontWeight: 800, textDecoration: 'none',
-            boxShadow: '0 8px 28px rgba(201,168,76,0.35)'
+            display: 'inline-flex', alignItems: 'center', gap: 12,
+            background: 'linear-gradient(90deg, #F7C948, #FFD76A)', color: '#0A2860', padding: '16px 34px', borderRadius: 999,
+            fontSize: 17, fontWeight: 800, textDecoration: 'none',
+            boxShadow: '0 12px 34px rgba(247,201,72,0.38)'
           }}>
-            🎯 Personalize These Results →
+            <span aria-hidden>🎯</span> Personalize these results <span aria-hidden>→</span>
           </Link>
         </div>
       </div>}
+
+      {/* ── REWARD VIEW: two slim tabs, half the width each, the active one highlighted ── */}
+      <div role="tablist" aria-label="Reward view" style={{ display: 'flex', margin: '0 0 12px', padding: 3, gap: 3, borderRadius: 12, background: '#EEF3FF', border: '1px solid #D6E0F5' }}>
+        {(['cashback', 'miles'] as const).map(m => (
+          <button key={m} type="button" role="tab" aria-selected={mode === m}
+            onClick={() => { if (m !== mode) { setMode(m); setCompareIds([]); setCompareOpen(false); setExpanded(null); setPage(1) } }}
+            style={{ flex: 1, border: 'none', cursor: 'pointer', padding: '7px 12px', borderRadius: 9, fontSize: 13.5, fontWeight: 800, textAlign: 'center',
+              background: mode === m ? '#0E3785' : 'transparent', color: mode === m ? 'white' : '#5A6A85',
+              boxShadow: mode === m ? '0 2px 8px rgba(14,55,133,0.25)' : 'none', transition: 'background 0.15s, color 0.15s' }}>
+            {m === 'cashback' ? 'Cashback' : 'Miles'}
+          </button>
+        ))}
+      </div>
 
       {/* ── FILTER BAR ───────────────────────────────────────────────────── */}
       <div style={{
@@ -689,6 +733,7 @@ export default function ComparePage() {
             onHover={() => loadDetail(card.earnn_card_id)}
             hoverNav={hoverNav}
             setHoverNav={setHoverNav}
+            mode={mode}
           />
         ))}
       </div>
@@ -730,6 +775,7 @@ export default function ComparePage() {
         <ComparisonModal
           cards={compareCards}
           catalogueRewardRates={catalogueRewardRates}
+          mode={mode}
           details={details}
           onClose={() => setCompareOpen(false)}
           onRemove={(id) => toggleCompare(id)}
@@ -754,9 +800,137 @@ export default function ComparePage() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// CARD TILE — miles view: one row, left to right: image · name, summary and top categories · top reward rates ·
+// effective rate · estimated annual reward · fee · score and compare. Used only when mode === 'miles'.
+// ─────────────────────────────────────────────────────────────────────────────
+const MILES_COL: React.CSSProperties = { flexShrink: 0, padding: '14px 10px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', justifyContent: 'center', position: 'relative', cursor: 'help' }
+
+function MilesTileTop({ card, fee, topEarnRates, inCompare, compareFull, onToggleCompare, expanded, hoverNav, setHoverNav }: {
+  card: ApiCard
+  fee: number
+  topEarnRates: string[]
+  inCompare: boolean
+  compareFull: boolean
+  onToggleCompare: (e?: React.MouseEvent) => void
+  expanded: boolean
+  hoverNav: string | null
+  setHoverNav: (v: string | null) => void
+}) {
+  const id = card.earnn_card_id
+  // Tags: the categories where this card pays MORE than its base rate (raw published rates), highest first, plus
+  // "Overall Expense" (the base rate on everything else) when it is among the top three. A card that earns the same
+  // everywhere therefore shows just "Overall Expense" instead of an arbitrary first few categories.
+  const baseRate = (card.display_reward_rate_all_spend as number) || 0
+  const bonusCategories = RATE_PILLS
+    .filter(p => p.key !== 'display_reward_rate_all_spend')
+    .map(p => ({ key: p.key as string, name: p.name as string, icon: p.icon as string, rate: card[p.key as keyof ApiCard] as number }))
+    .filter(p => typeof p.rate === 'number' && p.rate > baseRate + 1e-9)
+  const topCategories = [
+    ...bonusCategories,
+    ...(baseRate > 0 ? [{ key: 'display_reward_rate_all_spend', name: 'Overall Expense', icon: '🧾', rate: baseRate }] : []),
+  ].sort((a, b) => b.rate - a.rate).slice(0, 3)
+  const hover = (key: string) => ({ onMouseEnter: () => setHoverNav(key), onMouseLeave: () => setHoverNav(null), onClick: (e: React.MouseEvent) => e.stopPropagation() })
+  const label: React.CSSProperties = { fontSize: 10, fontWeight: 800, color: '#5A6A85', textTransform: 'uppercase', letterSpacing: '0.05em' }
+  return (
+    <div className="compare-miles-tile" style={{ position: 'relative', display: 'flex', alignItems: 'stretch', flexWrap: 'wrap', gap: 0, padding: '4px 4px 26px' }}>
+      {/* image */}
+      <div style={{ ...MILES_COL, cursor: 'pointer', width: 142, alignItems: 'center', gap: 9, textAlign: 'center' }}>
+        <img src={getCardImageUrl(id)} alt={card.card_name} width={126} height={78} loading="lazy"
+          onError={(e) => { (e.target as HTMLImageElement).src = '/card-dummy.svg' }}
+          style={{ borderRadius: 8, objectFit: 'cover', boxShadow: '0 4px 16px rgba(14,55,133,0.2)', display: 'block' }} />
+        <div>
+          <div style={{ fontSize: 8.5, fontWeight: 800, color: '#7A8BA8', textTransform: 'uppercase', letterSpacing: '0.04em', lineHeight: 1.3 }}>Salary requirement</div>
+          <div style={{ marginTop: 3, fontSize: 11, fontWeight: 800, color: card.min_salary_aed ? '#0D1828' : '#00A67E', lineHeight: 1.3 }}>
+            {card.min_salary_aed ? `AED ${Math.round(card.min_salary_aed).toLocaleString()} / mo` : 'No minimum salary'}
+          </div>
+        </div>
+      </div>
+
+      {/* name, bank, summary, categories */}
+      <div style={{ ...MILES_COL, cursor: 'pointer', flex: '1 1 200px', minWidth: 190 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 15.5, fontWeight: 800, color: '#0D1828', lineHeight: 1.25 }}>{card.card_name}</span>
+          {card.free_for_life && <span style={{ background: '#EAFBF4', color: '#00785C', fontWeight: 700, fontSize: 10, padding: '2px 7px', borderRadius: 100 }}>FREE FOR LIFE</span>}
+        </div>
+        <div style={{ fontSize: 11.5, color: '#5A6A85', marginTop: 3 }}>{card.bank_name} · {card.network}</div>
+        <div style={{ ...label, color: '#0E3785', marginTop: 8, marginBottom: 3 }}>Card summary</div>
+        <div style={{ fontSize: 12, color: card.card_summary_tag ? '#0D1828' : '#94A3B8', lineHeight: 1.4 }}>{card.card_summary_tag || 'No card summary available'}</div>
+        {topCategories.length > 0 && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 9 }}>
+            {topCategories.map(c => (
+              <span key={c.key} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 9px', borderRadius: 8, background: '#EEF3FF', border: '1px solid #DCE6F8', color: '#0E3785', fontSize: 11.5, fontWeight: 700 }}>
+                <span aria-hidden>{c.icon}</span>{c.name}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* top reward rates */}
+      <div style={{ ...MILES_COL, cursor: 'pointer', width: 205, borderLeft: '1px solid #EEF3FF' }}>
+        <div style={{ ...label, color: '#0E3785', marginBottom: 6 }}>Top reward rates</div>
+        {topEarnRates.length > 0 ? (
+          <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 4 }}>
+            {topEarnRates.map((item, index) => <li key={index} style={{ fontSize: 12, color: '#0D1828', lineHeight: 1.35 }}>• {item}</li>)}
+          </ul>
+        ) : <div style={{ fontSize: 12, color: '#94A3B8' }}>No top earn rates available</div>}
+      </div>
+
+      {/* effective reward rate */}
+      <div style={{ ...MILES_COL, width: 150 }} {...hover(`effective_rate_${id}`)}>
+        <div style={{ borderRadius: 10, background: '#E3F6EC', border: '1px solid #BFE8D4', padding: '10px 12px', textAlign: 'center' }}>
+          <div style={{ fontSize: 11, fontWeight: 800, color: '#1B6B4A', lineHeight: 1.25 }}>Effective reward rate <span aria-hidden style={{ opacity: 0.7 }}>ⓘ</span></div>
+          <div style={{ fontSize: 26, fontWeight: 900, color: '#087448', lineHeight: 1.15, marginTop: 4 }}>{(card.effective_reward_rate * 100).toFixed(1)}</div>
+          <div style={{ fontSize: 10.5, fontWeight: 700, color: '#1B6B4A' }}>miles per AED 100</div>
+        </div>
+        {hoverNav === `effective_rate_${id}` && (
+          <InlineTooltip text="A generic estimate of the miles an average UAE resident could earn per AED 100 spent across all categories, after minimum-spend requirements and reward caps." />
+        )}
+      </div>
+
+      {/* estimated annual reward */}
+      <div style={{ ...MILES_COL, width: 122, borderLeft: '1px solid #EEF3FF', textAlign: 'center', alignItems: 'center' }} {...hover(`earn_${id}`)}>
+        <span style={{ ...label, borderBottom: '1.5px dotted #9CA3AF' }}>Est. annual reward</span>
+        <span style={{ fontSize: 20, fontWeight: 800, color: '#0E3785', lineHeight: 1.2, marginTop: 5 }}>{fmtRewardIn('miles', card.expected_annual_return_aed)}</span>
+        <span style={{ fontSize: 9.5, color: '#9CA3AF', marginTop: 2 }}>Based on avg UAE spend</span>
+        {hoverNav === `earn_${id}` && <InlineTooltip text="Estimated annual miles using Earnn's average UAE spending profile across all categories, before annual fees." />}
+      </div>
+
+      {/* fee */}
+      <div style={{ ...MILES_COL, width: 96, borderLeft: '1px solid #EEF3FF', textAlign: 'center', alignItems: 'center' }} {...hover(`fee_${id}`)}>
+        <span style={{ ...label, borderBottom: '1.5px dotted #9CA3AF' }}>Eff. fee</span>
+        <span style={{ fontSize: 20, fontWeight: 800, color: fee === 0 ? '#00A67E' : '#C95B00', lineHeight: 1.2, marginTop: 5 }}>AED {(card.true_annual_fee_aed ?? 0).toLocaleString()}</span>
+        <span style={{ fontSize: 10, color: '#9CA3AF', marginTop: 2 }}>per year</span>
+        {hoverNav === `fee_${id}` && <InlineTooltip text="Estimating how much you could pay in annual fees based on your spending — after waivers and first-year offers." />}
+      </div>
+
+      {/* score + compare: the rating tag sits above the score box */}
+      <div style={{ ...MILES_COL, width: 116, borderLeft: '1px solid #EEF3FF', alignItems: 'center', gap: 10 }}>
+        <div {...hover(`score_${id}`)} style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: 5, position: 'relative', cursor: 'help' }}>
+          <span style={{ padding: '3px 10px', borderRadius: 8, fontSize: 10.5, fontWeight: 800, background: scoreColor(card.earnn_score) + '22', color: scoreColor(card.earnn_score) }}>{scoreBand(card.earnn_score).label}</span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '5px 12px', borderRadius: 8, background: '#FFF6E0', border: '1px solid #F4E0A8', color: '#8A6100', fontSize: 14, fontWeight: 800 }}>⭐ {fmtScore(card.earnn_score)}</span>
+          {hoverNav === `score_${id}` && <InlineTooltip text="earnn Score for the miles view: how well this card earns miles compared with the other miles cards, using Earnn's average UAE spending profile." />}
+        </div>
+        <button type="button" aria-pressed={inCompare} disabled={compareFull}
+          onClick={(e) => { e.stopPropagation(); onToggleCompare(e) }}
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 7, border: 'none', background: 'transparent', padding: 0, cursor: compareFull ? 'not-allowed' : 'pointer', opacity: compareFull ? 0.6 : 1, color: '#0E3785', fontSize: 12.5, fontWeight: 800 }}>
+          <span aria-hidden style={{ width: 17, height: 17, boxSizing: 'border-box', borderRadius: 4, border: '1.5px solid #0E3785', background: inCompare ? '#0E3785' : 'white', color: 'white', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 11 }}>{inCompare ? '✓' : ''}</span>
+          Compare
+        </button>
+      </div>
+
+      {/* More details: bottom edge of the tile, centred (clicking anywhere on the tile expands it) */}
+      <div style={{ position: 'absolute', left: 0, right: 0, bottom: 6, textAlign: 'center', fontSize: 11.5, fontWeight: 700, color: '#0E3785', pointerEvents: 'none' }}>
+        {expanded ? 'Hide details ↑' : 'More details ↓'}
+      </div>
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // CARD TILE — new layout
 // ─────────────────────────────────────────────────────────────────────────────
-function CardTile({ card, detail, detailLoading, inCompare, compareFull, onToggleCompare, expanded, onExpand, onHover, hoverNav, setHoverNav }: {
+function CardTile({ card, detail, detailLoading, inCompare, compareFull, onToggleCompare, expanded, onExpand, onHover, hoverNav, setHoverNav, mode }: {
   card: ApiCard
   detail: CardDetail | null
   detailLoading: boolean
@@ -768,6 +942,7 @@ function CardTile({ card, detail, detailLoading, inCompare, compareFull, onToggl
   onHover: () => void
   hoverNav: string | null
   setHoverNav: (v: string | null) => void
+  mode: ViewMode
 }) {
   const fee = effectiveFeeAed(card)
   const navKey = `earn_${card.earnn_card_id}`
@@ -788,6 +963,10 @@ function CardTile({ card, detail, detailLoading, inCompare, compareFull, onToggl
         transition: 'all 0.18s'
       }}>
 
+      {mode === 'miles' ? (
+        <MilesTileTop card={card} fee={fee} topEarnRates={topEarnRates} inCompare={inCompare} compareFull={compareFull}
+          onToggleCompare={onToggleCompare} expanded={expanded} hoverNav={hoverNav} setHoverNav={setHoverNav} />
+      ) : (<>
       {/* ── HEADER ROW: rank · name · score badge · button ── */}
       <div className="compare-card-header" style={{
         display: 'flex', alignItems: 'center', gap: 12,
@@ -898,7 +1077,7 @@ function CardTile({ card, detail, detailLoading, inCompare, compareFull, onToggl
           onClick={e => e.stopPropagation()}
         >
           <span style={{ fontSize: 10, fontWeight: 800, color: '#5A6A85', textTransform: 'uppercase', letterSpacing: '0.055em', borderBottom: '1.5px dotted #9CA3AF' }}>Est. annual reward</span>
-          <span style={{ fontSize: 22, fontWeight: 800, color: '#00A67E', lineHeight: 1.1 }}>
+          <span style={{ fontSize: 22, fontWeight: 800, color: '#00A67E', lineHeight: 1.1, textAlign: 'center' }}>
             AED {Math.round(card.expected_annual_return_aed).toLocaleString()}
           </span>
           <span style={{ fontSize: 8.5, color: '#9CA3AF', textAlign: 'center', lineHeight: 1.3 }}>based on avg UAE spend</span>
@@ -929,8 +1108,10 @@ function CardTile({ card, detail, detailLoading, inCompare, compareFull, onToggl
 
       </div>
 
+      </>)}
+
       {/* Expand / collapse caret */}
-      <div style={{ display: 'flex', justifyContent: 'center', padding: '4px 0 8px' }}>
+      <div style={{ display: mode === 'miles' ? 'none' : 'flex', justifyContent: 'center', padding: '4px 0 8px' }}>
         <span style={{ fontSize: 10, color: '#C2CCDD', fontWeight: 700, letterSpacing: '0.06em' }}>
           {expanded ? 'HIDE DETAILS ▲' : 'MORE DETAILS ▼'}
         </span>
@@ -1135,9 +1316,10 @@ function ComparisonTable({ cards, details, onRemove, hoverNav, setHoverNav }: {
 // ─────────────────────────────────────────────────────────────────────────────
 // SMALL HELPERS
 // ─────────────────────────────────────────────────────────────────────────────
-function ComparisonModal({ cards, catalogueRewardRates, details, onClose, onRemove, showOptionalCategories, onToggleOptionalSection }: {
+function ComparisonModal({ cards, catalogueRewardRates, mode, details, onClose, onRemove, showOptionalCategories, onToggleOptionalSection }: {
   cards: ApiCard[]
   catalogueRewardRates: number[]
+  mode: ViewMode
   details: Record<string, CardDetail>
   onClose: () => void
   onRemove: (id: string) => void
@@ -1162,7 +1344,7 @@ function ComparisonModal({ cards, catalogueRewardRates, details, onClose, onRemo
   const cap = (card: ApiCard, category: string): string => {
     const directValue = card[`display_tier_cap_${category}` as keyof ApiCard]
     const value = typeof directValue === 'number' ? directValue : detailValue(card, `${category}_tier_cap_aed`)
-    return value && value > 0 ? `cap AED ${Math.round(value).toLocaleString()}` : 'no category cap'
+    return value && value > 0 ? `cap ${fmtRewardIn(mode, value)}` : 'no category cap'
   }
   const rewardRateBadge = (card: ApiCard) => {
     const benchmark = catalogueRewardRates.length ? catalogueRewardRates : cards.map(item => item.effective_reward_rate)
@@ -1177,7 +1359,7 @@ function ComparisonModal({ cards, catalogueRewardRates, details, onClose, onRemo
         : percentile <= 75
           ? { background: '#69AE6A', emoji: '🙂', label: 'Good effective reward Rate' }
           : { background: '#087448', emoji: '😊😊', label: 'One of the best effective reward' }
-    return <span aria-label={`${fmtRate(rate)}. ${band.label}.`} title={band.label} style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '5px 8px', borderRadius: 5, background: band.background, color: 'white', fontSize: 12, lineHeight: 1, fontWeight: 900, boxShadow: 'inset 0 -1px 0 rgba(0,0,0,.15)' }}><span>{fmtRate(rate)}</span><span aria-hidden="true" style={{ fontSize: 13, letterSpacing: -2 }}>{band.emoji}</span></span>
+    return <span aria-label={`${fmtRateIn(mode, rate)}. ${band.label}.`} title={band.label} style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '5px 8px', borderRadius: 5, background: band.background, color: 'white', fontSize: 12, lineHeight: 1, fontWeight: 900, boxShadow: 'inset 0 -1px 0 rgba(0,0,0,.15)' }}><span>{fmtRate(rate)}</span><span aria-hidden="true" style={{ fontSize: 13, letterSpacing: -2 }}>{band.emoji}</span></span>
   }
   const formatRewardCurrency = (value: string | null) => value
     ? value.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, letter => letter.toUpperCase())
@@ -1208,14 +1390,14 @@ function ComparisonModal({ cards, catalogueRewardRates, details, onClose, onRemo
     if (tiers.length) {
       return <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
         {tiers.map((tier, index) => <div key={`${tier.min_monthly_spend_aed_on_card}-${tier.max_monthly_spend_aed_on_card}-${tier.aed_value_per_aed_spent}-${index}`} style={{ display: 'flex', alignItems: 'center', flexWrap: 'nowrap', gap: 7, padding: '5px 7px', borderRadius: 6, background: '#F4F8FF', fontSize: 11.5, lineHeight: 1.3, whiteSpace: 'nowrap' }}>
-          <strong style={{ color: '#0E3785', whiteSpace: 'nowrap' }}>{fmtRate(tier.aed_value_per_aed_spent)}</strong>
+          <strong style={{ color: '#0E3785', whiteSpace: 'nowrap' }}>{fmtRateIn(mode, tier.aed_value_per_aed_spent)}</strong>
           <span style={{ color: '#60738F' }}>: {tierSpendRange(tier)}</span>
-          <span style={{ color: '#7A8BA8', fontSize: 11 }}>({tier.max_earning_per_tier_in_aed !== null && tier.max_earning_per_tier_in_aed > 0 ? `cap AED ${Math.round(tier.max_earning_per_tier_in_aed).toLocaleString()}` : 'no category cap'})</span>
+          <span style={{ color: '#7A8BA8', fontSize: 11 }}>({tier.max_earning_per_tier_in_aed !== null && tier.max_earning_per_tier_in_aed > 0 ? `cap ${fmtRewardIn(mode, tier.max_earning_per_tier_in_aed)}` : 'no category cap'})</span>
           {index === tiers.length - 1 && merchantDisclaimer(card, category)}
         </div>)}
       </div>
     }
-    return <div style={{ display: 'inline-flex', alignItems: 'center', gap: 9, whiteSpace: 'nowrap' }}><strong style={{ color: '#0E3785' }}>{fmtRate(rate(card, category))}</strong><span style={{ color: '#7A8BA8', fontSize: 11 }}>({cap(card, category)})</span>{merchantDisclaimer(card, category)}</div>
+    return <div style={{ display: 'inline-flex', alignItems: 'center', gap: 9, whiteSpace: 'nowrap' }}><strong style={{ color: '#0E3785' }}>{fmtRateIn(mode, rate(card, category))}</strong><span style={{ color: '#7A8BA8', fontSize: 11 }}>({cap(card, category)})</span>{merchantDisclaimer(card, category)}</div>
   }
   const list = (items: string[] | undefined) => items && items.length ? <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 5 }}>{items.map((item, index) => <li key={index} style={{ lineHeight: 1.5, fontSize: 12 }}>• {item}</li>)}</ul> : <span style={{ color: '#9CA3AF', fontSize: 12 }}>Loading current card details…</span>
   const benefitRows = (card: ApiCard) => details[card.earnn_card_id]?.benefit_rows || []
@@ -1270,7 +1452,7 @@ function ComparisonModal({ cards, catalogueRewardRates, details, onClose, onRemo
     return <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 5 }}>{items.map((item, index) => <li key={index} style={{ lineHeight: 1.5, fontSize: 12 }}>• {item}</li>)}</ul>
   }
   const row = (text: string, render: (card: ApiCard) => React.ReactNode, shaded = false, labelContent: React.ReactNode = text) => <tr key={text} style={{ background: shaded ? '#FBFCFF' : 'white' }}><td style={label}>{labelContent}</td>{cards.map(card => <td key={card.earnn_card_id} style={cell}>{render(card)}</td>)}</tr>
-  const sectionHeading = (title: string, eyebrow: string) => <tr><td colSpan={cards.length + 1} style={{ padding: 0, borderTop: '1px solid #DCE6F6' }}><div style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 10, background: 'linear-gradient(90deg, #EEF3FF 0%, #F9FBFF 72%, #FFFFFF 100%)' }}><span style={{ width: 8, height: 8, borderRadius: '50%', background: '#C9A84C', boxShadow: '0 0 0 5px rgba(201,168,76,.13)' }} /><span style={{ color: '#0E3785', fontSize: 15, fontWeight: 900, letterSpacing: '-.01em' }}>{title}</span><span style={{ color: '#7A8BA8', fontSize: 11.5, fontWeight: 600 }}>{eyebrow}</span></div></td></tr>
+  const sectionHeading = (title: string, eyebrow: string, note?: string) => <tr><td colSpan={cards.length + 1} style={{ padding: 0, borderTop: '1px solid #DCE6F6' }}><div style={{ padding: '16px 20px', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10, background: 'linear-gradient(90deg, #EEF3FF 0%, #F9FBFF 72%, #FFFFFF 100%)' }}><span style={{ width: 8, height: 8, borderRadius: '50%', background: '#C9A84C', boxShadow: '0 0 0 5px rgba(201,168,76,.13)' }} /><span style={{ color: '#0E3785', fontSize: 15, fontWeight: 900, letterSpacing: '-.01em' }}>{title}</span><span style={{ color: '#7A8BA8', fontSize: 11.5, fontWeight: 600 }}>{eyebrow}</span>{note && <span style={{ flexBasis: '100%', marginTop: -4, paddingLeft: 18, color: '#5A6A85', fontSize: 11.5, fontWeight: 700 }}>{note}</span>}</div></td></tr>
 
   return <div role="dialog" aria-modal="true" aria-label="Compare selected cards" onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 300, padding: 'clamp(12px, 3vw, 32px)', background: 'rgba(5,18,43,.72)', backdropFilter: 'blur(7px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
     <div onClick={event => event.stopPropagation()} style={{ width: 'min(1280px, 100%)', maxHeight: '94vh', overflow: 'auto', borderRadius: 26, background: '#F3F6FC', boxShadow: '0 32px 96px rgba(3,12,30,.48)', border: '1px solid rgba(255,255,255,.35)' }}>
@@ -1288,13 +1470,13 @@ function ComparisonModal({ cards, catalogueRewardRates, details, onClose, onRemo
           {row('Best for', card => bestForSection(card, 'Best for'))}
           {row('Highlight', card => bestForSection(card, 'Highlight'), true)}
           {row('Fee', card => { const fee = effectiveFeeAed(card); return <strong style={{ color: fee === 0 ? '#00A67E' : '#C95B00' }}>{fee === 0 ? 'Lifetime free' : `AED ${Math.round(fee).toLocaleString()} / yr`}</strong> }, true)}
-          {row('Expected yearly reward', card => <strong style={{ color: '#00A67E' }}>AED {Math.round(card.expected_annual_return_aed || 0).toLocaleString()}</strong>, false, <ComparisonMetricLabel label="Expected yearly reward" text="Estimated annual rewards based on the standard UAE spending profile used for this comparison, before annual fees." />)}
-          {row('Expected monthly reward', card => <strong style={{ color: '#00A67E' }}>AED {Math.round((card.expected_annual_return_aed || 0) / 12).toLocaleString()}</strong>, true)}
-          {row('Net annual value', card => <strong style={{ color: '#0E3785' }}>AED {Math.round(card.nav_aed || 0).toLocaleString()}</strong>, false, <ComparisonMetricLabel label="Net annual value" text="Expected yearly rewards minus the true annual fee (after waivers)." />)}
-          {sectionHeading('Rewards', 'Rates, caps and earning thresholds')}
+          {row('Expected yearly reward', card => <strong style={{ color: '#00A67E' }}>{fmtRewardIn(mode, card.expected_annual_return_aed || 0)}</strong>, false, <ComparisonMetricLabel label="Expected yearly reward" text="Estimated annual rewards based on the standard UAE spending profile used for this comparison, before annual fees." />)}
+          {row('Expected monthly reward', card => <strong style={{ color: '#00A67E' }}>{fmtRewardIn(mode, (card.expected_annual_return_aed || 0) / 12)}</strong>, true)}
+          {mode === 'cashback' && row('Net annual value', card => <strong style={{ color: '#0E3785' }}>AED {Math.round(card.nav_aed || 0).toLocaleString()}</strong>, false, <ComparisonMetricLabel label="Net annual value" text="Expected yearly rewards minus the true annual fee (after waivers)." />)}
+          {sectionHeading('Rewards', 'Rates, caps and earning thresholds', mode === 'miles' ? 'mi = miles earned per AED 100 spent' : undefined)}
           {categories.map(([key, text], index) => row(text, card => categoryRewardValue(card, key), index % 2 === 0))}
           <tr style={{ height: 42, background: '#F7F9FE', borderTop: '1px solid #E3EAF6', borderBottom: '1px solid #E3EAF6' }}><td style={{ ...label, padding: '9px 14px' }}><button onClick={onToggleOptionalSection} aria-expanded={showOptionalCategories} style={{ display: 'inline-flex', alignItems: 'center', gap: 7, border: 'none', padding: 0, background: 'transparent', color: '#0E3785', cursor: 'pointer', fontSize: 10.5, fontWeight: 900, textAlign: 'left', textTransform: 'uppercase', letterSpacing: '.06em' }}><span style={{ display: 'inline-flex', width: 17, height: 17, alignItems: 'center', justifyContent: 'center', borderRadius: 5, background: '#0E3785', color: 'white', fontSize: 15, lineHeight: 1 }}>{showOptionalCategories ? '−' : '+'}</span>{showOptionalCategories ? 'Hide extra categories' : 'Show more categories'}</button></td><td colSpan={cards.length} style={{ ...cell, padding: 0, background: '#FFFFFF' }} /></tr>
-          {row('Max capping at card', card => { const value = card.display_max_earning_per_card_aed ?? detailValue(card, 'max_earning_per_card_in_aed'); return value && value > 0 ? `AED ${Math.round(value).toLocaleString()} / mo` : 'No card cap recorded' })}
+          {row('Max capping at card', card => { const value = card.display_max_earning_per_card_aed ?? detailValue(card, 'max_earning_per_card_in_aed'); return value && value > 0 ? `${fmtRewardIn(mode, value)} / mo` : 'No card cap recorded' })}
           {row('Min spend required', card => { const value = card.display_min_monthly_spend_aed_on_card ?? detailValue(card, 'min_monthly_spend_aed_on_card'); return value && value > 0 ? `AED ${Math.round(value).toLocaleString()} / mo` : 'No minimum spend recorded' }, true)}
           {row('Reward currency', card => formatRewardCurrency(card.reward_currency_name))}
           {sectionHeading('Benefits', 'Travel, entertainment and card privileges')}
