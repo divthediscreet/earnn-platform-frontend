@@ -45,8 +45,6 @@
 .radioDot{flex:0 0 18px;width:18px;height:18px;border:2px solid rgba(255,255,255,.6);border-radius:50%}
 .airlineOn .radioDot{border:5px solid #0e3785;background:#fff}
 
-.actions :global(.btn-primary){background:#f4c24d!important;border-color:#f4c24d!important;color:#10234f!important;font-weight:800}
-.actions :global(.btn-primary):hover{background:#ffd166!important}
 
 /* Last step: two choices and a small Back */
 .choiceStep{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;width:min(760px,100%);margin:18px auto 8px}

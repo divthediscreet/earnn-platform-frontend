@@ -85,8 +85,8 @@
 .bankModalGrid label.bankOn{border-color:#0e3785;background:#f1f6ff;box-shadow:0 0 0 1px #0e3785 inset}
 .bankModalGrid input{width:18px;height:18px;accent-color:#0e3785}
 .bankModalFoot{display:flex;justify-content:flex-end;gap:10px}
-.bankModalFoot button{padding:10px 22px;border-radius:10px;border:1px solid #cbd8ec;background:#fff;color:#0e3785;font-weight:700;cursor:pointer}
-.bankModalFoot .btn-primary{background:#0e3785;color:#fff;border-color:#0e3785}
+.bankModalFoot button{min-height:var(--btn-height-sm);padding:0 22px;border-radius:var(--btn-radius);border:1.5px solid var(--earnn-blue);background:#fff;color:#0e3785;font-size:var(--btn-font-size-sm);font-weight:var(--btn-font-weight);cursor:pointer}
+.bankModalFoot .btn-primary{background:var(--btn-gold);color:var(--btn-ink);border-color:var(--btn-gold)}
 
 /* Hero: one wide banner image (public/images/heroes/TripPlanner.webp) with the text on its light left side */
 section.heroBanner{min-height:clamp(300px,27vw,420px);padding-top:56px;padding-bottom:56px;background:#eef3ff url('/images/heroes/TripPlanner.webp') right center/cover no-repeat;color:#0d1828}

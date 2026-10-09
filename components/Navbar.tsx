@@ -37,21 +37,21 @@ export default function Navbar() {
         {/* Desktop Nav */}
         <div style={{ alignItems: 'center', gap: 6 }} className={styles.desktopNav}>
           <Link href="/analyse" style={navLinkStyle}>
-            Analyze
+            Best for Me
           </Link>
           {/* Analyze-old (/analyse-old) is hidden from the nav for now; the page still works by URL. To be deleted later. */}
           <Link href="/compare" style={navLinkStyle}>
             Compare
           </Link>
           <Link href="/merchant-lookup" style={navLinkStyle}>
-            Card Match
+            Match & Tap
           </Link>
           {/* Fly for Free (/miles) is hidden from the nav for now; the page itself still works. */}
           <Link href="/bulk-spend-miles" style={navLinkStyle}>
-            Max Miles
+            Big Spend Planner
           </Link>
           <Link href="/trip-planner" style={navLinkStyle}>
-            Trip Planner
+            Fly for Free ✈
           </Link>
           <Link href="/chat" style={navLinkStyle}>
             Ask Earnie
@@ -63,11 +63,11 @@ export default function Navbar() {
       </div>
       {menuOpen && (
         <div className={styles.mobileNavMenu}>
-          <Link href="/analyse" onClick={() => setMenuOpen(false)}>Analyze</Link>
+          <Link href="/analyse" onClick={() => setMenuOpen(false)}>Best for Me</Link>
           <Link href="/compare" onClick={() => setMenuOpen(false)}>Compare</Link>
-          <Link href="/merchant-lookup" onClick={() => setMenuOpen(false)}>Card Match</Link>
-          <Link href="/bulk-spend-miles" onClick={() => setMenuOpen(false)}>Max Miles</Link>
-          <Link href="/trip-planner" onClick={() => setMenuOpen(false)}>Trip Planner</Link>
+          <Link href="/merchant-lookup" onClick={() => setMenuOpen(false)}>Match & Tap</Link>
+          <Link href="/bulk-spend-miles" onClick={() => setMenuOpen(false)}>Big Spend Planner</Link>
+          <Link href="/trip-planner" onClick={() => setMenuOpen(false)}>Fly for Free ✈</Link>
           <Link href="/chat" onClick={() => setMenuOpen(false)}>Ask Earnie</Link>
         </div>
       )}

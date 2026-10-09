@@ -182,13 +182,9 @@ export default function MerchantLookupPage() {
             }}
           />
           <button
+            className="btn-primary"
             onClick={() => runSearch()}
             disabled={loading || !query.trim()}
-            style={{
-              padding: '13px 26px', fontSize: 15, fontWeight: 800, borderRadius: 10, border: 'none',
-              background: loading || !query.trim() ? '#E7D9AE' : '#FFD76A', color: '#092962',
-              cursor: loading || !query.trim() ? 'default' : 'pointer',
-            }}
           >
             {loading ? 'Searching…' : 'Find best card'}
           </button>
@@ -210,12 +206,14 @@ export default function MerchantLookupPage() {
       )}
 
       {!result && !loading && (
-        <div className="cm-how" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14, margin: '22px 24px 0' }}>
+        <div className="cm-how" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12, margin: '18px 24px 0' }}>
           {HOW_IT_WORKS.map(step => (
-            <div key={step.title} style={{ background: '#fff', border: `1px solid ${COLORS.border}`, borderRadius: 14, padding: '16px 18px' }}>
-              <span aria-hidden style={{ display: 'grid', placeItems: 'center', width: 38, height: 38, borderRadius: '50%', background: step.bg, color: step.color, fontSize: 19 }}><i className={`ti ${step.icon}`} /></span>
-              <div style={{ fontSize: 14.5, fontWeight: 800, color: COLORS.text, marginTop: 10 }}>{step.title}</div>
-              <div style={{ fontSize: 13, color: COLORS.secondary, marginTop: 3, lineHeight: 1.45 }}>{step.text}</div>
+            <div key={step.title} style={{ display: 'flex', alignItems: 'center', gap: 12, background: '#fff', border: `1px solid ${COLORS.border}`, borderRadius: 14, padding: '13px 16px' }}>
+              <span aria-hidden style={{ display: 'grid', placeItems: 'center', flexShrink: 0, width: 36, height: 36, borderRadius: '50%', background: step.bg, color: step.color, fontSize: 18 }}><i className={`ti ${step.icon}`} /></span>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 14, fontWeight: 800, color: COLORS.text, lineHeight: 1.25 }}>{step.title}</div>
+                <div style={{ fontSize: 12.5, color: COLORS.secondary, marginTop: 2, lineHeight: 1.4 }}>{step.text}</div>
+              </div>
             </div>
           ))}
         </div>

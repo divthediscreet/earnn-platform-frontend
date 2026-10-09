@@ -647,16 +647,10 @@ export default function ChatPage() {
             fontSize: 14.5, outline: 'none', color: '#0D1828',
           }}
         />
-        <button className="chat-send-button"
+        <button className="chat-send-button btn-primary"
           onClick={() => send(input)}
           disabled={!input.trim() || loading}
-          style={{
-            padding: '11px 22px',
-            background: !input.trim() ? '#E7D9AE' : '#FFD76A',
-            color: '#092962',
-            border: 'none', borderRadius: 12, fontSize: 15, fontWeight: 700,
-            cursor: !input.trim() ? 'not-allowed' : 'pointer', flexShrink: 0,
-          }}
+          style={{ flexShrink: 0 }}
         >
           Send →
         </button>

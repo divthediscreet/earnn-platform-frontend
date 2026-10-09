@@ -278,7 +278,8 @@ export function SimulatorStyles() {
         .sim-empty { color:#B9C9E7; font-size:12px; line-height:1.5; min-height:108px; margin:20px 0; }
         .sim-count { border-top:1px solid rgba(255,255,255,.16); padding-top:12px; color:#C9D7F2; font-size:11px; }
         .sim-error { margin-top:10px; background:rgba(255,219,214,.14); border:1px solid rgba(255,219,214,.35); border-radius:8px; padding:8px; color:#FFE3DF; font-size:11px; line-height:1.45; }
-        .sim-cta { width:100%; margin-top:14px; min-height:44px; padding:12px; border:0; border-radius:10px; background:#FFD76A; color:#092962; font-size:13px; font-weight:850; cursor:pointer; }
+        .sim-cta { width:100%; margin-top:14px; min-height:var(--btn-height); padding:0 24px; border:0; border-radius:var(--btn-radius); background:var(--btn-gold); color:var(--btn-ink); font-size:var(--btn-font-size); font-weight:var(--btn-font-weight); cursor:pointer; transition:background .2s ease; }
+        .sim-cta:hover:not(:disabled) { background:var(--btn-gold-hover); }
         .sim-cta:disabled { background:#7F95BD; color:#DCE6FA; cursor:not-allowed; }
         @media (max-width:780px) { .sim-layout { grid-template-columns:1fr; } .sim-summary { position:static; } .sim-pairs { grid-template-columns:1fr; } }
         @media (max-width:560px) {

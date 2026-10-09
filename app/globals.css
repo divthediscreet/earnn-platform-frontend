@@ -26,6 +26,34 @@
   --earnn-border:      #D6E0F5;   /* Light blue border */
   --earnn-success:     #00A67E;   /* Teal green for positive numbers */
   --earnn-warning:     #E07B1F;   /* Amber for warnings */
+
+  /* ── Design system: buttons ── one primary look (gold), one secondary look (outline), one size scale */
+  --btn-gold:          #FFD76A;
+  --btn-gold-hover:    #FFCB45;
+  --btn-gold-off:      #E7D9AE;
+  --btn-ink:           #092962;   /* text on gold */
+  --btn-radius:        12px;
+  --btn-height:        48px;
+  --btn-font-size:     15px;
+  --btn-font-weight:   800;
+  --btn-height-sm:     38px;
+  --btn-font-size-sm:  13px;
+
+  /* ── Design system: type scale ── */
+  --fs-hero:   clamp(32px, 4vw, 50px);   /* page hero title */
+  --fs-h2:     26px;                     /* section / form heading */
+  --fs-h3:     16px;                     /* card heading */
+  --fs-body:   15px;
+  --fs-small:  13px;
+  --fs-micro:  12px;
+
+  /* ── Design system: spacing & shape ── */
+  --space-1: 4px;  --space-2: 8px;  --space-3: 12px; --space-4: 16px;
+  --space-5: 24px; --space-6: 32px; --space-7: 48px;
+  --page-width:  1120px;
+  --page-gutter: 24px;
+  --radius-card: 16px;
+  --radius-field: 10px;
 }
 
 @theme inline {
@@ -74,51 +102,71 @@ h1, h2, h3, h4, h5, h6 {
   color: var(--earnn-text);
   line-height: 1.2;
 }
+/* Page and section titles share one display face; body copy stays Inter */
+h1, h2 {
+  font-family: var(--font-display);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
 
 /* Scrollbar */
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: var(--earnn-offwhite); }
 ::-webkit-scrollbar-thumb { background: var(--earnn-border); border-radius: 3px; }
 
-/* earnn Button Styles */
-.btn-primary {
-  background: var(--earnn-blue);
-  color: white;
-  padding: 14px 32px;
-  border-radius: 8px;
-  font-weight: 600;
-  font-size: 16px;
-  letter-spacing: 0.01em;
-  transition: all 0.2s ease;
-  border: none;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
-.btn-primary:hover {
-  background: var(--earnn-blue-dark);
-  transform: translateY(-1px);
-  box-shadow: 0 8px 24px rgba(14, 55, 133, 0.3);
-}
-
+/* earnn Button Styles
+   primary   = gold, the one main action on a screen
+   secondary = white with a navy outline, for the supporting action
+   .btn-sm   = compact size for dialogs, toolbars and cards */
+.btn-primary,
 .btn-secondary {
-  background: transparent;
-  color: var(--earnn-blue);
-  padding: 13px 32px;
-  border-radius: 8px;
-  font-weight: 600;
-  font-size: 16px;
-  border: 2px solid var(--earnn-blue);
-  cursor: pointer;
-  transition: all 0.2s ease;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
+  min-height: var(--btn-height);
+  padding: 0 var(--space-5);
+  border-radius: var(--btn-radius);
+  font-family: inherit;
+  font-size: var(--btn-font-size);
+  font-weight: var(--btn-font-weight);
+  line-height: 1.2;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background .2s ease, transform .2s ease, box-shadow .2s ease;
 }
-.btn-secondary:hover {
+.btn-primary {
+  background: var(--btn-gold);
+  color: var(--btn-ink);
+  border: 1px solid var(--btn-gold);
+}
+.btn-primary:hover:not(:disabled) {
+  background: var(--btn-gold-hover);
+  border-color: var(--btn-gold-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 8px 20px rgba(201, 168, 76, 0.35);
+}
+.btn-primary:disabled {
+  background: var(--btn-gold-off);
+  border-color: var(--btn-gold-off);
+  color: var(--btn-ink);
+  opacity: .8;
+  cursor: not-allowed;
+}
+.btn-secondary {
+  background: #fff;
+  color: var(--earnn-blue);
+  border: 1.5px solid var(--earnn-blue);
+}
+.btn-secondary:hover:not(:disabled) {
   background: var(--earnn-blue-pale);
   transform: translateY(-1px);
+}
+.btn-secondary:disabled { opacity: .55; cursor: not-allowed; }
+.btn-sm {
+  min-height: var(--btn-height-sm);
+  padding: 0 var(--space-4);
+  font-size: var(--btn-font-size-sm);
 }
 
 /* Card */
