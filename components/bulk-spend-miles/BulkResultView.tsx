@@ -82,7 +82,8 @@ export function travelPotentialForMiles(miles: number) {
 }
 
 const photo = (id: string) => `https://images.unsplash.com/photo-${id}?auto=format&fit=crop&w=1600&q=80`
-const ART = {
+// Exported so Trip Planner reuses the same destination photos (no behaviour change here).
+export const ART = {
   manhattan: { city: 'New York', image: photo('1485871981521-5b1fd3805eee') },
   liberty: { city: 'New York', image: photo('1605130284535-11dd9eedc58a') },
   sydney: { city: 'Sydney', image: photo('1506973035872-a4ec16b8e8d9') },
@@ -213,7 +214,7 @@ const headlineLabel = (sort: BulkResultSort, unit: PlanUnit) =>
     : unit === 'miles' ? 'guaranteed from your plan' : 'net reward after fees'
 
 // ── small helpers ────────────────────────────────────────────────────────────
-function topicIcon(code: string) {
+export function topicIcon(code: string) {
   const key = code.toLowerCase()
   if (key === 'recurring') return '🛒'
   if (/educ|school|tuition|universit|nursery/.test(key)) return '🎓'
@@ -239,7 +240,8 @@ const TOPIC_NAMES: Record<string, string> = {
   hotel: 'Hotel bookings', jewellery: 'Jewellery', electronics: 'Electronics', car_dealer: 'Car purchase',
   furniture: 'Furniture', insurance: 'Insurance',
 }
-const topicName = (code: string) => TOPIC_NAMES[code.trim().toLowerCase()] ?? code.replace(/_/g, ' ').replace(/\b\w/g, letter => letter.toUpperCase())
+// Exported so Trip Planner shows the same plan sections for one card (no behaviour change here).
+export const topicName = (code: string) => TOPIC_NAMES[code.trim().toLowerCase()] ?? code.replace(/_/g, ' ').replace(/\b\w/g, letter => letter.toUpperCase())
 
 const normal = (value: string) => value.trim().toLowerCase().replace(/[\s-]+/g, '_')
 
@@ -352,7 +354,7 @@ export default function BulkResultView({ unit, plans, sort, includeNewCard, proj
 const compactAed = (value: number) => `AED ${compact(value)}`
 
 // ── why this card ────────────────────────────────────────────────────────────
-function WhyThisCard({ plan, unit, topicLabel, includeNewCard }: { plan: PlanCard, unit: PlanUnit, topicLabel: (code: string) => string, includeNewCard: boolean }) {
+export function WhyThisCard({ plan, unit, topicLabel, includeNewCard }: { plan: PlanCard, unit: PlanUnit, topicLabel: (code: string) => string, includeNewCard: boolean }) {
   const bonusTotal = plan.welcome + plan.benefits
   const bulk = bulkReward(plan.breakdown)
   const regular = Math.max(0, plan.spend - bulk)
@@ -416,7 +418,7 @@ function WhyThisCard({ plan, unit, topicLabel, includeNewCard }: { plan: PlanCar
 // ── payment plan ─────────────────────────────────────────────────────────────
 interface Step { order: number, when: string, icon: string, title: string, text?: string, reward?: string, chips?: string[] }
 
-function PaymentPlan({ plan, unit, projection, topicLabel }: { plan: PlanCard, unit: PlanUnit, projection: ProjectionMonth[], topicLabel: (code: string) => string }) {
+export function PaymentPlan({ plan, unit, projection, topicLabel }: { plan: PlanCard, unit: PlanUnit, projection: ProjectionMonth[], topicLabel: (code: string) => string }) {
   const monthLabel = (month: number | null) => month ? projection[month - 1]?.label ?? `Month ${month}` : ''
   const steps: Step[] = [{ order: 0, when: 'NOW', icon: '💳', title: `Start using the ${plan.name} for this plan`, text: 'Put the payments below on this card so each one earns what is shown.' }]
 
@@ -487,7 +489,7 @@ function PaymentPlan({ plan, unit, projection, topicLabel }: { plan: PlanCard, u
 }
 
 // ── potential opportunities ──────────────────────────────────────────────────
-function Opportunities({ plan, unit, items, alternatives }: { plan: PlanCard, unit: PlanUnit, items: PlanItem[], alternatives: PlanItem[] }) {
+export function Opportunities({ plan, unit, items, alternatives }: { plan: PlanCard, unit: PlanUnit, items: PlanItem[], alternatives: PlanItem[] }) {
   if (!items.length && !alternatives.length) return null
   const groupLabel = (item: PlanItem) => item.group === 'welcome' ? 'Welcome bonus' : 'Card benefit'
   return <section className={`${styles.section} ${styles.reachSection}`}>

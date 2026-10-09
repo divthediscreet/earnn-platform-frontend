@@ -18,7 +18,9 @@ export default function MilesLandingPage() {
   // calculation immediately; users can refine those assumptions on the target page.
   const selectRegion = (region: MilesRegion) => {
     clearMilesGoalSession()
-    router.push(`/miles/results?region=${encodeURIComponent(region.id)}&view=current`)
+    // Opened from Trip Planner's Customize My Trip: keep that source through to the result.
+    const fromTripPlanner = new URLSearchParams(window.location.search).get('source') === 'trip'
+    router.push(`/miles/results?region=${encodeURIComponent(region.id)}&view=current${fromTripPlanner ? '&source=trip' : ''}`)
   }
 
   return <div className={styles.page}>

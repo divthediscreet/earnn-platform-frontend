@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import type { BulkPaymentSchedule, BulkSpendTopic } from '@/lib/bulk-spend-miles/api'
 import { getBulkSpendTopics } from '@/lib/bulk-spend-miles/api'
+import { topicName } from '@/components/bulk-spend-miles/BulkResultView'
 import { readBulkForm, saveBulkSubmission } from '@/lib/bulk-spend-miles/session'
 import styles from './page.module.css'
 import formStyles from './compact-spend-form.module.css'
@@ -19,7 +20,7 @@ function blankRow(topics: BulkSpendTopic[]): BulkPaymentSchedule {
 
 export default function BulkSpendMilesPage() {
   const router = useRouter()
-  const [monthlySpend, setMonthlySpend] = useState('8000')
+  const [monthlySpend, setMonthlySpend] = useState('')
   const [salary, setSalary] = useState('')
   const [topics, setTopics] = useState<BulkSpendTopic[]>([])
   const [topicsLoading, setTopicsLoading] = useState(true)
@@ -62,11 +63,11 @@ export default function BulkSpendMilesPage() {
     event.preventDefault()
     const validRows = payments.filter(row => Number(row.amount_aed) > 0 && row.due_months.length > 0)
     if (validRows.some(row => !row.topic_code)) {
-      setError('Choose a category for every scheduled payment.')
+      setError('Choose what every expense is for.')
       return
     }
     if (Number(monthlySpend) <= 0 && !validRows.length) {
-      setError('Enter your regular monthly spend or at least one scheduled payment.')
+      setError('Enter your regular monthly spend or at least one upcoming expense.')
       return
     }
     if (Number(salary) <= 0) {
@@ -74,7 +75,7 @@ export default function BulkSpendMilesPage() {
       return
     }
     if (payments.some(row => (Number(row.amount_aed) > 0 && !row.due_months.length) || (Number(row.amount_aed) <= 0 && row.due_months.length))) {
-      setError('Each scheduled payment needs both an amount and at least one due month.')
+      setError('Each expense needs both an amount and at least one month.')
       return
     }
     setError('')
@@ -93,19 +94,19 @@ export default function BulkSpendMilesPage() {
 
     <main className={styles.content}>
       <form className={styles.formCard} onSubmit={submit}>
-        <div className={styles.formHeading}><div><span>YOUR BIG-EXPENSE PLAN</span><h2>What big payments are coming up?</h2><p className={formStyles.formIntro}>Add the payments you already expect to make. We will find the card that makes them work harder for you.</p></div></div>
+        <div className={styles.formHeading}><div><span>YOUR BIG-EXPENSE PLAN</span><h2>Anything extra coming up in the next 12 months?</h2><p className={formStyles.formIntro}>Add any planned expenses — we’ll show you how much further they could take you.</p></div></div>
         <section className={formStyles.expensesPanel}>
-          <div className={formStyles.expensePanelHead}><h3>Upcoming big expenses</h3><p>Choose what you are paying for, the amount and every month when the same payment is due.</p></div>
+          <div className={formStyles.expensePanelHead}><h3>Upcoming expenses</h3><p>Choose what you are paying for, the amount and every month when the same payment is due.</p></div>
           <div className={formStyles.schedules}>{payments.map((payment, index) => <div className={formStyles.expenseRow} key={`${index}-${payment.topic_code}`}>
-            <label><span>What are you paying for?</span><select value={payment.topic_code} disabled={topicsLoading || !topics.length} onChange={event => updatePayment(index, { topic_code: event.target.value })}><option value="">{topicsLoading ? 'Loading options…' : 'Choose an expense'}</option>{topics.map(topic => <option key={topic.topic_code} value={topic.topic_code}>{topic.topic_label}</option>)}</select></label>
-            <label><span>Amount due</span><div className={formStyles.amountInput}><b>AED</b><input inputMode="decimal" type="number" min="0" step="100" value={payment.amount_aed || ''} onChange={event => updatePayment(index, { amount_aed: Number(event.target.value) || 0 })} placeholder="10,000" /></div></label>
-            <fieldset><legend>Due in</legend><div className={formStyles.months}>{MONTHS.map(([name, value]) => <label key={value} className={payment.due_months.includes(value) ? formStyles.selectedMonth : ''}><input type="checkbox" checked={payment.due_months.includes(value)} onChange={() => toggleMonth(index, value)} /><span>{name}</span></label>)}</div></fieldset>
-            <button type="button" className={formStyles.remove} onClick={() => setPayments(current => current.length === 1 ? [blankRow(topics)] : current.filter((_, rowIndex) => rowIndex !== index))} aria-label="Remove scheduled payment"><i className="ti ti-trash" /></button>
+            <label><span>What’s coming up?</span><select value={payment.topic_code} disabled={topicsLoading || !topics.length} onChange={event => updatePayment(index, { topic_code: event.target.value })}><option value="">{topicsLoading ? 'Loading options…' : 'Choose an expense'}</option>{topics.map(topic => <option key={topic.topic_code} value={topic.topic_code}>{topicName(topic.topic_code)}</option>)}</select></label>
+            <label><span>Amount</span><div className={formStyles.amountInput}><b>AED</b><input inputMode="decimal" type="number" min="0" step="100" value={payment.amount_aed || ''} onChange={event => updatePayment(index, { amount_aed: Number(event.target.value) || 0 })} placeholder="10,000" /></div></label>
+            <fieldset><legend>When?</legend><div className={formStyles.months}>{MONTHS.map(([name, value]) => <label key={value} className={payment.due_months.includes(value) ? formStyles.selectedMonth : ''}><input type="checkbox" checked={payment.due_months.includes(value)} onChange={() => toggleMonth(index, value)} /><span>{name}</span></label>)}</div></fieldset>
+            <button type="button" className={formStyles.remove} onClick={() => setPayments(current => current.length === 1 ? [blankRow(topics)] : current.filter((_, rowIndex) => rowIndex !== index))} aria-label="Remove expense"><i className="ti ti-trash" /></button>
           </div>)}</div>
           <button type="button" className={formStyles.addExpense} disabled={topicsLoading || !topics.length} onClick={() => setPayments(current => [...current, blankRow(topics)])}><i className="ti ti-plus" /> Add another expense</button>
         </section>
         <div className={formStyles.profileGrid}>
-          <label className={formStyles.monthlyInput}><span><strong>Regular monthly living spend</strong><small>Before we plan, please tell us generally how much you spend monthly on your living.</small></span><div><b>AED</b><input inputMode="decimal" type="number" min="0" step="100" value={monthlySpend} onChange={event => setMonthlySpend(event.target.value)} placeholder="8,000" /></div></label>
+          <label className={formStyles.monthlyInput}><span><strong>Regular monthly living spend</strong><small>Before we plan, please tell us generally how much you spend monthly on your living.</small></span><div><b>AED</b><input inputMode="decimal" type="number" min="0" step="100" value={monthlySpend} onChange={event => setMonthlySpend(event.target.value)} placeholder="0" /></div></label>
           <label className={formStyles.salaryInput}><span><strong>Monthly salary</strong></span><div><b>AED</b><input inputMode="decimal" type="number" min="0" step="100" required value={salary} onChange={event => setSalary(event.target.value)} placeholder="Eligible cards only" /></div></label>
         </div>
         {error && <p className={styles.error}><i className="ti ti-alert-circle" /> {error}</p>}

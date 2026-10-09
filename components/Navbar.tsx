@@ -52,6 +52,9 @@ export default function Navbar() {
           <Link href="/bulk-spend-miles" style={navLinkStyle}>
             Max Miles
           </Link>
+          <Link href="/trip-planner" style={navLinkStyle}>
+            Trip Planner
+          </Link>
           <Link href="/chat" style={navLinkStyle}>
             Ask Earnie
           </Link>
@@ -67,6 +70,7 @@ export default function Navbar() {
           <Link href="/merchant-lookup" onClick={() => setMenuOpen(false)}>Card Match</Link>
           <Link href="/miles" onClick={() => setMenuOpen(false)}>Fly for Free ✈</Link>
           <Link href="/bulk-spend-miles" onClick={() => setMenuOpen(false)}>Max Miles</Link>
+          <Link href="/trip-planner" onClick={() => setMenuOpen(false)}>Trip Planner</Link>
           <Link href="/chat" onClick={() => setMenuOpen(false)}>Ask Earnie</Link>
         </div>
       )}

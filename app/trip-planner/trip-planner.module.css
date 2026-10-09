@@ -1,0 +1,214 @@
+/* Trip Planner form: only what the shared Max Miles form styles do not already cover. */
+.stepper{display:flex;gap:8px;list-style:none;margin:0 0 24px;padding:0;border-bottom:1px solid #e6edf7}
+.stepper li{flex:1}
+.stepper button{width:100%;display:flex;align-items:center;justify-content:center;gap:9px;padding:12px 6px;border:0;border-bottom:3px solid transparent;background:transparent;color:#71809a;font-size:13px;font-weight:700;cursor:pointer}
+.stepper b{display:grid;place-items:center;width:24px;height:24px;border-radius:50%;background:#eef3ff;color:#0e3785;font-size:12px}
+.stepOn button{color:#0e3785;border-bottom-color:#0e3785}
+.stepOn b{background:#0e3785;color:#fff}
+.stepDone b{background:#00a67e;color:#fff}
+.bankModes{display:flex;flex-wrap:wrap;gap:8px;margin-top:20px}
+.bankModes button{border:1px solid #cdd9ed;border-radius:999px;background:#fff;color:#40577b;padding:9px 16px;font-size:13px;font-weight:700;cursor:pointer}
+.bankModes .modeOn{background:#0e3785;border-color:#0e3785;color:#fff}
+.bankGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:8px;margin-top:14px}
+.bankGrid label{display:flex;align-items:center;gap:8px;padding:10px 12px;border:1px solid #dbe4f2;border-radius:9px;background:#fff;font-size:13px;font-weight:600;cursor:pointer}
+.bankGrid .bankOn{border-color:#0e3785;background:#eef3ff;color:#0e3785}
+.hint{color:#71809a;font-size:12px}
+.balances{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;margin-top:22px}
+.balances label>span{display:block;margin-bottom:6px;color:#566782;font-size:12px;font-weight:700}
+.back{border:1px solid #cdd9ed;border-radius:8px;background:#fff;color:#40577b;padding:11px 16px;font-weight:700;cursor:pointer}
+@media(max-width:520px){.stepper button{font-size:11px;flex-direction:column;gap:4px}}
+
+/* Step 3: lighter than the first two, the last step before the payoff */
+.lastThing{padding:26px 28px;border-radius:18px;background:linear-gradient(135deg,#f6f9ff,#fffaf0);border:1px solid #e3eaf7}
+.lastIntro span{display:block;color:#a8801b;font-size:11px;font-weight:850;letter-spacing:.2em}
+.lastIntro h2{margin:8px 0 0;font-family:Georgia,'Times New Roman',serif;font-weight:500;font-size:clamp(24px,3vw,32px);letter-spacing:-.02em;color:#0d1828}
+.lastIntro p{margin:6px 0 0;color:#566782;font-size:15px}
+.blockTitle{margin:26px 0 0;color:#182b50;font-size:15px;font-weight:800}
+.lastThing .bankModes{margin-top:10px}
+.lastThing .hint{margin:8px 0 0}
+.skipLink{margin-left:auto;margin-right:18px;border:0;background:transparent;color:#71809a;font-size:13px;font-weight:600;text-decoration:underline;cursor:pointer;padding:6px 4px}
+.skipLink:hover{color:#0e3785}
+
+/* Step 3 redesign: numbered blocks, bank logo grid, airline cards, travel art */
+.lastHead{position:relative;display:flex;justify-content:space-between;gap:20px;min-height:120px}
+.lastIntro{position:relative;z-index:2;max-width:560px}
+.lastArt{position:absolute;right:0;top:-8px;width:340px;height:150px;z-index:1;pointer-events:none;
+  background:radial-gradient(ellipse at 62% 60%,rgba(190,210,245,.55),transparent 62%)}
+.artPlane{position:absolute;right:6px;top:6px;font-size:30px;color:#0e3785;transform:rotate(14deg)}
+.artCard{position:absolute;width:150px;height:94px;border-radius:12px;box-shadow:0 12px 24px rgba(13,24,40,.25)}
+.artCardA{left:60px;top:26px;transform:rotate(-14deg);background:linear-gradient(135deg,#2b3340,#11161f)}
+.artCardB{left:92px;top:34px;transform:rotate(-7deg);background:linear-gradient(135deg,#454d5b,#1a202b)}
+.artCardC{left:126px;top:44px;transform:rotate(-1deg);background:linear-gradient(135deg,#f4f6fa,#cfd6e3)}
+.artCardC b{position:absolute;left:14px;top:16px;width:30px;height:22px;border-radius:5px;background:linear-gradient(135deg,#e7c66b,#b98f2c)}
+.artPassport{position:absolute;right:6px;top:44px;display:grid;place-items:center;width:84px;height:112px;border-radius:8px 12px 12px 8px;background:linear-gradient(135deg,#17306d,#0b1f4b);color:#e8c66b;font-size:34px;transform:rotate(12deg);box-shadow:0 12px 24px rgba(13,24,40,.3)}
+.block{margin-top:22px}
+.blockSplit{margin-top:26px;padding-top:22px;border-top:1px solid #e3eaf7}
+.blockHead{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.blockHead>div{flex:1;min-width:220px}
+.blockHead h3{margin:0;color:#0d1828;font-size:17px;font-weight:700}
+.blockHead h3 small{color:#566782;font-weight:400;font-size:15px}
+.blockHead p{margin:3px 0 0;color:#566782;font-size:13px}
+.blockNum{display:grid;place-items:center;flex:0 0 36px;width:36px;height:36px;border-radius:50%;background:#e3ebfb;color:#0e3785;font-size:17px;font-weight:700}
+.bankSearch{position:relative;display:flex;align-items:center;flex:0 0 280px;max-width:100%}
+.bankSearch i{position:absolute;left:14px;color:#6b7c99;font-size:17px}
+.bankSearch input{width:100%;padding:11px 14px 11px 40px;border:1px solid #cdd9ed;border-radius:10px;background:#fff;font-size:14px;color:#0d1828}
+.bankSearch input:focus{outline:2px solid rgba(14,55,133,.35);outline-offset:1px}
+.lastThing .bankGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px;margin-top:16px}
+.lastThing .bankGrid label{display:flex;align-items:center;gap:11px;padding:12px 14px;border:1px solid #dfe7f5;border-radius:12px;background:#fff;cursor:pointer;color:#0d1828;font-size:13.5px;font-weight:600;line-height:1.25;min-height:58px}
+.lastThing .bankGrid label:hover{border-color:#aebfe0}
+.lastThing .bankGrid label.bankOn{border-color:#0e3785;background:#f1f6ff;box-shadow:0 0 0 1px #0e3785 inset}
+.lastThing .bankGrid input{flex:0 0 18px;width:18px;height:18px;accent-color:#0e3785}
+.bankLogo{display:grid;place-items:center;flex:0 0 34px;width:34px;height:34px;border-radius:9px;background:#f4f6fb;overflow:hidden;color:#8a97ae;font-size:18px}
+.bankLogo img{width:100%;height:100%;object-fit:contain}
+.lastThing .balances{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:14px;margin-top:16px}
+.lastThing .balances label{display:flex;align-items:center;gap:14px;padding:14px 18px;border:1px solid #dfe7f5;border-radius:12px;background:#fff}
+.lastThing .balances label>img{flex:0 0 52px;width:52px;height:40px;object-fit:contain}
+.lastThing .balances label>strong{flex:0 0 auto;color:#0d1828;font-size:14.5px;min-width:120px}
+.lastThing .balances label>div{flex:1;min-width:140px}
+@media (max-width:860px){.lastArt{display:none}.bankSearch{flex:1 1 100%}}
+
+/* Step 3: chosen banks + add button, bank picker pop-up */
+.lastThing .bankGrid .bankChip{position:relative;display:flex;align-items:center;gap:11px;padding:12px 14px;border:1px solid #0e3785;border-radius:12px;background:#f1f6ff;box-shadow:0 0 0 1px #0e3785 inset;color:#0d1828;font-size:13.5px;font-weight:600;min-height:58px}
+.bankChip>span:not(:first-child){flex:1}
+.bankChip button{display:grid;place-items:center;width:24px;height:24px;border:0;border-radius:50%;background:transparent;color:#566782;cursor:pointer}
+.bankChip button:hover{background:#dbe6fb;color:#0e3785}
+.lastThing .bankGrid .bankAdd{display:flex;align-items:center;justify-content:center;gap:8px;min-height:58px;padding:12px 14px;border:1.5px dashed #9fb3d9;border-radius:12px;background:#fff;color:#0e3785;font-size:14px;font-weight:700;cursor:pointer}
+.bankAdd:hover{background:#f1f6ff;border-color:#0e3785}
+.bankModalBack{position:fixed;inset:0;z-index:1400;display:grid;place-items:center;padding:16px;background:rgba(8,18,45,.55);backdrop-filter:blur(4px)}
+.bankModal{display:flex;flex-direction:column;gap:14px;width:min(760px,100%);max-height:calc(100vh - 40px);padding:22px;border-radius:18px;background:#fff;box-shadow:0 24px 60px rgba(8,18,45,.4)}
+.bankModalHead{display:flex;align-items:center;justify-content:space-between}
+.bankModalHead h3{margin:0;color:#0d1828;font-size:19px}
+.bankModalHead button{display:grid;place-items:center;width:32px;height:32px;border:0;border-radius:50%;background:#eef3ff;color:#0e3785;cursor:pointer}
+.bankModal .bankSearch{flex:0 0 auto;width:100%}
+.bankModalGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px;overflow-y:auto;margin-top:0;padding:2px}
+.bankModalGrid label{display:flex;align-items:center;gap:11px;padding:12px 14px;border:1px solid #dfe7f5;border-radius:12px;background:#fff;cursor:pointer;color:#0d1828;font-size:13.5px;font-weight:600;min-height:58px}
+.bankModalGrid label.bankOn{border-color:#0e3785;background:#f1f6ff;box-shadow:0 0 0 1px #0e3785 inset}
+.bankModalGrid input{width:18px;height:18px;accent-color:#0e3785}
+.bankModalFoot{display:flex;justify-content:flex-end;gap:10px}
+.bankModalFoot button{padding:10px 22px;border-radius:10px;border:1px solid #cbd8ec;background:#fff;color:#0e3785;font-weight:700;cursor:pointer}
+.bankModalFoot .btn-primary{background:#0e3785;color:#fff;border-color:#0e3785}
+
+/* Hero: one wide banner image (public/trip-planner/hero-banner.webp) with the text on its light left side */
+section.heroBanner{min-height:clamp(300px,27vw,420px);padding-top:56px;padding-bottom:56px;background:#eef3ff url('/trip-planner/hero-banner.webp') right center/cover no-repeat;color:#0d1828}
+section.heroBanner>div{max-width:560px}
+section.heroBanner .kicker,section.heroBanner>div>span{color:#a8801f}
+section.heroBanner h1{color:#0d1828;max-width:560px;text-shadow:0 1px 0 rgba(255,255,255,.6)}
+section.heroBanner p{color:#34476b;font-size:17px}
+@media(max-width:900px){section.heroBanner{background-position:70% center;min-height:300px}section.heroBanner::before{content:'';position:absolute;inset:0;background:linear-gradient(90deg,rgba(255,255,255,.85),rgba(255,255,255,.35))}section.heroBanner{position:relative}section.heroBanner>div{position:relative}}
+section.heroBanner>div{max-width:min(520px,40%)}
+section.heroBanner h1{font-size:clamp(32px,3.3vw,46px);max-width:100%}
+section.heroBanner p{max-width:400px;font-size:16px;line-height:1.55}
+@media(max-width:900px){section.heroBanner>div{max-width:100%}}
+
+/* Hero v2: shorter, text first, the artwork sits on the right half and fades out at the left and bottom */
+section.heroBanner{position:relative;overflow:hidden;min-height:0;height:clamp(250px,21vw,300px);padding:0 24px 0 clamp(24px,10vw,170px);display:flex;align-items:center;background:linear-gradient(90deg,#fdfaf6 0,#f3f6fd 55%,#e7eefc 100%)}
+section.heroBanner::before{display:none}
+section.heroBanner::after{content:'';position:absolute;top:0;right:0;bottom:0;width:min(780px,54%);background:url('/trip-planner/hero-banner.webp') right center/cover no-repeat;
+  -webkit-mask-image:linear-gradient(90deg,transparent 0,#000 22%),linear-gradient(180deg,#000 72%,transparent 100%);-webkit-mask-composite:source-in;
+  mask-image:linear-gradient(90deg,transparent 0,#000 22%),linear-gradient(180deg,#000 72%,transparent 100%);mask-composite:intersect;pointer-events:none}
+section.heroBanner>div{position:relative;z-index:1;max-width:min(520px,48%)}
+section.heroBanner h1{font-size:clamp(30px,3.2vw,46px);line-height:1.08;margin:8px 0 12px;max-width:100%}
+section.heroBanner h1 em{font-style:normal;color:#c8941a}
+section.heroBanner p{max-width:400px;font-size:15.5px;line-height:1.5;margin:0}
+.heroBridge{display:block;margin-top:12px;color:#5a6a85;font-size:12px;font-weight:600;letter-spacing:.01em}
+.heroBridge i{margin:0 3px;color:#c8941a;vertical-align:-1px}
+@media(max-width:900px){section.heroBanner{height:auto;min-height:260px;padding:36px 20px}section.heroBanner::after{width:100%;opacity:.25}section.heroBanner>div{max-width:100%}}
+
+/* Hero v3: artwork shown whole (no cropping), kept inside a centred 1280px frame so it never drifts to the far edge of wide screens */
+section.heroBanner{height:clamp(290px,23vw,340px);padding-left:max(24px,calc((100% - 1280px)/2 + 24px));padding-right:24px}
+section.heroBanner::after{left:auto;width:auto;height:100%;aspect-ratio:2000/742;right:max(0px,calc((100% - 1280px)/2));background-size:contain;background-position:right center;
+  -webkit-mask-image:linear-gradient(90deg,transparent 0,#000 20%),linear-gradient(180deg,#000 82%,transparent 100%);mask-image:linear-gradient(90deg,transparent 0,#000 20%),linear-gradient(180deg,#000 82%,transparent 100%)}
+section.heroBanner>div{max-width:min(500px,46%)}
+@media(max-width:900px){section.heroBanner::after{right:0;opacity:.25}}
+section.heroBanner::after{-webkit-mask-image:linear-gradient(90deg,transparent 0,#000 18%,#000 86%,transparent 100%),linear-gradient(180deg,transparent 0,#000 14%,#000 80%,transparent 100%);mask-image:linear-gradient(90deg,transparent 0,#000 18%,#000 86%,transparent 100%),linear-gradient(180deg,transparent 0,#000 14%,#000 80%,transparent 100%)}
+
+/* Hero v4: the cream left third of the artwork is cropped away, so the photos sit right next to the text; stacks on phones */
+section.heroBanner{height:clamp(280px,22vw,330px);padding-left:max(24px,calc((100% - 1180px)/2 + 24px))}
+section.heroBanner::after{height:100%;width:auto;aspect-ratio:1300/742;right:max(0px,calc((100% - 1180px)/2));background-size:auto 100%;background-position:right center;
+  -webkit-mask-image:linear-gradient(90deg,transparent 0,#000 10%,#000 88%,transparent 100%),linear-gradient(180deg,transparent 0,#000 12%,#000 82%,transparent 100%);
+  mask-image:linear-gradient(90deg,transparent 0,#000 10%,#000 88%,transparent 100%),linear-gradient(180deg,transparent 0,#000 12%,#000 82%,transparent 100%)}
+section.heroBanner>div{max-width:min(480px,44%)}
+@media(max-width:900px){
+  section.heroBanner{height:auto;min-height:0;flex-direction:column;align-items:flex-start;gap:6px;padding:30px 20px 8px}
+  section.heroBanner>div{max-width:100%}
+  section.heroBanner::after{position:relative;inset:auto;right:auto;display:block;align-self:center;width:min(100%,520px);height:auto;aspect-ratio:1300/742;opacity:1;background-size:contain;background-position:center;-webkit-mask-image:none;mask-image:none}
+  section.heroBanner h1{font-size:clamp(30px,8vw,40px)}
+}
+section.heroBanner{height:clamp(290px,23vw,350px);padding-left:max(24px,calc((100% - 1100px)/2 + 24px))}
+section.heroBanner::after{right:max(0px,calc((100% - 1100px)/2))}
+@media(max-width:900px){section.heroBanner{height:auto;padding:30px 20px 8px}section.heroBanner::after{right:auto}}
+@media(max-width:900px){section.heroBanner::after{margin-top:-18px;-webkit-mask-image:linear-gradient(90deg,transparent 0,#000 8%,#000 92%,transparent 100%),linear-gradient(180deg,transparent 0,#000 10%,#000 86%,transparent 100%);mask-image:linear-gradient(90deg,transparent 0,#000 8%,#000 92%,transparent 100%),linear-gradient(180deg,transparent 0,#000 10%,#000 86%,transparent 100%)}}
+
+/* Hero v5: headline, subtitle and three cues on the cream side of the artwork; the whole artwork sits on the right */
+section.heroBanner{height:clamp(360px,29vw,430px);padding-left:max(24px,calc((100% - 1360px)/2 + 24px))}
+section.heroBanner::after{height:100%;width:auto;aspect-ratio:2000/742;right:max(0px,calc((100% - 1360px)/2));background-size:contain;background-position:right center;
+  -webkit-mask-image:linear-gradient(90deg,transparent 0,#000 20%,#000 88%,transparent 100%),linear-gradient(180deg,transparent 0,#000 12%,#000 84%,transparent 100%);
+  mask-image:linear-gradient(90deg,transparent 0,#000 20%,#000 88%,transparent 100%),linear-gradient(180deg,transparent 0,#000 12%,#000 84%,transparent 100%)}
+section.heroBanner>div{max-width:min(640px,50%)}
+section.heroBanner .kicker{color:#1d4fbf}
+section.heroBanner h1{font-size:clamp(34px,3.5vw,50px);line-height:1.06;margin:10px 0 14px}
+section.heroBanner h1 em{color:#2563eb}
+section.heroBanner p{max-width:none;font-size:clamp(15px,1.25vw,18px);color:#4a5b7d}
+.heroCues{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0;margin:22px 0 0;padding:0;list-style:none}
+.heroCues li{display:flex;align-items:flex-start;gap:10px;padding:0 14px}
+.heroCues li:first-child{padding-left:0}
+.heroCues li+li{border-left:1px solid #d6e0f3}
+.cueIcon{flex:0 0 38px;display:grid;place-items:center;width:38px;height:38px;border-radius:50%;font-size:19px}
+.cueBlue{background:#dfe9fd;color:#1d4fbf}
+.cueGreen{background:#d9f3ea;color:#12896a}
+.cueGold{background:#fbeccb;color:#b7791f}
+.heroCues b{display:block;color:#0d1828;font-size:13.5px;line-height:1.25}
+.heroCues small{display:block;margin-top:3px;color:#5d6d8c;font-size:12px;line-height:1.4}
+@media(max-width:900px){
+  section.heroBanner{height:auto;padding:28px 20px 8px}
+  section.heroBanner>div{max-width:100%}
+  section.heroBanner::after{aspect-ratio:1300/742;background-size:contain;background-position:center;right:auto;width:min(100%,520px);height:auto}
+  .heroCues{grid-template-columns:1fr;gap:12px}
+  .heroCues li,.heroCues li:first-child{padding:0;border:0}
+}
+.heroCues{max-width:540px}
+.heroCues li{padding:0 10px;gap:8px}
+.heroCues li:first-child{padding-left:0}
+@media(max-width:900px){.heroCues{max-width:none}.heroCues li,.heroCues li:first-child{padding:0}}
+@media(max-width:900px){.heroCues li+li{border-left:0}}
+
+/* Hero v6: same 1120px frame as the form below, artwork 20% smaller, smaller cue text */
+section.heroBanner{height:clamp(320px,25vw,380px);padding-left:max(24px,calc((100% - 1120px)/2));padding-right:24px}
+section.heroBanner::after{top:10%;bottom:auto;height:80%;right:max(0px,calc((100% - 1120px)/2 - 20px))}
+section.heroBanner>div{max-width:min(580px,52%)}
+section.heroBanner h1{font-size:clamp(30px,3.1vw,44px)}
+section.heroBanner p{font-size:clamp(14px,1.15vw,16.5px)}
+.heroCues{max-width:560px;margin-top:18px}
+.cueIcon{flex:0 0 32px;width:32px;height:32px;font-size:16px}
+.heroCues b{font-size:12px}
+.heroCues small{font-size:11px;margin-top:2px}
+.heroCues li{padding:0 10px;gap:8px}
+.heroCues li:first-child{padding-left:0}
+@media(max-width:900px){
+  section.heroBanner{height:auto;padding:26px 14px 8px}
+  section.heroBanner::after{position:relative;top:auto;right:auto;height:auto;width:min(86%,420px)}
+  .heroCues{max-width:none}
+  section.heroBanner>div{max-width:100%}
+}
+@media(min-width:901px){section.heroBanner::after{right:max(0px,calc((100% - 1120px)/2 - 6px))}}
+@media(max-width:900px){.heroCues li,.heroCues li:first-child,.heroCues li+li{padding:0;border-left:0}}
+.heroCues li:nth-child(2){border-left:0}
+.heroCues li+li{border-left:0!important}
+.cueIcon{font-size:18px}.cueGold{background:#f9e3b0;color:#8f5a05}
+
+/* Steps 1 and 2 take the look of step 3: soft cream panel, serif heading, white bordered tiles */
+.stepPanel.stepPanel{padding:26px 28px;border-radius:18px;background:linear-gradient(135deg,#f6f9ff,#fffaf0);border:1px solid #e3eaf7}
+.stepPanel h2{margin:0;font-family:Georgia,'Times New Roman',serif;font-weight:500;font-size:clamp(24px,3vw,32px);letter-spacing:-.02em;color:#0d1828}
+.stepPanel h2+p{margin:6px 0 0;color:#566782;font-size:15px}
+.stepPanel :global(.sim-setup),.stepPanel :global(.sim-cat),.stepPanel [class*="expenseRow"]{background:#fff;border:1px solid #dfe7f5;border-radius:12px}
+.stepPanel :global(.sim-salary){background:#f6f9ff;border-color:#dfe7f5}
+.stepPanel :global(.sim-eyebrow){color:#a8801b}
+.stepPanel :global(.sim-cat-name),.stepPanel [class*="expenseRow"] span{color:#0d1828}
+.stepPanel [class*="expensesPanel"]{background:transparent;border:0;padding:0;box-shadow:none}
+.stepPanel :global(.sim-reset){color:#0e3785}
+@media(max-width:640px){.stepPanel.stepPanel{padding:20px 16px}}
+
+/* Gold kicker line (as on step 3) and one heading font on all three steps, in sync with the rest of the site */
+.kicker{display:block;color:#a8801b;font-size:11px;font-weight:850;letter-spacing:.2em}
+.stepPanel h2,.lastIntro h2{margin:8px 0 0;font-family:'Plus Jakarta Sans',Inter,sans-serif;font-weight:800;font-size:clamp(22px,2.4vw,26px);letter-spacing:-.03em;line-height:1.2;color:#0d1828}
+.stepPanel h2,.lastIntro h2{font-size:clamp(22px,2.4vw,26px)!important;letter-spacing:-.03em!important}

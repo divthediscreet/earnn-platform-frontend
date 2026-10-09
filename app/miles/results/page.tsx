@@ -11,6 +11,10 @@ import MilesResultPreview from '@/components/miles-goal/MilesResultPreview'
 import MilesResultSummaryCard from '@/components/miles-goal/MilesResultSummaryCard'
 import MilesResultFilters from '@/components/miles-goal/MilesResultFilters'
 import { simulateMilesGoal } from '@/lib/miles-goal/api'
+import CustomizeExistingToggle from '@/components/trip-planner/CustomizeExistingToggle'
+import { simulateTripCustomize } from '@/lib/trip-planner/api'
+import type { TripPlannerRequest } from '@/lib/trip-planner/api'
+import { readExistingOnly, readTripRequest } from '@/lib/trip-planner/session'
 import type {
   Airline, AirlineScope, MilesGoalSimulationResponse, PersonalizedProfile,
   StrategyId, ToggleState,
@@ -82,6 +86,29 @@ function cloneDefaultToggle(response: MilesGoalSimulationResponse): ToggleState 
   }
 }
 
+// ── Trip Planner "Customize My Trip" (?source=trip) ─────────────────────────
+// The same journey and screens, calculated by the Trip Planner engine from the inputs entered there
+// (guaranteed rewards only) instead of the Miles Goal personalise drawer.
+const TRIP_CABIN_STRATEGY: Record<string, StrategyId> = { economy: 'easiest', business: 'dream', upgrade: 'smartest' }
+const TRIP_PARTY_TRAVELLERS: Record<string, Travellers> = {
+  single: { adults: 1, children: 0, infants: 0 },
+  couple: { adults: 2, children: 0, infants: 0 },
+  family4: { adults: 2, children: 2, infants: 0 },
+}
+
+function tripProfile(request: TripPlannerRequest): PersonalizedProfile {
+  const regular = Object.values(request.regular_spend).reduce((sum, value) => sum + value, 0)
+  const bulk = request.scheduled_payments.reduce((sum, payment) => sum + payment.amount_aed * payment.due_months.length, 0)
+  return {
+    salary_aed: request.salary_aed,
+    spend: { ...emptySpendProfile(), miscellaneous: Math.round(regular + bulk / 12) }, // display only: the engine uses the Trip Planner inputs
+    airline_preference: 'none',
+    skywards_miles: request.skywards_balance,
+    etihad_guest_miles: request.etihad_balance,
+    merchant_prefs: {},
+  }
+}
+
 function ViewOneResultsContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -110,6 +137,18 @@ function ViewOneResultsContent() {
   const requestIdRef = useRef(0)
   const controllersRef = useRef<AbortController[]>([])
   const initializedRegionRef = useRef<string | null>(null)
+  const tripMode = searchParams.get('source') === 'trip'
+  // Trip Planner's Customize pop-up already collected the trip: with ?direct=1 the result opens as soon as it is calculated.
+  const preferredAirline = tripMode ? searchParams.get('airline') : null
+  const tripAirlines = useMemo<Airline[]>(() => {
+    const all: Airline[] = region ? [...supportedMilesAirlines(region)] : []
+    return preferredAirline && all.includes(preferredAirline as Airline) ? [preferredAirline as Airline] : all
+  }, [region, preferredAirline])
+  const wizardFlow = tripMode && searchParams.get('direct') === '1'
+  const tripRequestRef = useRef<TripPlannerRequest | null>(null)
+  const tripExistingOnlyRef = useRef(false)
+  const [tripExistingOnly, setTripExistingOnly] = useState(false)
+  const [tripBankCodes, setTripBankCodes] = useState<string[] | null>(null) // banks held, for the Customize toggle (null = not trip mode)
 
   // Do not abort the initial request from an unmount cleanup. React Strict Mode
   // intentionally runs that cleanup once during development, which otherwise
@@ -175,15 +214,23 @@ function ViewOneResultsContent() {
     const settled: PromiseSettledResult<MilesGoalSimulationResponse>[] = []
     for (const [index, airline] of requested.entries()) {
       try {
-        const response = await simulateMilesGoal({
-          destination_region: region.id,
-          airline,
-          salary_aed: nextProfile.salary_aed,
-          spend: nextProfile.spend,
-          current_usable_miles: airline === 'emirates' ? nextProfile.skywards_miles : nextProfile.etihad_guest_miles,
-          merchant_prefs: nextProfile.merchant_prefs,
-          toggle_state: toggles[airline],
-        }, { signal: controllers[index].signal })
+        const response = tripMode && tripRequestRef.current
+          ? await simulateTripCustomize({
+            ...tripRequestRef.current,
+            destination_region: region.id,
+            airline,
+            use_existing_only: tripExistingOnlyRef.current,
+            toggle_state: toggles[airline],
+          }, { signal: controllers[index].signal })
+          : await simulateMilesGoal({
+            destination_region: region.id,
+            airline,
+            salary_aed: nextProfile.salary_aed,
+            spend: nextProfile.spend,
+            current_usable_miles: airline === 'emirates' ? nextProfile.skywards_miles : nextProfile.etihad_guest_miles,
+            merchant_prefs: nextProfile.merchant_prefs,
+            toggle_state: toggles[airline],
+          }, { signal: controllers[index].signal })
         settled.push({ status: 'fulfilled', value: response })
       } catch (reason) {
         settled.push({ status: 'rejected', reason })
@@ -235,7 +282,7 @@ function ViewOneResultsContent() {
       if (requested.length === 1) setAirlineScope(requested[0])
       else setAirlineScope('best')
     }
-  }, [region, toggles, travellers, tripType])
+  }, [region, toggles, travellers, tripType, tripMode])
 
   const submitProfile = useCallback((nextProfile: PersonalizedProfile) => {
     const requested: Airline[] = nextProfile.airline_preference === 'none'
@@ -254,6 +301,12 @@ function ViewOneResultsContent() {
     if (stored?.region_id === region.id && stored.profile && Object.keys(stored.responses).length) {
       const storedLockedOrder = stored.locked_card_order ?? Object.fromEntries(STRATEGY_IDS.map(strategy => [strategy, buildDisplayCards(stored.responses, stored.airline_scope, strategy).map(card => card.earnn_card_id)])) as Partial<Record<StrategyId, string[]>>
       if (!stored.locked_card_order) writeMilesGoalSession({ ...stored, locked_card_order: storedLockedOrder })
+      if (tripMode) {
+        tripRequestRef.current = readTripRequest()
+        setTripBankCodes(tripRequestRef.current?.banks_held ?? [])
+        tripExistingOnlyRef.current = readExistingOnly()
+        setTripExistingOnly(tripExistingOnlyRef.current)
+      }
       setProfile(stored.profile)
       setResponses(stored.responses)
       setToggles(stored.toggles)
@@ -270,13 +323,29 @@ function ViewOneResultsContent() {
     setToggles({})
     setLockedCardOrder({})
     setErrors({})
+    setExistingCardBanks([])
+    setJourneyStep('reveal')
+    const tripRequest = tripMode ? readTripRequest() : null
+    if (tripRequest) {
+      // Arriving from Trip Planner: class, travellers and one-way come from the chosen trip.
+      tripRequestRef.current = tripRequest
+      setTripBankCodes(tripRequest.banks_held ?? [])
+      tripExistingOnlyRef.current = readExistingOnly() && tripRequest.existing_card_ids.length > 0
+      setTripExistingOnly(tripExistingOnlyRef.current)
+      const count = (key: string) => Math.max(0, Math.min(9, Number(searchParams.get(key)) || 0))
+      setTravellers(searchParams.has('adults')
+        ? { adults: Math.max(1, count('adults')), children: count('children'), infants: count('infants') }
+        : TRIP_PARTY_TRAVELLERS[searchParams.get('party') ?? ''] ?? DEFAULT_TRAVELLERS)
+      setTripType(searchParams.get('trip') === 'return' ? 'return' : 'one_way')
+      setFocused(TRIP_CABIN_STRATEGY[searchParams.get('cabin') ?? ''] ?? 'dream')
+      void runSimulation(tripProfile(tripRequest), tripAirlines, true, false, true)
+      return
+    }
     setTravellers(DEFAULT_TRAVELLERS)
     setTripType(DEFAULT_TRIP_TYPE)
-    setExistingCardBanks([])
     setFocused('dream')
-    setJourneyStep('reveal')
     void runSimulation(starterProfile(), supportedAirlines, true, false, true)
-  }, [region, runSimulation, supportedAirlines])
+  }, [region, runSimulation, supportedAirlines, tripAirlines, tripMode, searchParams])
 
   const changeToggle = useCallback((airline: Airline, state: ToggleState) => {
     setToggles(current => ({ ...current, [airline]: state }))
@@ -308,7 +377,8 @@ function ViewOneResultsContent() {
   const startOver = () => {
     controllersRef.current.forEach(controller => controller.abort())
     clearMilesGoalSession()
-    router.push('/miles')
+    // Trip Planner's Customize flow: "New Search" returns to its first step (the region map).
+    router.push(wizardFlow ? '/trip-planner/results?customize=1' : '/miles')
   }
 
   if (!region) return <div className={styles.invalid}><i className="ti ti-map-off" /><h1>Choose a supported destination</h1><p>This route is not part of the current Miles Goal coverage.</p><Link className="btn-primary" href="/miles">View destinations</Link></div>
@@ -339,7 +409,23 @@ function ViewOneResultsContent() {
   const tripLegs = tripType === 'return' ? 2 : 1
   const tripLabel = tripType === 'return' ? 'return ticket' : 'one-way ticket'
   const journeyDestination = region.label
+  // Trip mode has already calculated from the Trip Planner inputs, so "Build My Plan" goes straight to the result.
+  const showTripResults = () => {
+    const scope: AirlineScope = tripAirlines.length === 1 ? tripAirlines[0] : 'best'
+    setLockedCardOrder(Object.fromEntries(STRATEGY_IDS.map(strategy => [strategy, buildDisplayCards(effectiveResponses, scope, strategy).map(card => card.earnn_card_id)])) as Partial<Record<StrategyId, string[]>>)
+    setAirlineScope(scope)
+    setJourneyStep('results')
+    setOpenNewViewWhenReady(true)
+  }
+  const changeTripExisting = (useExistingOnly: boolean, existingCardIds: string[]) => {
+    if (!tripRequestRef.current || !profile) return
+    tripRequestRef.current = { ...tripRequestRef.current, existing_card_ids: existingCardIds }
+    tripExistingOnlyRef.current = useExistingOnly && existingCardIds.length > 0
+    setTripExistingOnly(tripExistingOnlyRef.current)
+    void runSimulation(profile, tripMode ? tripAirlines : supportedAirlines, true)
+  }
   const openPersonalization = (from: Exclude<JourneyStep, 'personalize'>) => {
+    if (tripMode) return showTripResults()
     setReturnStep(from)
     setJourneyStep('personalize')
   }
@@ -355,8 +441,10 @@ function ViewOneResultsContent() {
     })
   }
 
+  // Wizard hand-off: keep the holding screen up from the first frame until the result opens.
+  if (wizardFlow && journeyStep === 'reveal' && !Object.keys(effectiveResponses).length && !Object.keys(errors).length) return <main className={loadingOverlay.screen}><MilesLoadingState destination={region.label} /></main>
   if (loading && journeyStep === 'personalize') return <main className={loadingOverlay.screen}><MilesLoadingState destination={region.label} /></main>
-  if (loading && journeyStep === 'reveal' && !Object.keys(effectiveResponses).length) return <main className={loadingOverlay.targetScreen}><MilesLoadingState destination={region.label} variant="target" /></main>
+  if (loading && journeyStep === 'reveal' && !Object.keys(effectiveResponses).length) return wizardFlow ? <main className={loadingOverlay.screen}><MilesLoadingState destination={region.label} /></main> : <main className={loadingOverlay.targetScreen}><MilesLoadingState destination={region.label} variant="target" /></main>
 
   return <div className={`${styles.page} ${journeyStep !== 'results' ? `${love.page} ${journey.page}` : ''}`}>
     <div className={styles.announcement} aria-live="polite">{announcement}</div>
@@ -364,14 +452,14 @@ function ViewOneResultsContent() {
     {Object.keys(errors).length > 0 && <section className={styles.partial} role="status"><i className="ti ti-alert-triangle" /><div><strong>{Object.keys(effectiveResponses).length ? 'Some airline results are unavailable' : 'We could not build the plan yet'}</strong>{supportedAirlines.filter(airline => errors[airline]).map(airline => <p key={airline}>{airlineLabel(airline)}: {errors[airline]} {profile && <button onClick={() => void runSimulation(profile, [airline], false)}>Retry</button>}</p>)}</div></section>}
 
     {(journeyStep !== 'results' || Object.keys(effectiveResponses).length > 0) && (journeyStep === 'results' ? <>
-      <div className={resultTopBar.bar}><button type="button" onClick={startOver}><i className="ti ti-search" /> New Search</button><Link href={`/miles/results?region=${encodeURIComponent(region.id)}&view=new`}>View 2.0</Link></div>
+      <div className={resultTopBar.bar}><button type="button" onClick={startOver}><i className="ti ti-search" /> New Search</button><Link href={`/miles/results?region=${encodeURIComponent(region.id)}&view=new${wizardFlow ? '&source=trip&direct=1' : ''}`}>View 2.0</Link></div>
       <div className={`${styles.newResultHeading} ${love.resultsHeading}`}><div><span>FASTEST CARDS</span><h2>Here’s your fastest route.</h2></div><button type="button" className={filterButton.button} onClick={() => setFiltersOpen(true)}><i className="ti ti-adjustments-horizontal" /> All filters</button></div>
       {displayCards.length ? <section className={styles.summaryCards}>{displayCards.map(card => <MilesResultSummaryCard key={card.earnn_card_id} card={card} focused={focused} destinationLabel={region.label} monthlySpend={totalSpend} responses={effectiveResponses} toggles={toggles} onToggleChange={changeToggle} onCardNameClick={setDetailCardId} />)}</section> : <section className={styles.empty}><i className="ti ti-plane-off" /><h2>No route reaches this goal within 36 months</h2><p>Try another strategy, airline, or update your spending profile.</p></section>}
     </> : journeyStep === 'personalize' ? <section className={journey.shell} aria-label="Personalize your miles plan">
       <div className={journey.progress}><button type="button" onClick={closeDrawer}><i className="ti ti-arrow-left" /> Back</button></div>
       <MilesCustomizeDrawer open embedded onClose={closeDrawer} onSubmit={submitProfile} initial={returnStep === 'results' ? profile : null} submitting={loading} availableAirlines={supportedAirlines} />
     </section> : <div className={editStep ? journey.editorBackdrop : undefined}><section className={`${journey.shell} ${editStep ? journey.editorDialog : ''}`} aria-live="polite">
-      <div className={journey.progress}>{editStep ? <><span>EDIT TRIP</span><strong>{editStep === 'strategy' ? 'How do you want to fly?' : 'Who is flying?'}</strong><button type="button" onClick={() => setEditStep(null)} aria-label="Close trip editor"><i className="ti ti-x" /></button></> : <><span>YOUR FLIGHT PLAN</span><strong>{journeyDestination} · {STRATEGY_COPY[focused].label}</strong><button type="button" onClick={openAssumptionEditor}><i className="ti ti-pencil" /> Edit assumptions</button></>}</div>
+      <div className={journey.progress}>{editStep ? <><span>EDIT TRIP</span><strong>{editStep === 'strategy' ? 'How do you want to fly?' : 'Who is flying?'}</strong><button type="button" onClick={() => setEditStep(null)} aria-label="Close trip editor"><i className="ti ti-x" /></button></> : <><span>YOUR FLIGHT PLAN</span><strong>{journeyDestination} · {STRATEGY_COPY[focused].label}</strong>{!wizardFlow && <button type="button" onClick={openAssumptionEditor}><i className="ti ti-pencil" /> Edit assumptions</button>}</>}</div>
 
       {editStep === 'strategy' && <section className={`${styles.strategySection} ${love.strategySection} ${density.section} ${journey.strategyStep}`} aria-label="How do you want to fly">
         <h2 className={journey.strategyPrompt}>How do you want to fly?</h2>
@@ -390,11 +478,12 @@ function ViewOneResultsContent() {
 
       {!editStep && selectedStrategy && <section className={journey.centeredStep} aria-label="Flight target">
         <h2 className={journey.revealHeading}>Your trip, unlocked</h2>
-        <p className={journey.tripSummary}>Target miles for <strong>{journeyDestination}</strong> · <strong>{travellerCount} {travellerCount === 1 ? 'person' : 'people'}</strong> · <strong>{STRATEGY_COPY[focused].label}</strong> · <strong>{tripLabel}</strong> <button type="button" onClick={openAssumptionEditor} aria-label="Edit trip assumptions"><i className="ti ti-pencil" /> Edit</button></p>
+        <p className={journey.tripSummary}>Target miles for <strong>{journeyDestination}</strong> · <strong>{travellerCount} {travellerCount === 1 ? 'person' : 'people'}</strong> · <strong>{STRATEGY_COPY[focused].label}</strong> · <strong>{tripLabel}</strong>{!wizardFlow && <> <button type="button" onClick={openAssumptionEditor} aria-label="Edit trip assumptions"><i className="ti ti-pencil" /> Edit</button></>}</p>
         <div className={journey.valueReveal}><div><span>PAY CASH</span><strong className={journey.strike}>{formatAed(maximumCashPrice * travellerCount * tripLegs)}</strong><small>Typical ticket cost</small></div><span className={journey.or}>OR</span><div className={journey.milesOption}><span>UNLOCK WITH MILES <i className="ti ti-sparkles" /></span><strong>{formatNumber(displayedTargetMiles)} <small>miles</small></strong><small>+ airline taxes &amp; charges</small></div></div>
         <div className={journey.goalCallout}><i className="ti ti-sparkles" /><p>Earnn will help you unlock <strong>{formatNumber(displayedTargetMiles)} miles</strong> for this {tripLabel}.</p></div>
-        <div className={journey.timelineCallout}><i className="ti ti-clock-hour-4" /><p>UAE residents could reach this goal in <strong>{selectedCandidate ? timelineBand(selectedCandidate.months_to_goal).replace(/^(As little as |Around )/, '') : 'a personalized timeline'}</strong></p></div>
-        <button className="btn-primary" onClick={() => openPersonalization('reveal')}>Build My Plan <i className="ti ti-arrow-right" /></button>
+        <div className={journey.timelineCallout}><i className="ti ti-clock-hour-4" /><p>{wizardFlow ? 'You would be able to reach this goal in' : 'UAE residents could reach this goal in'} <strong>{selectedCandidate ? timelineBand(selectedCandidate.months_to_goal).replace(/^(As little as |Around )/, '') : 'a personalized timeline'}</strong></p></div>
+        {tripMode && !wizardFlow && tripBankCodes && <CustomizeExistingToggle bankCodes={tripBankCodes} value={tripExistingOnly} onChange={changeTripExisting} />}
+        <button className="btn-primary" onClick={() => openPersonalization('reveal')}>{wizardFlow ? 'Show my plan' : 'Build My Plan'} <i className="ti ti-arrow-right" /></button>
       </section>}
     </section></div>)}
 
