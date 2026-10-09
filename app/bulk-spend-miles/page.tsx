@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import PageHero from '@/components/PageHero'
 import { useRouter } from 'next/navigation'
 import type { BulkPaymentSchedule, BulkSpendTopic } from '@/lib/bulk-spend-miles/api'
 import { getBulkSpendTopics } from '@/lib/bulk-spend-miles/api'
@@ -87,10 +88,9 @@ export default function BulkSpendMilesPage() {
   }
 
   return <div className={styles.page}>
-    <section className={styles.hero}>
-      <div><span className={styles.kicker}>MAXIMISE A BIG PAYMENT</span><h1>Big expenses. Big rewards.</h1><p>Earnn will turn your upcoming big payments into rewards worth getting excited about.</p></div>
-      <aside><i className="ti ti-sparkles" /><span>Spending you already planned can unlock more value.</span></aside>
-    </section>
+    <PageHero tone="dark" gap={40} image="/images/heroes/MaxMile.webp" kicker="MAXIMISE A BIG PAYMENT"
+      title="Big expenses. Big rewards."
+      subtitle="Earnn will turn your upcoming big payments into rewards worth getting excited about." />
 
     <main className={styles.content}>
       <form className={styles.formCard} onSubmit={submit}>

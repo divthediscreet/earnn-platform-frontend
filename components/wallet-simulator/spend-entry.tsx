@@ -52,6 +52,8 @@ interface SpendEntryProps {
   setSplits: Dispatch<SetStateAction<SplitState>>
   /** The button under the summary panel (Analyse: "Build My Smart Wallet", Trip Planner: "Continue"). */
   cta: ReactNode
+  /** Optional control shown on the summary card's top row, right side (the Analyse page puts its Cashback / Miles switch here). */
+  summaryAction?: ReactNode
   error?: string
   /** Optional wording for another page that reuses this form (Analyse keeps the defaults; Trip Planner supplies its own). */
   copy?: Partial<SpendEntryCopy>
@@ -72,7 +74,7 @@ const DEFAULT_COPY: SpendEntryCopy = {
   categoryCount: count => `${count} categor${count === 1 ? 'y' : 'ies'} added`,
 }
 
-export function SpendEntryFields({ spend, setSpend, splits, setSplits, cta, error, copy }: SpendEntryProps) {
+export function SpendEntryFields({ spend, setSpend, splits, setSplits, cta, summaryAction, error, copy }: SpendEntryProps) {
   const text = { ...DEFAULT_COPY, ...copy }
   const amounts = computeAmounts(spend, splits)
   const totalMonthly = Object.values(amounts).reduce((a, b) => a + b, 0)
@@ -167,9 +169,8 @@ export function SpendEntryFields({ spend, setSpend, splits, setSplits, cta, erro
           </section>
 
           <aside className="sim-summary">
-            <div className="sim-eyebrow">{text.summaryTitle}</div>
-            <div className="sim-total">{aed(totalMonthly)}</div>
-            <div className="sim-month">/ month</div>
+            <div className="sim-summary-top"><div className="sim-eyebrow">{text.summaryTitle}</div>{summaryAction}</div>
+            <div className="sim-total-row"><div className="sim-total">{aed(totalMonthly)}</div><div className="sim-month">/ month</div></div>
             {profileItems.length > 0 ? (
               <div className="sim-bars">
                 {profileItems.slice(0, 6).map(g => (
@@ -215,6 +216,11 @@ export function SimulatorStyles() {
         .sim-mode > span { color:#5A6A85; font-size:11px; font-weight:700; white-space:nowrap; padding:0 8px; }
         .sim-mode button { border:0; background:transparent; color:#0E3785; font-size:13px; font-weight:700; padding:6px 14px; border-radius:7px; cursor:pointer; }
         .sim-mode button.on { background:#0E3785; color:#fff; }
+        .sim-setup-trip { border-color:#dfe7f5; }
+        .sim-setup-trip .sim-eyebrow { color:#a8801b; }
+        .sim-setup-trip .sim-salary { background:#f6f9ff; border-color:#dfe7f5; }
+        .sim-modebox { justify-content:flex-start; margin-top:-6px; }
+        .sim-modebox .sim-mode { background:#f6f9ff; border-color:#dfe7f5; }
         .sim-salary { display:flex; align-items:center; gap:10px; border:1px solid #D6E0F5; background:#F8FAFF; border-radius:9px; padding:5px 11px; }
         .sim-salary > span { color:#5A6A85; font-size:11px; font-weight:700; white-space:nowrap; }
         .sim-salary > div { display:flex; align-items:center; gap:6px; }
@@ -256,8 +262,14 @@ export function SimulatorStyles() {
         .sim-aed input::placeholder { color:#7A8CA8; }
         .sim-summary { position:sticky; top:94px; background:linear-gradient(160deg,#0E3785,#08255C); color:white; border-radius:18px; padding:19px; box-shadow:0 14px 28px rgba(10,40,96,.18); }
         .sim-summary .sim-eyebrow { color:#AFC7F6; }
+        .sim-summary-top { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+        .sim-summary .sim-mode { background:rgba(255,255,255,.1); border-color:rgba(255,255,255,.22); padding:2px; }
+        .sim-summary .sim-mode button { color:#DCE6FA; font-size:11.5px; padding:4px 10px; }
+        .sim-summary .sim-mode button.on { background:#FFD76A; color:#092962; }
         .sim-total { font-size:28px; font-weight:850; letter-spacing:-.045em; margin-top:8px; }
-        .sim-month { font-size:12px; color:#B9C9E7; margin-top:1px; }
+        .sim-total-row { display:flex; align-items:baseline; flex-wrap:wrap; gap:0 6px; margin-top:8px; }
+        .sim-total-row .sim-total { margin-top:0; }
+        .sim-month { font-size:12px; color:#B9C9E7; }
         .sim-bars { display:grid; gap:10px; margin:20px 0; }
         .sim-bars > div > div { display:flex; justify-content:space-between; gap:8px; font-size:11px; color:#EAF0FF; margin-bottom:5px; }
         .sim-bars b { color:#FFD76A; }

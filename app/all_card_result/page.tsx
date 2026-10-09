@@ -3,6 +3,7 @@ import { useMemo, useRef, useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { fetchCards, fetchCardDetail, getCardImageUrl } from '@/lib/api'
+import CardNameLink from '@/components/CardNameLink'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TYPES
@@ -529,7 +530,7 @@ function CardTile({ card, detail, detailLoading, expanded, onExpand, onHover, ho
         {/* Name + bank */}
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 15.5, fontWeight: 800, color: '#0D1828', lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {card.card_name}
+            <CardNameLink cardId={card.earnn_card_id}>{card.card_name}</CardNameLink>
           </div>
           <div style={{ fontSize: 11.5, color: '#5A6A85', marginTop: 2 }}>
             {card.bank_name}{card.network ? ` · ${card.network}` : ''}

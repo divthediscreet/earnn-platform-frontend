@@ -1,7 +1,9 @@
 'use client'
 
 import { useState } from 'react'
+import PageHero from '@/components/PageHero'
 import { lookupMerchant, getCardImageUrl, type MerchantLookupCard, type MerchantLookupResult } from '@/lib/api'
+import CardNameLink from '@/components/CardNameLink'
 
 const COLORS = {
   primary:    '#0E3785',
@@ -49,7 +51,7 @@ function CardRow({ card, rank, mode, onShowMalls }: { card: MerchantLookupCard; 
       />
 
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontWeight: 700, fontSize: 15, color: COLORS.text }}>{card.card_name}</div>
+        <div style={{ fontWeight: 700, fontSize: 15, color: COLORS.text }}><CardNameLink cardId={card.earnn_card_id}>{card.card_name}</CardNameLink></div>
         <div style={{ fontSize: 12.5, color: COLORS.secondary, marginTop: 2 }}>{card.bank_name}</div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 10 }}>
@@ -125,6 +127,14 @@ function MallListPopup({ card, onClose }: { card: MerchantLookupCard; onClose: (
   )
 }
 
+const POPULAR_STORES = ['Lulu', 'Carrefour', 'Noon', 'Talabat', 'Amazon', 'Careem', 'Netflix']
+
+const HOW_IT_WORKS = [
+  { icon: 'ti-search', title: 'Search a store', text: 'Any shop, restaurant or app.', bg: '#E3EBFB', color: '#185FA5' },
+  { icon: 'ti-credit-card', title: 'We check every card', text: 'Rates, caps and conditions.', bg: '#DCF3EA', color: '#0F6E56' },
+  { icon: 'ti-trophy', title: 'See what you earn', text: 'The best card, ranked for you.', bg: '#FBEBCB', color: '#854F0B' },
+]
+
 export default function MerchantLookupPage() {
   const [query, setQuery] = useState('')
   const [loading, setLoading] = useState(false)
@@ -151,42 +161,67 @@ export default function MerchantLookupPage() {
   }
 
   return (
-    <div style={{ maxWidth: 760, margin: '0 auto', padding: '48px 20px 80px' }}>
-      <h1 style={{ fontSize: 26, fontWeight: 800, color: COLORS.text, margin: 0 }}>
-        Best Card for This Store
-      </h1>
-      <p style={{ fontSize: 14.5, color: COLORS.secondary, marginTop: 8, lineHeight: 1.5 }}>
-        Search any store, restaurant or app to find the UAE credit cards that reward you most there.
-      </p>
-
-      <div style={{ display: 'flex', gap: 10, marginTop: 24 }}>
-        <input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter') runSearch() }}
-          placeholder="e.g. Lulu, Carrefour, Netflix, Talabat..."
-          style={{
-            flex: 1, padding: '12px 14px', fontSize: 15, borderRadius: 10,
-            border: `1px solid ${COLORS.border}`, outline: 'none', color: COLORS.text,
-          }}
-        />
-        <button
-          onClick={() => runSearch()}
-          disabled={loading || !query.trim()}
-          style={{
-            padding: '12px 22px', fontSize: 15, fontWeight: 700, borderRadius: 10, border: 'none',
-            background: loading || !query.trim() ? '#A9B8D6' : COLORS.primary, color: '#fff',
-            cursor: loading || !query.trim() ? 'default' : 'pointer',
-          }}
-        >
-          {loading ? 'Searching…' : 'Find Best Card'}
-        </button>
+    <>
+    <PageHero tone="light" tall image="/images/heroes/CardMatch.webp" width={1112} titleSize="clamp(30px,3.6vw,50px)"
+      kicker="CARD MATCH" kickerColor="#17265e"
+      title={<span style={{ color: '#17265e' }}>Know which card<br />to use at any store<span style={{ color: '#8a4b2a' }}>.</span></span>}
+      subtitle={<span style={{ color: '#2a3b6f' }}>Search a store, restaurant or merchant and we’ll show you the best card to use and how much you can earn.</span>} />
+    <div style={{ width: 'min(1112px, calc(100% - 48px))', margin: '0 auto', padding: '0 0 80px' }}>
+      <style>{'@media (max-width: 760px) { .cm-search { margin: 14px 0 0 !important; } .cm-how { margin: 16px 0 0 !important; } }'}</style>
+      <div className="cm-search" style={{ position: 'relative', zIndex: 2, margin: '-46px 24px 0', background: '#fff', border: `1px solid ${COLORS.border}`, borderRadius: 16, padding: 16, boxShadow: '0 14px 34px rgba(14,55,133,0.14)' }}>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') runSearch() }}
+            placeholder="Search Lulu, Noon, Talabat, Netflix…"
+            aria-label="Store, restaurant or app"
+            style={{
+              flex: '1 1 260px', padding: '13px 16px', fontSize: 15, borderRadius: 10,
+              border: `1px solid ${COLORS.border}`, outline: 'none', color: COLORS.text,
+            }}
+          />
+          <button
+            onClick={() => runSearch()}
+            disabled={loading || !query.trim()}
+            style={{
+              padding: '13px 26px', fontSize: 15, fontWeight: 800, borderRadius: 10, border: 'none',
+              background: loading || !query.trim() ? '#E7D9AE' : '#FFD76A', color: '#092962',
+              cursor: loading || !query.trim() ? 'default' : 'pointer',
+            }}
+          >
+            {loading ? 'Searching…' : 'Find best card'}
+          </button>
+        </div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, marginTop: 12 }}>
+          <span style={{ fontSize: 12.5, color: COLORS.secondary, fontWeight: 600 }}>Popular:</span>
+          {POPULAR_STORES.map(name => (
+            <button key={name} type="button" disabled={loading}
+              onClick={() => { setQuery(name); runSearch(name) }}
+              style={{ border: `1px solid ${COLORS.border}`, background: COLORS.bgTint, color: COLORS.primary, fontSize: 12.5, fontWeight: 700, padding: '5px 12px', borderRadius: 999, cursor: 'pointer' }}>
+              {name}
+            </button>
+          ))}
+        </div>
       </div>
 
       {error && (
-        <div style={{ marginTop: 20, color: '#C0392B', fontSize: 14 }}>{error}</div>
+        <div style={{ margin: '20px auto 0', maxWidth: 900, color: '#C0392B', fontSize: 14 }}>{error}</div>
       )}
 
+      {!result && !loading && (
+        <div className="cm-how" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14, margin: '22px 24px 0' }}>
+          {HOW_IT_WORKS.map(step => (
+            <div key={step.title} style={{ background: '#fff', border: `1px solid ${COLORS.border}`, borderRadius: 14, padding: '16px 18px' }}>
+              <span aria-hidden style={{ display: 'grid', placeItems: 'center', width: 38, height: 38, borderRadius: '50%', background: step.bg, color: step.color, fontSize: 19 }}><i className={`ti ${step.icon}`} /></span>
+              <div style={{ fontSize: 14.5, fontWeight: 800, color: COLORS.text, marginTop: 10 }}>{step.title}</div>
+              <div style={{ fontSize: 13, color: COLORS.secondary, marginTop: 3, lineHeight: 1.45 }}>{step.text}</div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div style={{ maxWidth: 900, margin: '0 auto' }}>
       {result && result.resolved && (
         <div style={{ marginTop: 28 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', marginBottom: 14 }}>
@@ -234,9 +269,12 @@ export default function MerchantLookupPage() {
         </div>
       )}
 
+      </div>
+
       {mallPopupCard && (
         <MallListPopup card={mallPopupCard} onClose={() => setMallPopupCard(null)} />
       )}
     </div>
+    </>
   )
 }

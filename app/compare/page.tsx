@@ -1,7 +1,9 @@
 'use client'
 import { useMemo, useRef, useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
+import PageHero from '@/components/PageHero'
 import { fetchCards, fetchCardDetail, getCardImageUrl } from '@/lib/api'
+import CardNameLink from '@/components/CardNameLink'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TYPES
@@ -198,6 +200,17 @@ function bestForSectionItems(
 // ─────────────────────────────────────────────────────────────────────────────
 // PAGE
 // ─────────────────────────────────────────────────────────────────────────────
+const CUES: { text: string; bg: string; icon: React.ReactNode }[] = [
+              { text: 'Includes rules, caps and conditions', bg: 'linear-gradient(145deg,#6C6CF0,#4B4BC8)', icon: <><rect x="5" y="3" width="14" height="18" rx="2.5" /><rect x="8" y="6" width="8" height="3.5" rx="0.8" /><path d="M8.5 13h.01M12 13h.01M15.5 13h.01M8.5 16.5h.01M12 16.5h.01M15.5 16.5h.01" strokeWidth="2.4" /></> },
+              { text: 'Compare on your actual terms', bg: 'linear-gradient(145deg,#1FAE8E,#0E7C68)', icon: <><path d="M4 7h9M17 7h3M4 12h3M11 12h9M4 17h11M19 17h1" /><circle cx="15" cy="7" r="2" /><circle cx="9" cy="12" r="2" /><circle cx="17" cy="17" r="2" /></> },
+              { text: 'See how cards perform in practice', bg: 'linear-gradient(145deg,#2F6FF0,#1B49C4)', icon: <><path d="M6 20V11M12 20V5M18 20v-6" strokeWidth="3" /></> },
+              { text: 'Compare up to 3 cards', bg: 'linear-gradient(145deg,#E8A93B,#C4801A)', icon: <><rect x="3" y="5" width="5" height="14" rx="1.5" /><rect x="9.5" y="5" width="5" height="14" rx="1.5" /><rect x="16" y="5" width="5" height="14" rx="1.5" /></> },
+            ]
+
+const rewardRatesOf = (cards: ApiCard[] | undefined) => (cards || [])
+  .map(card => card.effective_reward_rate)
+  .filter((rate): rate is number => typeof rate === 'number' && Number.isFinite(rate))
+
 export default function ComparePage() {
   const [fromResults, setFromResults] = useState(false)
   const [mode, setMode] = useState<ViewMode>('cashback') // cashback by default; miles shows miles cards in miles
@@ -249,6 +262,7 @@ export default function ComparePage() {
 
   // ── Fetch all cards on mount (min 2s display so heading is readable) ───
   const salaryMin = salaryInput === '' ? null : Number(salaryInput)
+  const catalogueModeRef = useRef<string | null>(null)
   const normalisedCardNameQuery = cardNameQuery.trim().toLowerCase()
 
   useEffect(() => {
@@ -259,6 +273,12 @@ export default function ComparePage() {
         if (!active) return
         setCards(promoteOneFamilyMember(d.cards || []))
         setError(null)
+        // Without a salary filter this response IS the full catalogue, so it also feeds the reward-rate badges
+        // (no second request for the same data).
+        if (salaryMin == null) {
+          catalogueModeRef.current = mode
+          setCatalogueRewardRates(rewardRatesOf(d.cards))
+        }
       })
       .catch(e => {
         if (active) setError(e.message)
@@ -271,18 +291,19 @@ export default function ComparePage() {
 
   // The reward-rate badge is benchmarked against the full active catalogue,
   // independent of the user’s temporary salary or card filters.
+  // Only needed while a salary filter hides part of the list; otherwise the main fetch above already supplies it.
   useEffect(() => {
+    if (salaryMin == null || catalogueModeRef.current === mode) return
     let active = true
     fetchCards({ sort_by: 'card_ranking', mode })
       .then(data => {
         if (!active) return
-        setCatalogueRewardRates((data.cards || [])
-          .map((card: ApiCard) => card.effective_reward_rate)
-          .filter((rate: number): rate is number => typeof rate === 'number' && Number.isFinite(rate)))
+        catalogueModeRef.current = mode
+        setCatalogueRewardRates(rewardRatesOf(data.cards))
       })
       .catch(() => { /* The modal safely falls back to its selected cards. */ })
     return () => { active = false }
-  }, [])
+  }, [salaryMin, mode])
 
   // ── Fetch card detail lazily on expand ──────────────────────────────────
   const loadDetail = useCallback(async (cardId: string, refreshLegacyDetail = false) => {
@@ -475,56 +496,28 @@ export default function ComparePage() {
       `}</style>
 
       {/* ── HERO ─────────────────────────────────────────────────────────── */}
-      {!fromResults && <div style={{
-        position: 'relative', overflow: 'hidden', borderRadius: 24,
-        background: 'linear-gradient(120deg, #0A2860 0%, #0E3785 60%, #163E8C 100%)',
-        padding: '40px 40px', marginBottom: 28, color: 'white',
-        boxShadow: '0 12px 44px rgba(14,55,133,0.25)'
-      }}>
-        <div style={{ position: 'absolute', inset: 0, opacity: 0.05, backgroundImage: 'linear-gradient(white 1px, transparent 1px), linear-gradient(90deg, white 1px, transparent 1px)', backgroundSize: '44px 44px' }} />
-        {/* soft bar-chart decoration, bottom right */}
-        <svg className="compare-hero-deco" aria-hidden viewBox="0 0 440 260" preserveAspectRatio="xMaxYMax meet"
-          style={{ position: 'absolute', right: 0, bottom: 0, width: '42%', height: '78%', pointerEvents: 'none', opacity: 0.55 }}>
-          <defs><linearGradient id="cmpBar" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#3B6FE0" stopOpacity="0.85" /><stop offset="1" stopColor="#1B3F9A" stopOpacity="0.15" /></linearGradient></defs>
-          {[[20, 150], [75, 120], [130, 160], [185, 100], [240, 135], [295, 85], [350, 55]].map(([x, y]) => (
-            <rect key={x} x={x} y={y} width="38" height={260 - y} rx="5" fill="url(#cmpBar)" />
+      {!fromResults && <div style={{ marginBottom: 28 }}><PageHero framed={false} tone="light" image="/images/heroes/Compare.webp"
+        kicker="DISCOVER UAE CREDIT CARDS"
+        title={<>Compare real earning potential,<br /><span style={{ color: '#B7791F' }}>not just headline rates.</span></>}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px 0', margin: '14px 0 18px' }}>
+          {CUES.map((f, i, all) => (
+            <div key={f.text} style={{ display: 'flex', alignItems: 'center', gap: 9, paddingRight: 14, marginRight: 14, borderRight: i < all.length - 1 ? '1px solid rgba(13,24,40,0.14)' : 'none' }}>
+              <span aria-hidden style={{ flexShrink: 0, width: 34, height: 34, borderRadius: '50%', background: f.bg, display: 'grid', placeItems: 'center', boxShadow: '0 6px 16px rgba(0,0,0,0.18)' }}>
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">{f.icon}</svg>
+              </span>
+              <span style={{ maxWidth: 122, fontSize: 12, lineHeight: 1.35, color: '#26364f' }}>{f.text}</span>
+            </div>
           ))}
-          <path d="M20 190 C 120 175, 180 150, 250 120 S 340 70, 392 40" fill="none" stroke="#5B8CFF" strokeWidth="3" strokeLinecap="round" />
-          <circle cx="392" cy="40" r="7" fill="white" />
-        </svg>
-        <div style={{ position: 'relative' }}>
-          <div style={{ display: 'inline-block', fontSize: 11.5, fontWeight: 700, letterSpacing: '0.2em', color: '#C9A84C', textTransform: 'uppercase', marginBottom: 14 }}>
-            DISCOVER UAE CREDIT CARDS
-          </div>
-          <h1 style={{ fontSize: 'clamp(26px, 3.3vw, 40px)', fontWeight: 800, letterSpacing: '-0.03em', lineHeight: 1.12, margin: '0 0 24px', color: 'white' }}>
-            Compare real earning potential,<br />
-            <span style={{ color: '#F7C948' }}>not just headline rates.</span>
-          </h1>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '14px 0', marginBottom: 28 }}>
-            {[
-              { text: 'Includes rules, caps and conditions', bg: 'linear-gradient(145deg,#6C6CF0,#4B4BC8)', icon: <><rect x="5" y="3" width="14" height="18" rx="2.5" /><rect x="8" y="6" width="8" height="3.5" rx="0.8" /><path d="M8.5 13h.01M12 13h.01M15.5 13h.01M8.5 16.5h.01M12 16.5h.01M15.5 16.5h.01" strokeWidth="2.4" /></> },
-              { text: 'Compare on your actual terms', bg: 'linear-gradient(145deg,#1FAE8E,#0E7C68)', icon: <><path d="M4 7h9M17 7h3M4 12h3M11 12h9M4 17h11M19 17h1" /><circle cx="15" cy="7" r="2" /><circle cx="9" cy="12" r="2" /><circle cx="17" cy="17" r="2" /></> },
-              { text: 'See how cards perform in practice', bg: 'linear-gradient(145deg,#2F6FF0,#1B49C4)', icon: <><path d="M6 20V11M12 20V5M18 20v-6" strokeWidth="3" /></> },
-              { text: 'Compare up to 3 cards', bg: 'linear-gradient(145deg,#E8A93B,#C4801A)', icon: <><rect x="3" y="5" width="5" height="14" rx="1.5" /><rect x="9.5" y="5" width="5" height="14" rx="1.5" /><rect x="16" y="5" width="5" height="14" rx="1.5" /></> },
-            ].map((f, i, all) => (
-              <div key={f.text} style={{ display: 'flex', alignItems: 'center', gap: 9, paddingRight: 14, marginRight: 14, borderRight: i < all.length - 1 ? '1px solid rgba(255,255,255,0.12)' : 'none' }}>
-                <span aria-hidden style={{ flexShrink: 0, width: 36, height: 36, borderRadius: '50%', background: f.bg, display: 'grid', placeItems: 'center', boxShadow: '0 6px 16px rgba(0,0,0,0.25)' }}>
-                  <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">{f.icon}</svg>
-                </span>
-                <span style={{ maxWidth: 122, fontSize: 12, lineHeight: 1.35, color: 'rgba(255,255,255,0.88)' }}>{f.text}</span>
-              </div>
-            ))}
-          </div>
-          <Link href="/analyse" style={{
-            display: 'inline-flex', alignItems: 'center', gap: 12,
-            background: 'linear-gradient(90deg, #F7C948, #FFD76A)', color: '#0A2860', padding: '16px 34px', borderRadius: 999,
-            fontSize: 17, fontWeight: 800, textDecoration: 'none',
-            boxShadow: '0 12px 34px rgba(247,201,72,0.38)'
-          }}>
-            <span aria-hidden>🎯</span> Personalize these results <span aria-hidden>→</span>
-          </Link>
         </div>
-      </div>}
+        <Link href="/analyse" style={{
+          display: 'inline-flex', alignItems: 'center', gap: 12,
+          background: 'linear-gradient(90deg, #F7C948, #FFD76A)', color: '#0A2860', padding: '13px 28px', borderRadius: 999,
+          fontSize: 16, fontWeight: 800, textDecoration: 'none',
+          boxShadow: '0 12px 34px rgba(247,201,72,0.38)'
+        }}>
+          <span aria-hidden>🎯</span> Personalize these results <span aria-hidden>→</span>
+        </Link>
+      </PageHero></div>}
 
       {/* ── REWARD VIEW: two slim tabs, half the width each, the active one highlighted ── */}
       <div role="tablist" aria-label="Reward view" style={{ display: 'flex', margin: '0 0 12px', padding: 3, gap: 3, borderRadius: 12, background: '#EEF3FF', border: '1px solid #D6E0F5' }}>
@@ -849,7 +842,7 @@ function MilesTileTop({ card, fee, topEarnRates, inCompare, compareFull, onToggl
       {/* name, bank, summary, categories */}
       <div style={{ ...MILES_COL, cursor: 'pointer', flex: '1 1 200px', minWidth: 190 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-          <span style={{ fontSize: 15.5, fontWeight: 800, color: '#0D1828', lineHeight: 1.25 }}>{card.card_name}</span>
+          <span style={{ fontSize: 15.5, fontWeight: 800, color: '#0D1828', lineHeight: 1.25 }}><CardNameLink cardId={card.earnn_card_id}>{card.card_name}</CardNameLink></span>
           {card.free_for_life && <span style={{ background: '#EAFBF4', color: '#00785C', fontWeight: 700, fontSize: 10, padding: '2px 7px', borderRadius: 100 }}>FREE FOR LIFE</span>}
         </div>
         <div style={{ fontSize: 11.5, color: '#5A6A85', marginTop: 3 }}>{card.bank_name} · {card.network}</div>
@@ -978,7 +971,7 @@ function CardTile({ card, detail, detailLoading, inCompare, compareFull, onToggl
         {/* Name + bank */}
         <div className="compare-card-name" style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 15.5, fontWeight: 800, color: '#0D1828', lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {card.card_name}
+            <CardNameLink cardId={card.earnn_card_id}>{card.card_name}</CardNameLink>
           </div>
           <div style={{ fontSize: 11.5, color: '#5A6A85', marginTop: 2 }}>
             {card.bank_name} · {card.network}
@@ -1188,7 +1181,7 @@ function ComparisonTable({ cards, details, onRemove, hoverNav, setHoverNav }: {
                     <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'flex-start' }}>
                       <div>
                         <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.6)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{c.bank_name}</div>
-                        <div style={{ fontSize: 15, fontWeight: 800, color: 'white', marginTop: 2 }}>{c.card_name}</div>
+                        <div style={{ fontSize: 15, fontWeight: 800, color: 'white', marginTop: 2 }}><CardNameLink cardId={c.earnn_card_id}>{c.card_name}</CardNameLink></div>
                       </div>
                       <button onClick={() => onRemove(c.earnn_card_id)} style={{
                         background: 'rgba(255,255,255,0.12)', border: 'none', borderRadius: 6, color: 'white',

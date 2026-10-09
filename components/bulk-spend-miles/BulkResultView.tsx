@@ -14,6 +14,7 @@ import type {
 import { getCardImageUrl } from '@/lib/api'
 import type { BulkResultSort } from './BulkSpendResultFilters'
 import styles from './BulkResultView.module.css'
+import CardNameLink from '@/components/CardNameLink'
 
 export type PlanUnit = 'miles' | 'aed'
 type ItemKind = 'guaranteed' | 'potential' | 'alternative'
@@ -306,7 +307,7 @@ export default function BulkResultView({ unit, plans, sort, includeNewCard, proj
         <p className={styles.heroLead}>Your {formatAed(plannedSpend)} spending plan could earn</p>
         <h2 className={styles.heroValue}>{fmt(unit, headline)}</h2>
         <p className={styles.heroSub}>{headlineLabel(sort, unit)}{unit === 'aed' && plan.fee > 0 && sort === 'combined' ? ` · after ${formatAed(plan.fee)} first-year fee` : ''}</p>
-        <div className={styles.heroCard}><strong>{plan.name}</strong><small>{plan.bank}</small></div>
+        <div className={styles.heroCard}><strong><CardNameLink cardId={plan.id}>{plan.name}</CardNameLink></strong><small>{plan.bank}</small></div>
         {unit === 'miles' && headline > 0 && <div className={styles.heroUnlock}>
           <i className="ti ti-plane-departure" aria-hidden="true" />
           <div><small>This could unlock</small><strong>{travelPotentialForMiles(headline)}</strong></div>
@@ -343,7 +344,7 @@ export default function BulkResultView({ unit, plans, sort, includeNewCard, proj
       {showAll && <ol className={styles.allList}>{plans.map((item, index) => <li key={item.id} className={item.id === plan.id ? styles.allActive : ''}>
         <span className={styles.allRank}>#{index + 1}</span>
         <CardImage id={item.id} width={56} height={35} />
-        <span className={styles.allName}><strong>{item.name}</strong><small>{item.bank}</small></span>
+        <span className={styles.allName}><strong><CardNameLink cardId={item.id}>{item.name}</CardNameLink></strong><small>{item.bank}</small></span>
         <b>{fmt(unit, planMetric(item, sort))}</b>
         <button type="button" onClick={() => choose(item.id)}>{item.id === plan.id ? 'Viewing' : 'See this plan'}</button>
       </li>)}</ol>}
@@ -565,7 +566,7 @@ function Carousel({ plans, pick, sort, unit, topicLabel, onSelect }: { plans: Pl
         {plans.map(item => {
           const difference = planMetric(pick, sort) - planMetric(item, sort)
           return <article key={item.id} data-tile className={styles.tile}>
-            <div className={styles.tileTop}><CardImage id={item.id} width={64} height={40} /><span className={styles.tileName}><strong>{item.name}</strong><small>{item.bank}</small></span></div>
+            <div className={styles.tileTop}><CardImage id={item.id} width={64} height={40} /><span className={styles.tileName}><strong><CardNameLink cardId={item.id}>{item.name}</CardNameLink></strong><small>{item.bank}</small></span></div>
             <b className={styles.tileValue}>{fmt(unit, planMetric(item, sort))}</b>
             <small className={styles.tileDiff}>{difference > 0.5 ? `${fmt(unit, difference)} less than Earnn's pick` : difference < -0.5 ? `${fmt(unit, -difference)} more than Earnn's pick` : "Same as Earnn's pick"}</small>
             {(() => { const reason = reasonFor(item, pick, unit, topicLabel); return <p className={styles.tileReason}>{reason ?? ''}</p> })()}

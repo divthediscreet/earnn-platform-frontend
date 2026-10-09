@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import PageHero from '@/components/PageHero'
 import { recommendWallet, saveSession, SimulatorApiError, useSimulatorSession, type RewardMode, type SimulatorRequest } from '@/lib/wallet-simulator/api'
 import { SPLIT_KEYS, SimulatorStyles, SpendEntryFields, computeAmounts, splitFromAmounts, type SplitState } from '@/components/wallet-simulator/spend-entry'
 import { CardColumnsLoader, loadCardIds, preloadCardImages } from '@/components/wallet-simulator/loading-columns'
@@ -50,15 +51,10 @@ function SpendForm({ initial }: { initial?: SimulatorRequest }) {
 
   return (
     <div className="sim-page">
-      <section className="sim-hero">
-        <div className="sim-hero-grid" />
-        <div className="sim-hero-inner">
-          <div className="sim-hero-badge">UAE&apos;s smartest credit card rewards engine</div>
-          <div className="sim-hero-eyebrow">YOUR SMART WALLET</div>
-          <h1>Find the cards that pay you most</h1>
-          <p>Tell us how you spend. Earnn will build the wallet of up to three cards that earns you the most — and tell you which card to use for what.</p>
-        </div>
-      </section>
+      <PageHero tone="light" tall image="/images/heroes/Analyze-new.webp" width={1112}
+        kicker="ANALYZE" kickerColor="#5a6a85"
+        title={<>Find the cards<br />that pay you <span style={{ color: '#C9972B' }}>most.</span></>}
+        subtitle="Tell us how you spend. Earnn finds the cards that earn you the most — and tells you which card to use where." />
 
       <div className="sim-content">
         <div className="sim-intro">
@@ -70,17 +66,10 @@ function SpendForm({ initial }: { initial?: SimulatorRequest }) {
           <button type="button" className="sim-reset" onClick={() => { setSpend({}); setSplits(splitFromAmounts(undefined)); setError('') }}>Reset amounts</button>
         </div>
 
-        <section className="sim-setup">
+        <section className="sim-setup sim-setup-trip">
           <div className="sim-setup-heading">
-            <div className="sim-eyebrow">A LITTLE ABOUT YOU</div>
-            <p>This helps us check which cards you could be eligible for.</p>
-          </div>
-          <div className="sim-mode" role="radiogroup" aria-label="Which rewards do you want?">
-            <span>I want to earn</span>
-            {(['cashback', 'miles'] as const).map(m => (
-              <button key={m} type="button" role="radio" aria-checked={rewardMode === m} className={rewardMode === m ? 'on' : ''}
-                onClick={() => setRewardMode(m)}>{m === 'cashback' ? 'Cashback' : 'Miles'}</button>
-            ))}
+            <div className="sim-eyebrow">YOUR INCOME</div>
+            <p>This helps us find cards that fit your income.</p>
           </div>
           <label className="sim-salary">
             <span>Monthly salary</span>
@@ -92,7 +81,13 @@ function SpendForm({ initial }: { initial?: SimulatorRequest }) {
           </label>
         </section>
 
-        <SpendEntryFields spend={spend} setSpend={setSpend} splits={splits} setSplits={setSplits} error={error} cta={
+        <SpendEntryFields spend={spend} setSpend={setSpend} splits={splits} setSplits={setSplits} error={error}
+          summaryAction={<div className="sim-mode" role="radiogroup" aria-label="Which rewards do you want?">
+            {(['cashback', 'miles'] as const).map(m => (
+              <button key={m} type="button" role="radio" aria-checked={rewardMode === m} className={rewardMode === m ? 'on' : ''}
+                onClick={() => setRewardMode(m)}>{m === 'cashback' ? 'Cashback' : 'Miles'}</button>
+            ))}
+          </div>} cta={
           <button type="button" className="sim-cta" onClick={submit} disabled={totalMonthly <= 0 || loading}>
             {loading ? 'Building your smart wallet…' : 'Build My Smart Wallet →'}
           </button>} />

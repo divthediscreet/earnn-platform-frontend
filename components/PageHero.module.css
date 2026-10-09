@@ -1,0 +1,36 @@
+.frame{width:min(var(--hero-w,1120px),calc(100% - 48px));margin:18px auto 0}
+.fill{width:100%}
+.hero{position:relative;overflow:hidden;display:flex;align-items:center;min-height:clamp(240px,24vw,300px);padding:34px 40px;border-radius:20px;background:#0e3785 var(--hero-img) right 62%/cover no-repeat;box-shadow:0 12px 34px rgba(14,55,133,.16)}
+.inner{position:relative;z-index:1;max-width:min(620px,58%)}
+.badge{display:inline-block;margin-bottom:10px;padding:5px 12px;border-radius:999px;font-size:11.5px;font-weight:700;letter-spacing:.02em}
+.kicker{display:block;font-size:11.5px;font-weight:800;letter-spacing:.18em;text-transform:uppercase}
+.hero h1{margin:8px 0 10px;font-family:'Plus Jakarta Sans',Inter,sans-serif;font-weight:800;font-size:var(--hero-title-size,clamp(26px,2.8vw,38px));letter-spacing:-.04em;line-height:1.1}
+.hero p{margin:0;font-size:clamp(14px,1.2vw,16.5px);line-height:1.55;max-width:480px}
+
+.dark{color:#fff}
+.dark .badge{background:rgba(255,255,255,.14);color:#dbe6ff;border:1px solid rgba(255,255,255,.22)}
+.dark .kicker{color:#f1c65a}
+.dark h1{color:#fff}
+.dark p{color:#dbe6ff}
+
+.light{color:#0d1828}
+.light .badge{background:rgba(14,55,133,.08);color:#0e3785;border:1px solid rgba(14,55,133,.16)}
+.light .kicker{color:#a8801b}
+.light h1{color:#0d1828}
+.light p{color:#34476b}
+
+@media(max-width:760px){
+  .frame{width:calc(100% - 28px)}
+  .hero{min-height:0;padding:26px 20px;background-position:72% center}
+  .hero::before{content:'';position:absolute;inset:0;z-index:0}
+  .dark::before{background:linear-gradient(90deg,rgba(7,20,52,.78),rgba(7,20,52,.42))}
+  .light::before{background:linear-gradient(90deg,rgba(255,255,255,.88),rgba(255,255,255,.5))}
+  .inner{max-width:100%}
+}
+
+.tall{min-height:clamp(300px,29vw,380px);padding-top:46px;padding-bottom:46px}
+.tall h1{line-height:1.16;margin:12px 0 16px}
+.tall p{line-height:1.7}
+@media(max-width:760px){.tall{min-height:0;padding-top:30px;padding-bottom:30px}}
+.tall h1{font-size:var(--hero-title-size,clamp(32px,3.9vw,56px));letter-spacing:-.045em}
+@media(max-width:760px){.tall h1{font-size:var(--hero-title-size-mobile,clamp(30px,9vw,40px))}}

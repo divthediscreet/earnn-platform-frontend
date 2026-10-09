@@ -27,14 +27,14 @@ interface Message {
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const SUGGESTED = [
-  '🍽️ Best card for dining at restaurants (not delivery)?',
-  '⚖️ Compare ENBD Noon and Mashreq Noon cards?',
-  '📦 Best card to use on Amazon?',
-  '✈️ Best card to use abroad with no FX fee?',
-  '🛒 Which card earns most at Carrefour?',
-  '🎁 Best welcome bonus card right now?',
-  '🆓 Free for life cards with good rewards?',
-  '💼 Card for AED 8,000 salary in UAE?',
+  { icon: 'ti-tools-kitchen-2', bg: '#FAECE7', color: '#B4481F', text: 'Best card for dining at restaurants (not delivery)?' },
+  { icon: 'ti-arrows-diff', bg: '#E1ECFB', color: '#185FA5', text: 'Compare ENBD Noon and Mashreq Noon cards?' },
+  { icon: 'ti-package', bg: '#FAEEDA', color: '#B7791F', text: 'Best card to use on Amazon?' },
+  { icon: 'ti-plane', bg: '#EEEDFE', color: '#534AB7', text: 'Best card to use abroad with no FX fee?' },
+  { icon: 'ti-shopping-cart', bg: '#E1F5EE', color: '#0F6E56', text: 'Which card earns most at Carrefour?' },
+  { icon: 'ti-gift', bg: '#FBEAF0', color: '#B23A68', text: 'Best welcome bonus card right now?' },
+  { icon: 'ti-discount-2', bg: '#EAF3DE', color: '#3B6D11', text: 'Free for life cards with good rewards?' },
+  { icon: 'ti-briefcase', bg: '#E6EEF9', color: '#0E3785', text: 'Card for AED 8,000 salary in UAE?' },
 ]
 
 const EMPTY_PROFILE: SessionProfile = {
@@ -316,13 +316,16 @@ export default function ChatPage() {
   // ─────────────────────────────────────────────────────────────────────────
 
   return (
-    <div className="chat-page" style={{
-      maxWidth: 860, margin: '0 auto', padding: '32px 24px',
-      display: 'flex', flexDirection: 'column', height: 'calc(100dvh - 130px)',
-    }}>
+    <div className="chat-page" style={{ maxWidth: 900, margin: '0 auto', padding: '24px 24px' }}>
+      <div className="chat-card" style={{
+        display: 'flex', flexDirection: 'column', maxHeight: 'calc(100dvh - 150px)',
+        background: '#fff', border: '1px solid #D6E0F5', borderRadius: 18, overflow: 'hidden',
+        boxShadow: '0 12px 34px rgba(14,55,133,0.10)',
+      }}>
       <style>{`
         @media (max-width: 640px) {
-          .chat-page { padding: 20px 16px calc(16px + env(safe-area-inset-bottom)) !important; }
+          .chat-page { padding: 12px 12px calc(12px + env(safe-area-inset-bottom)) !important; }
+          .chat-card { max-height: calc(100dvh - 110px) !important; border-radius: 14px !important; }
           .chat-page input, .chat-page textarea { font-size: 16px !important; }
           .chat-page .mony-md { overflow-wrap: anywhere; }
           .chat-page .mony-md table { display: block; max-width: 100%; overflow-x: auto; white-space: nowrap; -webkit-overflow-scrolling: touch; }
@@ -335,23 +338,22 @@ export default function ChatPage() {
           .chat-page .chat-report-contact { grid-template-columns: 1fr !important; }
         }
       `}</style>
-      {/* Header */}
-      <div style={{ marginBottom: 24, flexShrink: 0 }}>
-        <h1 style={{ fontSize: 28, fontWeight: 800, color: '#0E3785', marginBottom: 4, letterSpacing: '0.03em' }}>
-          ASK EARNIE
-        </h1>
-        <div style={{ color: '#0D1828', fontSize: 17, fontWeight: 700, marginBottom: 4 }}>
-          Your UAE Credit Card Expert
+      {/* Header strip */}
+      <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 12, padding: '14px 20px', background: '#DCE8FB', borderBottom: '1px solid #C6D8F5' }}>
+        <div style={{ position: 'relative', width: 42, height: 42, borderRadius: '50%', background: '#0E3785', color: '#fff', display: 'grid', placeItems: 'center', fontSize: 20, fontWeight: 800, flexShrink: 0 }}>
+          e
+          <span style={{ position: 'absolute', right: 0, bottom: 1, width: 11, height: 11, borderRadius: '50%', background: '#1D9E75', border: '2px solid #DCE8FB' }} />
         </div>
-        <p style={{ color: '#5A6A85', fontSize: 15, margin: 0 }}>
-          Compare cards, understand rewards, or find the right card for how you spend.
-        </p>
+        <div style={{ minWidth: 0 }}>
+          <h1 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: '#0A2860', lineHeight: 1.2 }}>Ask Earnie</h1>
+          <p style={{ margin: '2px 0 0', fontSize: 13, color: '#2A4A86' }}>Your UAE credit card expert. Compare cards, understand rewards, or find the right card for how you spend.</p>
+        </div>
       </div>
 
       {/* Messages */}
       <div style={{
-        flex: 1, overflowY: 'auto', display: 'flex',
-        flexDirection: 'column', gap: 16, paddingBottom: 16,
+        flex: '0 1 auto', minHeight: 0, overflowY: 'auto', display: 'flex',
+        flexDirection: 'column', gap: 8, padding: '12px 16px 10px',
       }}>
         {messages.map((msg, i) => (
           <div key={i}>
@@ -360,26 +362,25 @@ export default function ChatPage() {
               justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start',
             }}>
               <div className="chat-message-bubble" style={{
-                maxWidth: '82%',
-                padding: '14px 18px',
+                maxWidth: '72%',
+                padding: '6px 11px',
                 borderRadius: msg.role === 'user'
-                  ? '18px 18px 4px 18px'
-                  : '18px 18px 18px 4px',
-                background: msg.role === 'user' ? '#0E3785' : 'white',
-                color:      msg.role === 'user' ? 'white' : '#0D1828',
-                border:     msg.role === 'assistant' ? '1px solid #D6E0F5' : 'none',
-                boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-                fontSize: 15, lineHeight: 1.7,
+                  ? '14px 14px 4px 14px'
+                  : '14px 14px 14px 4px',
+                background: '#E6F1FB',
+                color:      '#0D1828',
+                border:     '1px solid #CFE0F5',
+                fontSize: 12.5, lineHeight: 1.5,
               }}>
                 {/* Earnie badge */}
                 {msg.role === 'assistant' && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
                     <div style={{
-                      width: 20, height: 20, background: '#0E3785', borderRadius: 4,
+                      width: 16, height: 16, background: '#0E3785', borderRadius: 4,
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontSize: 11, color: 'white', fontWeight: 700,
+                      fontSize: 10, color: 'white', fontWeight: 700,
                     }}>e</div>
-                    <span style={{ fontSize: 12, fontWeight: 700, color: '#0E3785' }}>Earnie 👋</span>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: '#0E3785' }}>Earnie 👋</span>
                     {msg.answer_provenance && (
                       <span
                         aria-label={provenanceIndicator(msg.answer_provenance).label}
@@ -548,21 +549,26 @@ export default function ChatPage() {
 
         {/* Suggested questions — shown beneath Earnie's initial greeting */}
         {messages.length === 1 && (
-          <div className="chat-suggestions" style={{ display: 'flex', flexWrap: 'wrap', gap: 8, flexShrink: 0, width: '100%' }}>
-            {SUGGESTED.map(q => (
-              <button
-                key={q}
-                onClick={() => send(q)}
-                style={{
-                padding: '8px 12px', background: '#EEF3FF',
-                border: '1px solid #D6E0F5', borderRadius: 100,
-                fontSize: 12.5, fontWeight: 500, color: '#0E3785', cursor: 'pointer',
-                textAlign: 'center', flex: '0 1 auto', maxWidth: '100%', whiteSpace: 'nowrap',
-                }}
-              >
-                {q}
-              </button>
-            ))}
+          <div style={{ flexShrink: 0, width: '100%' }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: '#5A6A85', margin: '4px 0 8px' }}>Try asking</div>
+            <div className="chat-suggestions" style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              {SUGGESTED.map(q => (
+                <button
+                  key={q.text}
+                  onClick={() => send(q.text)}
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 8,
+                    padding: '5px 11px 5px 6px', background: '#fff',
+                    border: '1px solid #D6E0F5', borderRadius: 100,
+                    fontSize: 12, fontWeight: 600, color: '#0D1828', cursor: 'pointer',
+                    textAlign: 'left', flex: '0 1 auto', maxWidth: '100%',
+                  }}
+                >
+                  <span aria-hidden style={{ width: 22, height: 22, borderRadius: '50%', background: q.bg, color: q.color, display: 'grid', placeItems: 'center', fontSize: 13, flexShrink: 0 }}><i className={`ti ${q.icon}`} /></span>
+                  {q.text}
+                </button>
+              ))}
+            </div>
           </div>
         )}
 
@@ -607,9 +613,9 @@ export default function ChatPage() {
         {loading && (
           <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
             <div style={{
-              padding: '14px 18px', background: 'white',
-              borderRadius: '18px 18px 18px 4px',
-              border: '1px solid #D6E0F5', boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+              padding: '7px 11px', background: '#E6F1FB',
+              borderRadius: '14px 14px 14px 4px',
+              border: '1px solid #CFE0F5',
             }}>
               <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
                 {[0, 1, 2].map(j => (
@@ -628,7 +634,7 @@ export default function ChatPage() {
       {/* Input */}
       <div className="chat-composer" style={{
         flexShrink: 0, display: 'flex', gap: 12,
-        paddingTop: 16, borderTop: '1px solid #D6E0F5',
+        padding: '10px 18px', borderTop: '1px solid #D6E0F5', background: '#F7FAFF',
       }}>
         <input className="chat-input"
           value={input}
@@ -636,24 +642,25 @@ export default function ChatPage() {
           onKeyDown={e => e.key === 'Enter' && !e.shiftKey && send(input)}
           placeholder="Ask about any UAE credit card..."
           style={{
-            flex: 1, padding: '14px 18px',
+            flex: 1, padding: '11px 16px',
             border: '1.5px solid #D6E0F5', borderRadius: 12,
-            fontSize: 15, outline: 'none', color: '#0D1828',
+            fontSize: 14.5, outline: 'none', color: '#0D1828',
           }}
         />
         <button className="chat-send-button"
           onClick={() => send(input)}
           disabled={!input.trim() || loading}
           style={{
-            padding: '14px 24px',
-            background: !input.trim() ? '#D6E0F5' : '#0E3785',
-            color: !input.trim() ? '#5A6A85' : 'white',
+            padding: '11px 22px',
+            background: !input.trim() ? '#E7D9AE' : '#FFD76A',
+            color: '#092962',
             border: 'none', borderRadius: 12, fontSize: 15, fontWeight: 700,
             cursor: !input.trim() ? 'not-allowed' : 'pointer', flexShrink: 0,
           }}
         >
           Send →
         </button>
+      </div>
       </div>
 
       {reportingIndex !== null && (
@@ -683,19 +690,19 @@ export default function ChatPage() {
           40% { transform: scale(1); opacity: 1 }
         }
         .mony-md table {
-          border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 14px;
+          border-collapse: collapse; width: 100%; margin: 8px 0; font-size: 12px;
         }
         .mony-md th, .mony-md td {
-          border: 1px solid #D6E0F5; padding: 8px 12px; text-align: left;
+          border: 1px solid #D6E0F5; padding: 5px 9px; text-align: left;
         }
         .mony-md th { background: #EEF3FF; font-weight: 700; color: #0E3785; }
         .mony-md tr:nth-child(even) td { background: #F9FBFF; }
         .mony-md h3 {
-          font-size: 15px; font-weight: 700; color: #0E3785; margin: 16px 0 8px;
+          font-size: 13px; font-weight: 700; color: #0E3785; margin: 10px 0 4px;
         }
         .mony-md ul, .mony-md ol { margin: 8px 0; padding-left: 20px; }
-        .mony-md li { margin-bottom: 4px; line-height: 1.6; }
-        .mony-md p { margin: 6px 0; }
+        .mony-md li { margin-bottom: 2px; line-height: 1.5; }
+        .mony-md p { margin: 3px 0; }
         .mony-md strong { color: #0D1828; }
         .mony-md a { color: #0E3785; }
         .mony-md code {
