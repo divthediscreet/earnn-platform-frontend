@@ -1,0 +1,140 @@
+/* Homepage: four sections (hero, tool tray, personalisation, final CTA). Uses the global button, type and colour tokens. */
+
+.page { background: #F4F6FC; color: var(--earnn-text); overflow-x: clip; }
+
+/* ── 1. Hero ───────────────────────────────────────────── */
+.hero { background: linear-gradient(180deg, #FBF7EF 0%, #F4F6FC 100%); padding: 52px 24px 56px; }
+.heroInner { max-width: 1200px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, .8fr); gap: 40px; align-items: center; min-height: 380px; }
+.eyebrow { margin: 0; font-size: 12px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: #8A6A12; }
+.heroText h1 { margin: 14px 0 18px; max-width: 640px; font-size: clamp(32px, 3.9vw, 52px); line-height: 1.08; letter-spacing: -.035em; color: #0A2860; text-wrap: balance; }
+.heroLead { margin: 0; font-size: clamp(16px, 1.5vw, 19px); line-height: 1.6; color: #3A4A66; }
+.heroActions { display: flex; flex-wrap: wrap; align-items: center; gap: 14px 20px; margin-top: 28px; }
+.uaeLine { font-size: 13px; color: var(--earnn-text-muted); }
+
+.journey { list-style: none; margin: 0; padding: 0; display: flex; gap: 12px; justify-content: flex-end; }
+.journeyStep { flex: 1 1 0; max-width: 120px; display: flex; flex-direction: column; gap: 10px; }
+.journeyFrame { width: 100%; aspect-ratio: 62 / 100; border-radius: 999px 999px 16px 16px; background-repeat: no-repeat; background-color: #DCE6FA; box-shadow: 0 18px 36px -16px rgba(10, 40, 96, .38); }
+.journeyLabel { display: flex; flex-direction: column; gap: 2px; font-size: 11px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: #0A2860; }
+.journeyLabel b { font-size: 10px; color: #8A6A12; letter-spacing: .1em; }
+
+/* ── 2. Tool tray ──────────────────────────────────────── */
+.tools { max-width: 1200px; margin: 0 auto; padding: 28px 24px 72px; scroll-margin-top: 76px; }
+.toolsHead { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; margin-bottom: 22px; }
+.toolsHead h2 { margin: 0; font-size: clamp(28px, 3.4vw, 40px); line-height: 1.1; letter-spacing: -.035em; color: #0A2860; }
+.toolsHead p { margin: 8px 0 0; font-size: 16px; color: var(--earnn-text-muted); }
+.toolsNav { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.toolsNav button { width: 40px; height: 40px; border-radius: 50%; border: 1.5px solid var(--earnn-border); background: #fff; color: var(--earnn-blue); font-size: 17px; cursor: pointer; display: grid; place-items: center; transition: background .2s, border-color .2s; }
+.toolsNav button:hover { background: var(--earnn-blue-pale); border-color: var(--earnn-blue); }
+.counter { margin-right: 6px; font-size: 13px; font-weight: 800; letter-spacing: .08em; color: var(--earnn-text-muted); font-variant-numeric: tabular-nums; }
+
+.tray { display: flex; gap: 12px; height: 336px; }
+.tool { position: relative; flex: 1 1 0; min-width: 0; border-radius: 22px; overflow: hidden; isolation: isolate; background: #081A40; box-shadow: 0 16px 32px -20px rgba(10, 40, 96, .55); transition: flex-grow .42s cubic-bezier(.4, 0, .2, 1); }
+.toolActive { flex-grow: 2.9; }
+.toolPhoto { position: absolute; top: 0; left: 0; width: 100%; height: 64%; object-fit: cover; transition: transform .6s ease; z-index: -2; }
+.tool:hover .toolPhoto { transform: scale(1.04); }
+.toolVeil { position: absolute; inset: 0; z-index: -1; background: linear-gradient(180deg, rgba(8, 26, 64, .1) 0%, rgba(8, 26, 64, 0) 24%, rgba(8, 26, 64, .55) 46%, #081A40 66%, #081A40 100%); }
+
+.teaser { position: absolute; inset: 0; display: flex; flex-direction: column; padding: 16px 12px 18px; color: #fff; pointer-events: none; transition: opacity .22s ease; }
+.toolActive .teaser { opacity: 0; }
+.teaserIcon { width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; background: var(--accent); color: #092962; font-size: 19px; }
+.teaserName { margin-top: auto; margin-bottom: 6px; font-size: 10.5px; font-weight: 800; letter-spacing: .07em; text-transform: uppercase; color: #fff; text-shadow: 0 1px 6px rgba(8, 26, 64, .6); }
+.teaserName::before, .panelLabel::before { content: ''; display: inline-block; width: 7px; height: 7px; margin-right: 6px; border-radius: 50%; background: var(--accent); vertical-align: 1px; }
+.teaserHook { font-size: 14.5px; font-weight: 700; line-height: 1.25; }
+
+.toolHit { position: absolute; inset: 0; z-index: 3; border: 0; background: transparent; cursor: pointer; }
+.toolHit:focus-visible { outline: 3px solid #FFD76A; outline-offset: -3px; border-radius: 22px; }
+.toolActive .toolHit { display: none; }
+
+.panel { position: absolute; top: 0; bottom: 0; left: 0; width: clamp(240px, 30vw, 380px); padding: 20px; display: flex; flex-direction: column; justify-content: space-between; gap: 16px; color: #fff; opacity: 0; transform: translateY(8px); pointer-events: none; z-index: 2; transition: opacity .28s ease, transform .28s ease; }
+.toolActive .panel { opacity: 1; transform: none; pointer-events: auto; transition-delay: .16s; }
+.panelLabel { font-size: 11px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: #fff; text-shadow: 0 1px 6px rgba(8, 26, 64, .6); }
+.panelText h3 { margin: 8px 0 10px; font-size: clamp(22px, 2.4vw, 30px); line-height: 1.12; letter-spacing: -.03em; color: #fff; }
+.panelText p { margin: 0 0 14px; font-size: 14.5px; line-height: 1.55; color: rgba(255, 255, 255, .9); }
+
+.cue { align-self: flex-start; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; padding: 8px 14px; border-radius: 999px; background: rgba(255, 255, 255, .93); color: #0A2860; font-size: 12.5px; font-weight: 700; box-shadow: 0 8px 20px -10px rgba(0, 0, 0, .4); }
+.cue span { display: inline-flex; align-items: center; gap: 5px; }
+.cue em { font-style: normal; color: #8A6A12; }
+.cueSearch { border-radius: 12px; min-width: 210px; gap: 8px; color: #5A6A85; font-weight: 600; }
+.cueSearch i { color: #0A2860; }
+
+/* Ask Earnie has no photo: navy with the Earnn "e" */
+.toolChat { background: linear-gradient(160deg, #0E3785 0%, #0A2860 70%); }
+.toolChat::before { content: 'e'; position: absolute; right: -34px; bottom: -150px; font-family: var(--font-display); font-size: 430px; font-weight: 800; line-height: 1; color: rgba(255, 255, 255, .06); z-index: -1; }
+.toolChat .toolVeil { background: linear-gradient(180deg, rgba(5, 18, 50, 0) 40%, rgba(5, 18, 50, .5) 100%); }
+.chatPreview { align-self: flex-start; display: grid; gap: 6px; width: min(100%, 290px); }
+.bubbleUser { justify-self: end; max-width: 92%; padding: 8px 12px; border-radius: 14px 14px 4px 14px; background: #fff; color: #0D1828; font-size: 12.5px; line-height: 1.4; }
+.bubbleEarnie { display: flex; gap: 8px; align-items: flex-start; padding: 8px 12px; border-radius: 14px 14px 14px 4px; background: #E6F1FB; color: #0D1828; font-size: 12.5px; line-height: 1.4; }
+.bubbleEarnie span { flex: 0 0 18px; height: 18px; border-radius: 50%; background: #0E3785; color: #fff; display: grid; place-items: center; font-size: 10px; font-weight: 800; margin-top: 1px; }
+
+/* ── 3. Why personal ───────────────────────────────────── */
+.personal { background: #fff; padding: 84px 24px; }
+.personalInner { max-width: 1100px; margin: 0 auto; }
+.personalHead { text-align: center; }
+.personalHead h2 { margin: 0; font-size: clamp(28px, 3.4vw, 40px); line-height: 1.12; letter-spacing: -.035em; color: #0A2860; }
+.personalHead p { margin: 12px auto 0; max-width: 520px; font-size: 16px; line-height: 1.6; color: var(--earnn-text-muted); }
+.profiles { list-style: none; margin: 52px 0 0; padding: 0; display: grid; grid-template-columns: repeat(3, 1fr); }
+.profile { padding: 0 28px; text-align: center; border-left: 1px solid #E4EAF5; }
+.profile:first-child { border-left: 0; }
+.profileTop strong { font-family: var(--font-display); font-size: 34px; font-weight: 800; letter-spacing: -.03em; color: var(--tone); }
+.profileTop span { margin-left: 6px; font-size: 13px; color: var(--earnn-text-muted); }
+.spendList { list-style: none; margin: 14px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+.spendList li { padding: 5px 11px; border-radius: 999px; border: 1px solid #E4EAF5; background: #F4F6FC; font-size: 12.5px; font-weight: 600; color: #1C2C4D; }
+.arrow { display: block; margin: 26px 0 22px; font-size: 22px; color: var(--tone); opacity: .7; }
+.fan { position: relative; width: 170px; height: 104px; margin: 0 auto; }
+.fan i { position: absolute; left: 31px; top: 14px; width: 108px; height: 68px; border-radius: 10px; box-shadow: 0 8px 16px -8px rgba(10, 40, 96, .5); }
+.plan { height: 104px; display: flex; align-items: center; justify-content: center; }
+.plan span { width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center; background: #EAF0FF; color: var(--tone); font-size: 20px; }
+.plan b { width: 26px; height: 2px; background: var(--tone); opacity: .5; }
+.outcomeLabel { margin: 14px 0 0; font-size: 15px; font-weight: 800; color: #0A2860; }
+.statement { margin: 68px 0 0; text-align: center; font-family: var(--font-display); font-size: clamp(26px, 3.5vw, 44px); font-weight: 800; line-height: 1.22; letter-spacing: -.03em; color: #0A2860; }
+.statement span { padding: 0 4px; background: linear-gradient(transparent 62%, #FFD76A 62%, #FFD76A 92%, transparent 92%); }
+
+/* ── Privacy strip (slim, before the final CTA) ───────── */
+.trust { background: #F4F6FC; padding: 40px 24px; }
+.trustInner { max-width: 1100px; margin: 0 auto; text-align: center; }
+.trust h2 { margin: 0; font-size: clamp(22px, 2.4vw, 28px); letter-spacing: -.03em; color: #0A2860; }
+.trustList { list-style: none; margin: 26px 0 0; padding: 0; display: grid; grid-template-columns: repeat(4, 1fr); }
+.trustList li { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 2px 22px; border-left: 1px solid #DCE4F3; }
+.trustList li:first-child { border-left: 0; }
+.trustList i { font-size: 24px; color: #0E3785; margin-bottom: 4px; }
+.trustList strong { font-size: 14px; font-weight: 800; line-height: 1.3; color: #0A2860; }
+.trustList span { font-size: 13px; line-height: 1.5; color: var(--earnn-text-muted); }
+
+/* ── 4. Final CTA ──────────────────────────────────────── */
+.final { background: linear-gradient(160deg, #0E3785 0%, #0A2860 100%); color: #fff; padding: 48px 24px; text-align: center; }
+.finalInner { max-width: 680px; margin: 0 auto; }
+.final h2 { margin: 0; font-size: clamp(28px, 3.6vw, 44px); line-height: 1.1; letter-spacing: -.035em; color: #fff; }
+.finalLead { margin: 10px 0 20px; font-size: 18px; color: rgba(255, 255, 255, .86); }
+.finalSmall { margin: 12px 0 0; font-size: 14px; color: rgba(255, 255, 255, .78); }
+.finalUae { margin: 4px 0 0; font-size: 12.5px; color: rgba(255, 255, 255, .55); }
+
+/* ── Tablet and phone ──────────────────────────────────── */
+@media (max-width: 1000px) {
+  .heroInner { grid-template-columns: 1fr; gap: 32px; min-height: 0; }
+  .journey { justify-content: flex-start; }
+  .journeyStep { max-width: 110px; }
+}
+
+@media (max-width: 820px) {
+  .hero { padding: 36px 20px 40px; }
+  .tools { padding: 24px 0 56px; }
+  .toolsHead { padding: 0 20px; }
+  .tray { height: auto; overflow-x: auto; scroll-snap-type: x mandatory; scroll-padding-left: 20px; padding: 4px 20px 18px; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+  .tray::-webkit-scrollbar { display: none; }
+  .tool, .toolActive { flex: 0 0 82%; max-width: 340px; height: 460px; scroll-snap-align: start; transition: none; }
+  .panel { width: 100%; }
+  .personal { padding: 52px 20px; }
+  .profiles { grid-template-columns: 1fr; margin-top: 32px; }
+  .profile { padding: 28px 0; border-left: 0; border-top: 1px solid #E4EAF5; }
+  .profile:first-child { border-top: 0; padding-top: 0; }
+  .final { padding: 40px 20px; }
+  .trust { padding: 32px 20px; }
+  .trustList { grid-template-columns: 1fr 1fr; gap: 22px 0; }
+  .trustList li:nth-child(odd) { border-left: 0; }
+  .trustList li { padding: 2px 14px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tool, .toolPhoto, .panel, .teaser { transition: none; }
+  .tool:hover .toolPhoto { transform: none; }
+}

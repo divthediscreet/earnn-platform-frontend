@@ -24,7 +24,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         </main>
         <FeedbackWidget />
         <footer style={{
-          background: '#0A1A33',
+          background: 'linear-gradient(180deg, #0A2860 0%, #081A40 70%)',
+          borderTop: '1px solid rgba(255,255,255,0.08)',
           color: 'rgba(255,255,255,0.65)',
           padding: '48px 24px 28px',
           fontSize: 14
@@ -33,14 +34,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <div style={{ flex: '1 1 260px', minWidth: 220 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <img src="/earnn_logo.jpeg" alt="earnn" style={{ width: 30, height: 30, borderRadius: 8, objectFit: 'cover' }} />
-                <span style={{ color: 'white', fontWeight: 700, fontSize: 18 }}>earnn.money</span>
+                <span style={{ color: 'white', fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 20, letterSpacing: '-0.02em' }}>earnn.money</span>
               </div>
-              <div style={{ marginTop: 8, fontSize: 13, color: 'rgba(255,255,255,0.5)' }}>AI-Powered Financial Intelligence</div>
+              <div style={{ marginTop: 10, fontSize: 11, fontWeight: 800, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#C9A84C' }}>AI-Powered Financial Intelligence</div>
               <div style={{ marginTop: 4, fontSize: 13, color: 'rgba(255,255,255,0.5)' }}>Registered in the Dubai International Financial Centre (DIFC)</div>
             </div>
 
             <div style={{ minWidth: 140 }}>
-              <div style={{ color: 'white', fontWeight: 700, fontSize: 13, letterSpacing: '0.03em', marginBottom: 12 }}>Company</div>
+              <div style={{ color: 'rgba(255,255,255,0.92)', fontWeight: 800, fontSize: 11.5, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 12 }}>Company</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10, fontSize: 13.5, color: 'rgba(255,255,255,0.6)' }}>
                 <Link href="/" style={{ color: 'inherit', textDecoration: 'none' }}>About</Link>
                 <FooterFeedbackLink style={{ color: 'rgba(255,255,255,0.6)' }} />
@@ -48,7 +49,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </div>
 
             <div style={{ minWidth: 180 }}>
-              <div style={{ color: 'white', fontWeight: 700, fontSize: 13, letterSpacing: '0.03em', marginBottom: 12 }}>Support</div>
+              <div style={{ color: 'rgba(255,255,255,0.92)', fontWeight: 800, fontSize: 11.5, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 12 }}>Support</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10, fontSize: 13.5, color: 'rgba(255,255,255,0.6)' }}>
                 <Link href="/contact-us" style={{ color: 'inherit', textDecoration: 'none' }}>Contact Us</Link>
                 <Link href="/privacy-policy" style={{ color: 'inherit', textDecoration: 'none' }}>Privacy Policy</Link>

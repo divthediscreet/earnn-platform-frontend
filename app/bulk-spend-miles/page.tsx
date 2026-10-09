@@ -88,7 +88,7 @@ export default function BulkSpendMilesPage() {
   }
 
   return <div className={styles.page}>
-    <PageHero tone="dark" gap={40} image="/images/heroes/MaxMile.webp" kicker="MAXIMISE A BIG PAYMENT"
+    <PageHero tone="dark" gap={40} image="/images/heroes/MaxMile.webp" kicker="BIG SPEND PLANNER"
       title="Big expenses. Big rewards."
       subtitle="Earnn will turn your upcoming big payments into rewards worth getting excited about." />
 

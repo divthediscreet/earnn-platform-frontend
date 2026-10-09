@@ -223,3 +223,6 @@ section.heroBanner::after{right:max(24px,calc((100% - 1120px)/2));z-index:0;top:
   section.heroBanner::before{left:14px;right:14px}
   section.heroBanner::after{position:relative;top:auto;right:auto;height:auto;z-index:1}
 }
+
+/* Phones: the airline-miles rows must fit the panel */
+@media(max-width:640px){.lastThing .balances,.balances{grid-template-columns:minmax(0,1fr)}.lastThing .balances label{flex-wrap:wrap;gap:10px 12px;padding:12px 14px}.lastThing .balances label>strong{min-width:0;flex:1 1 calc(100% - 70px)}.lastThing .balances label>div{flex:1 1 100%;min-width:0}}

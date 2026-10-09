@@ -165,7 +165,7 @@ export default function TripPlannerPage() {
 
   return <div className={styles.page}>
     <section className={`${styles.hero} ${tp.heroBanner}`}>
-      <div><span className={styles.kicker}>TRIP PLANNER</span><h1>Turn everyday spending<br />into <em>travel possibilities.</em></h1><p>Tell us how you spend. We’ll show you where it could take you.</p>
+      <div><span className={styles.kicker}>FLY FOR FREE</span><h1>Turn everyday spending<br />into <em>travel possibilities.</em></h1><p>Tell us how you spend. We’ll show you where it could take you.</p>
         <ul className={tp.heroCues}>
           <li><span className={`${tp.cueIcon} ${tp.cueBlue}`}><i className="ti ti-plane-departure" /></span><div><b>See real destinations</b><small>Find out where your spending could take you.</small></div></li>
           <li><span className={`${tp.cueIcon} ${tp.cueGreen}`}><i className="ti ti-credit-card" /></span><div><b>Personalized to you</b><small>Based on your spending and lifestyle.</small></div></li>

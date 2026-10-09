@@ -163,7 +163,7 @@ export default function MerchantLookupPage() {
   return (
     <>
     <PageHero tone="light" tall image="/images/heroes/CardMatch.webp" width={1112} titleSize="clamp(30px,3.6vw,50px)"
-      kicker="CARD MATCH" kickerColor="#17265e"
+      kicker="MATCH & TAP" kickerColor="#17265e"
       title={<span style={{ color: '#17265e' }}>Know which card<br />to use at any store<span style={{ color: '#8a4b2a' }}>.</span></span>}
       subtitle={<span style={{ color: '#2a3b6f' }}>Search a store, restaurant or merchant and we’ll show you the best card to use and how much you can earn.</span>} />
     <div style={{ width: 'min(1112px, calc(100% - 48px))', margin: '0 auto', padding: '0 0 80px' }}>

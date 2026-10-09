@@ -281,10 +281,10 @@ export function SimulatorStyles() {
         .sim-cta { width:100%; margin-top:14px; min-height:var(--btn-height); padding:0 24px; border:0; border-radius:var(--btn-radius); background:var(--btn-gold); color:var(--btn-ink); font-size:var(--btn-font-size); font-weight:var(--btn-font-weight); cursor:pointer; transition:background .2s ease; }
         .sim-cta:hover:not(:disabled) { background:var(--btn-gold-hover); }
         .sim-cta:disabled { background:#7F95BD; color:#DCE6FA; cursor:not-allowed; }
-        @media (max-width:780px) { .sim-layout { grid-template-columns:1fr; } .sim-summary { position:static; } .sim-pairs { grid-template-columns:1fr; } }
+        @media (max-width:780px) { .sim-layout { grid-template-columns:minmax(0,1fr); } .sim-summary { position:static; } .sim-pairs { grid-template-columns:minmax(0,1fr); } }
         @media (max-width:560px) {
           .sim-content, .sim-hero { padding-left:16px; padding-right:16px; }
-          .sim-grid, .sim-pairs { grid-template-columns:1fr; }
+          .sim-grid, .sim-pairs { grid-template-columns:minmax(0,1fr); } .sim-cat { min-width:0; }
           .sim-intro { align-items:flex-start; flex-direction:column; gap:4px; }
         }
     `}</style>

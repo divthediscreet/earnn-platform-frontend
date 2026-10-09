@@ -52,7 +52,7 @@ function SpendForm({ initial }: { initial?: SimulatorRequest }) {
   return (
     <div className="sim-page">
       <PageHero tone="light" tall image="/images/heroes/Analyze-new.webp" width={1112}
-        kicker="ANALYZE" kickerColor="#5a6a85"
+        kicker="BEST FOR ME" kickerColor="#5a6a85"
         title={<>Find the cards<br />that pay you <span style={{ color: '#C9972B' }}>most.</span></>}
         subtitle="Tell us how you spend. Earnn finds the cards that earn you the most — and tells you which card to use where." />
 

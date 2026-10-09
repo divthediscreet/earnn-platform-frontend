@@ -483,6 +483,7 @@ export default function ComparePage() {
           .compare-all-filters-trigger { grid-column: 1 / -1; }
           .compare-filter-search input { min-height: 44px !important; font-size: 16px !important; }
           .compare-card-name { flex-basis: calc(100% - 122px); }
+          .compare-card-name > div:first-child { white-space: normal !important; overflow: visible !important; text-overflow: clip !important; }
           .compare-card-score { padding: 5px 8px !important; gap: 4px !important; }
           .compare-card-score > span:last-child { display: none; }
           .compare-card-select { margin-left: auto; }
@@ -497,7 +498,7 @@ export default function ComparePage() {
 
       {/* ── HERO ─────────────────────────────────────────────────────────── */}
       {!fromResults && <div style={{ marginBottom: 28 }}><PageHero framed={false} tone="light" image="/images/heroes/Compare.webp"
-        kicker="DISCOVER UAE CREDIT CARDS"
+        kicker="COMPARE"
         title={<>Compare real earning potential,<br /><span style={{ color: '#B7791F' }}>not just headline rates.</span></>}>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px 0', margin: '14px 0 18px' }}>
           {CUES.map((f, i, all) => (

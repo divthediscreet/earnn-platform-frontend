@@ -40,8 +40,8 @@ export default function Navbar() {
             Best for Me
           </Link>
           {/* Analyze-old (/analyse-old) is hidden from the nav for now; the page still works by URL. To be deleted later. */}
-          <Link href="/compare" style={navLinkStyle}>
-            Compare
+          <Link href="/trip-planner" style={navLinkStyle}>
+            Fly for Free ✈
           </Link>
           <Link href="/merchant-lookup" style={navLinkStyle}>
             Match & Tap
@@ -50,8 +50,8 @@ export default function Navbar() {
           <Link href="/bulk-spend-miles" style={navLinkStyle}>
             Big Spend Planner
           </Link>
-          <Link href="/trip-planner" style={navLinkStyle}>
-            Fly for Free ✈
+          <Link href="/compare" style={navLinkStyle}>
+            Compare
           </Link>
           <Link href="/chat" style={navLinkStyle}>
             Ask Earnie
@@ -64,10 +64,10 @@ export default function Navbar() {
       {menuOpen && (
         <div className={styles.mobileNavMenu}>
           <Link href="/analyse" onClick={() => setMenuOpen(false)}>Best for Me</Link>
-          <Link href="/compare" onClick={() => setMenuOpen(false)}>Compare</Link>
+          <Link href="/trip-planner" onClick={() => setMenuOpen(false)}>Fly for Free ✈</Link>
           <Link href="/merchant-lookup" onClick={() => setMenuOpen(false)}>Match & Tap</Link>
           <Link href="/bulk-spend-miles" onClick={() => setMenuOpen(false)}>Big Spend Planner</Link>
-          <Link href="/trip-planner" onClick={() => setMenuOpen(false)}>Fly for Free ✈</Link>
+          <Link href="/compare" onClick={() => setMenuOpen(false)}>Compare</Link>
           <Link href="/chat" onClick={() => setMenuOpen(false)}>Ask Earnie</Link>
         </div>
       )}

@@ -23,8 +23,8 @@
   .frame{width:calc(100% - 28px)}
   .hero{min-height:0;padding:26px 20px;background-position:72% center}
   .hero::before{content:'';position:absolute;inset:0;z-index:0}
-  .dark::before{background:linear-gradient(90deg,rgba(7,20,52,.78),rgba(7,20,52,.42))}
-  .light::before{background:linear-gradient(90deg,rgba(255,255,255,.88),rgba(255,255,255,.5))}
+  .dark::before{background:linear-gradient(90deg,rgba(7,20,52,.84),rgba(7,20,52,.62))}
+  .light::before{background:linear-gradient(90deg,rgba(255,255,255,.92),rgba(255,255,255,.74))}
   .inner{max-width:100%}
 }
 
