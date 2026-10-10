@@ -97,7 +97,7 @@ function SpendForm({ initial }: { initial?: SimulatorRequest }) {
             <button key={m} type="button" role="tab" aria-selected={mode === m} className={mode === m ? 'on' : ''}
               onClick={() => { setMode(m); setError('') }}>
               {m === 'upload' ? '📄 Upload Statement' : '✏️ Manual Entry'}
-              <small className={m === 'upload' ? 'rec' : ''}>{m === 'upload' ? 'RECOMMENDED' : 'Don’t want to upload?'}</small>
+              <small className={m === 'upload' ? 'rec' : ''}>{m === 'upload' ? 'RECOMMENDED' : 'Enter spending yourself'}</small>
             </button>
           ))}
         </div>
@@ -153,16 +153,19 @@ function SpendForm({ initial }: { initial?: SimulatorRequest }) {
 
       <SimulatorStyles />
       <style>{`
-        .sim-trust { display:flex; gap:10px; justify-content:center; flex-wrap:wrap; margin:18px 0 0; }
+        .sim-page .sim-content { padding-top:12px; }
+        .sim-trust { display:flex; gap:10px; justify-content:center; flex-wrap:wrap; margin:10px 0 0; }
         .sim-trust > div { display:flex; align-items:center; gap:6px; background:#EEF3FF; border:1px solid #D6E0F5; border-radius:6px; padding:5px 12px; max-width:100%; }
         .sim-trust > div > span:first-child { font-size:13px; flex-shrink:0; }
         .sim-trust > div > span:last-child { font-size:11px; font-weight:600; color:#0E3785; }
-        .sim-method-switch { display:grid; grid-template-columns:1fr 1fr; gap:4px; background:#EEF3FF; border:1px solid #D6E0F5; border-radius:12px; padding:4px; max-width:500px; margin:16px auto; }
+        @media (max-width:560px) { .sim-trust { gap:6px; } .sim-trust > div { padding:4px 9px; } .sim-trust > div > span:last-child { font-size:10.5px; } }
+        .sim-method-switch { display:grid; grid-template-columns:1fr 1fr; gap:4px; background:#EEF3FF; border:1px solid #D6E0F5; border-radius:12px; padding:4px; max-width:500px; margin:10px auto; }
         .sim-method-switch button { min-height:42px; padding:7px 12px; border-radius:8px; border:0; cursor:pointer; text-align:center; font-size:13px; font-weight:700; background:transparent; color:#5A6A85; transition:all .2s; }
         .sim-method-switch button.on { background:#0E3785; color:#fff; }
         .sim-method-switch small { display:block; margin-top:1px; font-size:9px; line-height:1.1; font-weight:800; color:#7A8CA8; }
         .sim-method-switch button.on small { color:rgba(255,255,255,.72); }
-        .sim-method-switch small.rec { letter-spacing:.08em; color:#FFD76A; animation:simRecFlash 1.35s ease-in-out infinite; }
+        .sim-method-switch small.rec { letter-spacing:.08em; color:#A8801B; animation:simRecFlash 1.35s ease-in-out infinite; }
+        .sim-method-switch button.on small.rec { color:#FFD76A; }
         @keyframes simRecFlash { 0%,100% { opacity:.45; } 50% { opacity:1; text-shadow:0 0 8px rgba(255,215,106,.72); } }
       `}</style>
     </div>

@@ -155,10 +155,18 @@ export function StatementUpload({ onSubmit, submitting, submitError }: {
 
   return (
     <>
+      <style>{`
+        @media (max-width: 560px) {
+          .su-banner { flex-wrap: wrap; padding: 12px 14px !important; gap: 10px 12px !important; margin-bottom: 20px !important; }
+          .su-banner-text { flex: 1 1 0; min-width: 0; }
+          .su-banner-btn { width: 100%; }
+          .su-review { padding: 16px !important; }
+        }
+      `}</style>
       {scanning && <PdfScanOverlay />}
 
       {review ? (
-        <div style={{ background: 'white', borderRadius: 20, border: '1px solid #D6E0F5', padding: 'clamp(18px, 4vw, 40px)', boxShadow: '0 4px 24px rgba(14,55,133,0.08)', marginBottom: 24 }}>
+        <div className="su-review" style={{ background: 'white', borderRadius: 20, border: '1px solid #D6E0F5', padding: 'clamp(18px, 4vw, 40px)', boxShadow: '0 4px 24px rgba(14,55,133,0.08)', marginBottom: 24 }}>
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
             <button type="button" onClick={() => { setReview(null); setCurrentCardId(null); setSalary(''); salaryTouchedRef.current = false; setFile(null); setPasswordMode(null); setPassword(''); setError(''); setReviewError('') }}
               style={{ background: 'none', border: '1px solid #D6E0F5', borderRadius: 8, padding: '7px 16px', fontSize: 13, fontWeight: 600, color: '#5A6A85', cursor: 'pointer' }}>
@@ -166,10 +174,10 @@ export function StatementUpload({ onSubmit, submitting, submitError }: {
             </button>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 28, padding: '16px 20px', borderRadius: 12, background: '#EEF3FF', border: '1px solid #D6E0F5' }}>
+          <div className="su-banner" style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 28, padding: '16px 20px', borderRadius: 12, background: '#EEF3FF', border: '1px solid #D6E0F5' }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={review.earnn_card_id ? getCardImageUrl(review.earnn_card_id) : '/card-dummy.svg'} onError={e => { (e.target as HTMLImageElement).src = '/card-dummy.svg' }} alt="" style={{ width: 64, height: 40, borderRadius: 6, flexShrink: 0, objectFit: 'cover' }} />
-            <div style={{ flex: 1, minWidth: 0 }}>
+            <div className="su-banner-text" style={{ flex: 1, minWidth: 0 }}>
               {currentCardId && cardInfo ? (
                 <>
                   <div style={{ fontSize: 12, color: '#5A6A85', fontWeight: 600, marginBottom: 2 }}>{review.earnn_card_id === currentCardId ? 'WE DETECTED YOUR CARD' : 'YOUR CARD'}</div>
@@ -185,7 +193,7 @@ export function StatementUpload({ onSubmit, submitting, submitError }: {
                 </>
               )}
             </div>
-            <button type="button" onClick={() => { setPickerOpen(v => !v); setPickerBank('') }}
+            <button className="su-banner-btn" type="button" onClick={() => { setPickerOpen(v => !v); setPickerBank('') }}
               style={{ flexShrink: 0, padding: '9px 16px', borderRadius: 8, border: '1.5px solid #0E3785', background: 'white', color: '#0E3785', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
               {currentCardId ? 'Change card' : '+ Add card manually'}
             </button>
@@ -339,8 +347,8 @@ export function StatementUpload({ onSubmit, submitting, submitError }: {
           <ParseDataDebug data={review} />
         </div>
       ) : (
-        <div style={{ maxWidth: 760, margin: '0 auto 24px', background: 'white', borderRadius: 16, border: '0.5px solid #D6E0F5', padding: '18px 20px', boxShadow: '0 2px 12px rgba(14,55,133,0.06)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+        <div style={{ maxWidth: 760, margin: '0 auto 24px', background: 'white', borderRadius: 16, border: '0.5px solid #D6E0F5', padding: '14px 18px', boxShadow: '0 2px 12px rgba(14,55,133,0.06)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
             <div
               onDragOver={e => { e.preventDefault(); setDragging(true) }}
               onDragLeave={() => setDragging(false)}
@@ -362,7 +370,7 @@ export function StatementUpload({ onSubmit, submitting, submitError }: {
                 ) : (
                   <>
                     <div style={{ fontSize: 14, fontWeight: 700, color: '#0E3785' }}>Drop your credit card statement here</div>
-                    <div style={{ fontSize: 11, color: '#9DAEC8' }}>PDF · ENBD, FAB, ADCB, RAK, HSBC, Citi</div>
+                    <div style={{ fontSize: 11, color: '#9DAEC8' }}>PDF · Most UAE bank statements supported</div>
                   </>
                 )}
               </div>
@@ -374,7 +382,7 @@ export function StatementUpload({ onSubmit, submitting, submitError }: {
             <input ref={fileRef} type="file" accept=".pdf" style={{ display: 'none' }} onChange={e => { const f = e.target.files?.[0]; if (f) { setFile(f); setPasswordMode(null); setPassword('') } }} />
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 12 }}>
             <span style={{ fontSize: 12, color: '#5A6A85', fontWeight: 500, flexShrink: 0 }}>Password protected?</span>
             {(['none', 'has_password'] as const).map(opt => (
               <button type="button" key={opt} onClick={() => { setPasswordMode(opt); if (opt === 'none') setPassword('') }} style={{
@@ -406,12 +414,9 @@ export function StatementUpload({ onSubmit, submitting, submitError }: {
             )}
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 9, marginBottom: 18, padding: '10px 12px', borderRadius: 10, background: 'rgba(76, 175, 136, 0.1)', border: '1px solid rgba(76, 175, 136, 0.25)' }}>
-            <span style={{ fontSize: 17, flexShrink: 0, lineHeight: 1.35 }}>🔒</span>
-            <div style={{ display: 'grid', gap: 3, color: '#153A70', fontSize: 13, lineHeight: 1.45 }}>
-              <span style={{ fontWeight: 700 }}>Encrypted during processing · Statement deleted after analysis</span>
-              <span style={{ color: '#496481' }}>Processed securely in the UAE. Never sent to GPT models.</span>
-            </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14, padding: '8px 12px', borderRadius: 10, background: 'rgba(76, 175, 136, 0.1)', border: '1px solid rgba(76, 175, 136, 0.25)', color: '#153A70', fontSize: 13, fontWeight: 600 }}>
+            <span style={{ fontSize: 15, flexShrink: 0 }}>🔒</span>
+            <span>Processed securely in the UAE · Deleted after analysis</span>
           </div>
 
           {error && <div style={{ background: '#FFF3F0', border: '1px solid #FFD0C8', borderRadius: 8, padding: '10px 14px', color: '#C0392B', fontSize: 13, marginBottom: 14 }}>⚠️ {error}</div>}
@@ -420,7 +425,7 @@ export function StatementUpload({ onSubmit, submitting, submitError }: {
             width: '100%', padding: '13px', fontSize: 14, fontWeight: 700, border: 'none', borderRadius: 10, transition: 'all 0.2s',
             background: uploadReady ? '#0E3785' : '#D6E0F5', color: uploadReady ? 'white' : '#9DAEC8', cursor: uploadReady ? 'pointer' : 'not-allowed',
           }}>
-            {scanning ? 'Analysing your statement…' : uploadReady ? 'Analyze my statement →' : 'Select a file to continue'}
+            {scanning ? 'Analysing your statement…' : uploadReady ? 'Analyse my spending →' : 'Select a statement to continue'}
           </button>
         </div>
       )}
