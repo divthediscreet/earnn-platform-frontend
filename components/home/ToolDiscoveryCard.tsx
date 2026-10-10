@@ -49,6 +49,8 @@ export default function ToolDiscoveryCard({ tool, index, active, onSelect, onKey
         <img
           className={s.toolPhoto}
           src={tool.image.src}
+          srcSet={`${tool.image.src.replace('.webp', '-800.webp')} 800w, ${tool.image.src} 1200w`}
+          sizes="(max-width: 820px) 560px, 400px"
           alt=""
           loading={index < 2 ? 'eager' : 'lazy'}
           decoding="async"

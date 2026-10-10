@@ -29,7 +29,7 @@ export const TOOLS: HomeTool[] = [
     visual: 'wallet',
     icon: 'ti-wallet',
     accent: '#FFD76A',
-    image: { src: '/images/heroes/Analyze-new.webp', alt: 'Several UAE bank cards fanned out of a leather wallet on a marble desk', fx: 0.78, fy: 0.5 },
+    image: { src: '/images/home/tile-best.webp', alt: 'Several UAE bank cards fanned out of a leather wallet on a marble desk', fx: 0.5, fy: 0.5 },
   },
   {
     key: 'fly',
@@ -42,7 +42,7 @@ export const TOOLS: HomeTool[] = [
     visual: 'travel',
     icon: 'ti-plane-departure',
     accent: '#FF9E8A',
-    image: { src: '/images/heroes/TripPlanner.webp', alt: 'A business-class cabin, an infinity pool and a city skyline', fx: 0.74, fy: 0.5 },
+    image: { src: '/images/home/tile-fly.webp', alt: 'A business-class cabin, an infinity pool and a city skyline', fx: 0.5, fy: 0.5 },
   },
   {
     key: 'tap',
@@ -55,7 +55,7 @@ export const TOOLS: HomeTool[] = [
     visual: 'tap',
     icon: 'ti-device-mobile-search',
     accent: '#6FD6B5',
-    image: { src: '/images/heroes/CardMatch.webp', alt: 'A card in a payment terminal on a counter inside a shopping mall', fx: 0.8, fy: 0.6 },
+    image: { src: '/images/home/tile-tap.webp', alt: 'A card in a payment terminal on a counter inside a shopping mall', fx: 0.5, fy: 0.5 },
   },
   {
     key: 'big',
@@ -68,7 +68,7 @@ export const TOOLS: HomeTool[] = [
     visual: 'calendar',
     icon: 'ti-calendar-event',
     accent: '#FFB86B',
-    image: { src: '/images/heroes/MaxMile.webp', alt: 'A desk calendar with upcoming plans pinned to it, next to a passport and suitcase', fx: 0.82, fy: 0.55 },
+    image: { src: '/images/home/tile-big.webp', alt: 'A desk calendar with upcoming plans pinned to it, next to a passport and suitcase', fx: 0.5, fy: 0.5 },
   },
   {
     key: 'compare',
@@ -81,7 +81,7 @@ export const TOOLS: HomeTool[] = [
     visual: 'compare',
     icon: 'ti-arrows-diff',
     accent: '#8FB8FF',
-    image: { src: '/images/heroes/Compare.webp', alt: 'Three credit cards standing side by side on a marble plinth', fx: 0.8, fy: 0.55 },
+    image: { src: '/images/home/tile-compare.webp', alt: 'Three credit cards standing side by side on a marble plinth', fx: 0.56, fy: 0.5 },
   },
   {
     key: 'earnie',

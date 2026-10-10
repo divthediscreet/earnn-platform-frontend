@@ -1,15 +1,14 @@
 'use client'
 
-import { cropStyle } from './tools'
 import s from './Home.module.css'
 
 // The "spending journey": an everyday moment, the card decision, the tap, and where it can lead.
-const FRAME_ASPECT = 0.62
+// Each picture is a pre-cropped, sharpened image (public/images/home) at 2x and 3x so it stays crisp on high-density screens.
 const JOURNEY = [
-  { step: 'Spend', alt: 'A cup of coffee on a marble table', src: '/images/heroes/Analyze-new.webp', crop: cropStyle(0.965, 0.62, 2.0, FRAME_ASPECT) },
-  { step: 'Choose', alt: 'Bank cards in a leather wallet', src: '/images/heroes/Analyze-new.webp', crop: cropStyle(0.72, 0.5, 1.15, FRAME_ASPECT) },
-  { step: 'Earn', alt: 'A card tapped on a payment terminal in a mall', src: '/images/heroes/CardMatch.webp', crop: cropStyle(0.77, 0.68, 1.3, FRAME_ASPECT) },
-  { step: 'Experience', alt: 'An infinity pool above the sea', src: '/images/heroes/TripPlanner.webp', crop: cropStyle(0.715, 0.28, 2.2, FRAME_ASPECT, 2.695) },
+  { step: 'Spend', alt: 'A cup of coffee on a marble table', file: 'journey-spend' },
+  { step: 'Choose', alt: 'Bank cards in a leather wallet', file: 'journey-choose' },
+  { step: 'Earn', alt: 'A card tapped on a payment terminal in a mall', file: 'journey-earn' },
+  { step: 'Experience', alt: 'An infinity pool above the sea', file: 'journey-experience' },
 ]
 
 export default function HomeHero() {
@@ -41,11 +40,15 @@ export default function HomeHero() {
         <ol className={s.journey} aria-label="From everyday spending to better outcomes">
           {JOURNEY.map((j, i) => (
             <li key={j.step} className={s.journeyStep} style={{ marginTop: i % 2 ? 34 : 0 }}>
-              <div
+              <img
                 className={s.journeyFrame}
-                role="img"
-                aria-label={j.alt}
-                style={{ backgroundImage: `url(${j.src})`, ...j.crop }}
+                src={`/images/home/${j.file}-216.webp`}
+                srcSet={`/images/home/${j.file}-216.webp 216w, /images/home/${j.file}-324.webp 324w`}
+                sizes="120px"
+                width={216}
+                height={348}
+                alt={j.alt}
+                decoding="async"
               />
               <span className={s.journeyLabel}><b>0{i + 1}</b>{j.step}</span>
             </li>

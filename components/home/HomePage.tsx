@@ -10,8 +10,8 @@ export default function HomePage() {
   return (
     <div className={s.page}>
       <HomeHero />
-      <ToolDiscoveryTray />
       <PersonalisationSection />
+      <ToolDiscoveryTray />
       <HomeTrustStrip />
       <HomeFinalCTA />
     </div>
