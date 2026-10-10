@@ -48,7 +48,7 @@ export const TOOLS: HomeTool[] = [
     key: 'tap',
     name: 'Match & Tap',
     route: '/merchant-lookup',
-    hook: ['Never use the', 'wrong card again.'],
+    hook: ['Know which card to use', 'before you pay.'],
     headline: 'Know which card to use before you pay.',
     description: "Search where you're spending and see which card could reward you most there.",
     cta: 'Pick right card',
