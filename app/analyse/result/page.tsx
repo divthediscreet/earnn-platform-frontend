@@ -129,7 +129,10 @@ function SmartWallet({ request, result }: { request: SimulatorRequest; result: R
       `}</style>
 
       <div className="mx-auto flex max-w-6xl items-center justify-between px-5 pt-5 sm:px-8">
-        <Link href="/analyse" className="text-[13px] font-semibold text-ws-primary hover:underline">← Edit my spending</Link>
+        {/* Statement runs have no manual form to edit (pre-filling it is switched off for now) */}
+        {request.spend_summary
+          ? <span aria-hidden />
+          : <Link href="/analyse" className="text-[13px] font-semibold text-ws-primary hover:underline">← Edit my spending</Link>}
         <nav className="flex items-center gap-5 text-[13px] font-medium text-ws-muted">
           <a href="#playbook" className="hidden hover:text-ws-fg sm:inline">Playbook</a>
           <a href="#discover" className="hidden hover:text-ws-fg sm:inline">Discover</a>

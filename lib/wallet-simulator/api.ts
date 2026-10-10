@@ -129,8 +129,13 @@ export type EvaluateResponse = {
  *  backend is in miles; fees (`annual_fee_aed`, `total_fee_aed`) stay in AED. */
 export type RewardMode = 'cashback' | 'miles'
 
+/** One `/api/statements/upload` spend_summary row (a statement's spend grouped by granular category). */
+export type StatementSpendRow = { earnn_category_granular_code: string | null; total_spend_aed: number }
+
+/** Exactly one of `form_spend` (manual form) or `spend_summary` (parsed statement) is set. */
 export type SimulatorRequest = {
-  form_spend: Record<string, number>
+  form_spend?: Record<string, number>
+  spend_summary?: StatementSpendRow[]
   salary_aed?: number
   reward_mode?: RewardMode
 }

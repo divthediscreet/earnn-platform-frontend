@@ -3,8 +3,11 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import PageHero from '@/components/PageHero'
-import { recommendWallet, saveSession, SimulatorApiError, useSimulatorSession, type RewardMode, type SimulatorRequest } from '@/lib/wallet-simulator/api'
+import { evaluateWallet, recommendWallet, saveSession, SimulatorApiError, useSimulatorSession, type RewardMode, type SimulatorRequest } from '@/lib/wallet-simulator/api'
 import { SPLIT_KEYS, SimulatorStyles, SpendEntryFields, computeAmounts, splitFromAmounts, type SplitState } from '@/components/wallet-simulator/spend-entry'
+import { StatementUpload, type StatementSubmit } from '@/components/wallet-simulator/statement-upload'
+import { ComparisonPopup, buildGapData, type GapData } from '@/components/wallet-simulator/gap-popup'
+import { pingBackend } from '@/lib/api'
 import { CardColumnsLoader, loadCardIds, preloadCardImages } from '@/components/wallet-simulator/loading-columns'
 
 export default function SimulatorSpendPage() {
@@ -22,9 +25,12 @@ function SpendForm({ initial }: { initial?: SimulatorRequest }) {
   const [salary, setSalary] = useState(initial?.salary_aed ? String(initial.salary_aed) : '')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [mode, setMode] = useState<'upload' | 'manual'>(initial?.form_spend ? 'manual' : 'upload') // upload first, as in the old Analyse page
+  const [gap, setGap] = useState<GapData | null>(null)
   const [animCardIds, setAnimCardIds] = useState<string[]>([]) // card images for the holding screen
 
   useEffect(() => {
+    pingBackend() // warm the backend before a statement upload
     // fetch the card list and download the images now, so the holding screen shows them instantly
     loadCardIds().then(ids => { preloadCardImages(ids); setAnimCardIds(ids) })
   }, [])
@@ -49,6 +55,28 @@ function SpendForm({ initial }: { initial?: SimulatorRequest }) {
     }
   }
 
+  // Statement path: best wallet + (if the user's card is known) that card on the same spend, then the "reward gap" popup.
+  const submitStatement = async (s: StatementSubmit) => {
+    setError('')
+    setLoading(true)
+    const request: SimulatorRequest = { spend_summary: s.spend_summary, salary_aed: s.salary_aed, reward_mode: 'cashback' }
+    try {
+      const [result, current] = await Promise.all([
+        recommendWallet(request),
+        s.currentCardId ? evaluateWallet(request, [s.currentCardId]).catch(() => null) : Promise.resolve(null),
+      ])
+      saveSession({ request, result })
+      if (current) {
+        setGap(buildGapData(result.recommendation.wallet, current.wallet, result.spend.groups))
+        return // the popup sits on top of the loading screen; its button continues to the result page
+      }
+      router.push('/analyse/result')
+    } catch (e) {
+      setError(e instanceof SimulatorApiError ? e.message : 'Something went wrong. Please try again.')
+      setLoading(false)
+    }
+  }
+
   return (
     <div className="sim-page">
       <PageHero tone="light" tall image="/images/heroes/Analyze-new.webp" width={1112}
@@ -57,6 +85,27 @@ function SpendForm({ initial }: { initial?: SimulatorRequest }) {
         subtitle="Tell us how you spend. Earnn finds the cards that earn you the most — and tells you which card to use where." />
 
       <div className="sim-content">
+        <div className="sim-trust">
+          {(mode === 'upload'
+            ? [{ icon: '🛡️', label: 'No bank login required' }, { icon: '✂️', label: 'Card details automatically redacted' }, { icon: '🇦🇪', label: 'UAE-hosted & encrypted' }, { icon: '🗑️', label: 'Statement deleted after analysis' }]
+            : [{ icon: '🔒', label: 'No bank login · No card details required' }]
+          ).map(t => <div key={t.label}><span>{t.icon}</span><span>{t.label}</span></div>)}
+        </div>
+
+        <div className="sim-method-switch" role="tablist" aria-label="How do you want to enter your spend?">
+          {(['upload', 'manual'] as const).map(m => (
+            <button key={m} type="button" role="tab" aria-selected={mode === m} className={mode === m ? 'on' : ''}
+              onClick={() => { setMode(m); setError('') }}>
+              {m === 'upload' ? '📄 Upload Statement' : '✏️ Manual Entry'}
+              <small className={m === 'upload' ? 'rec' : ''}>{m === 'upload' ? 'RECOMMENDED' : 'Don’t want to upload?'}</small>
+            </button>
+          ))}
+        </div>
+
+        {mode === 'upload' && <StatementUpload onSubmit={submitStatement} submitting={loading} submitError={error} />}
+
+        {mode === 'manual' && (
+          <>
         <div className="sim-intro">
           <div>
             <div className="sim-eyebrow">BUILD YOUR SPENDING PROFILE</div>
@@ -91,6 +140,8 @@ function SpendForm({ initial }: { initial?: SimulatorRequest }) {
           <button type="button" className="sim-cta" onClick={submit} disabled={totalMonthly <= 0 || loading}>
             {loading ? 'Building your smart wallet…' : 'Build My Smart Wallet →'}
           </button>} />
+          </>
+        )}
       </div>
 
       {loading && (
@@ -98,7 +149,22 @@ function SpendForm({ initial }: { initial?: SimulatorRequest }) {
           subtitle="Testing every combination of up to three UAE cards against your spending" />
       )}
 
+      {gap && <ComparisonPopup data={gap} onContinue={() => { setGap(null); router.push('/analyse/result') }} />}
+
       <SimulatorStyles />
+      <style>{`
+        .sim-trust { display:flex; gap:10px; justify-content:center; flex-wrap:wrap; margin:18px 0 0; }
+        .sim-trust > div { display:flex; align-items:center; gap:6px; background:#EEF3FF; border:1px solid #D6E0F5; border-radius:6px; padding:5px 12px; max-width:100%; }
+        .sim-trust > div > span:first-child { font-size:13px; flex-shrink:0; }
+        .sim-trust > div > span:last-child { font-size:11px; font-weight:600; color:#0E3785; }
+        .sim-method-switch { display:grid; grid-template-columns:1fr 1fr; gap:4px; background:#EEF3FF; border:1px solid #D6E0F5; border-radius:12px; padding:4px; max-width:500px; margin:16px auto; }
+        .sim-method-switch button { min-height:42px; padding:7px 12px; border-radius:8px; border:0; cursor:pointer; text-align:center; font-size:13px; font-weight:700; background:transparent; color:#5A6A85; transition:all .2s; }
+        .sim-method-switch button.on { background:#0E3785; color:#fff; }
+        .sim-method-switch small { display:block; margin-top:1px; font-size:9px; line-height:1.1; font-weight:800; color:#7A8CA8; }
+        .sim-method-switch button.on small { color:rgba(255,255,255,.72); }
+        .sim-method-switch small.rec { letter-spacing:.08em; color:#FFD76A; animation:simRecFlash 1.35s ease-in-out infinite; }
+        @keyframes simRecFlash { 0%,100% { opacity:.45; } 50% { opacity:1; text-shadow:0 0 8px rgba(255,215,106,.72); } }
+      `}</style>
     </div>
   )
 }
