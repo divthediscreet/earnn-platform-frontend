@@ -4,10 +4,12 @@
 const API_BASE = ''  // empty = relative URLs, proxied via next.config.ts rewrites to Railway
 
 // ── Statement Upload (Module 3) ───────────────────────────────────────────────
-export async function uploadStatement(file: File, password?: string) {
+export async function uploadStatement(file: File, password?: string, consentVersion?: string) {
   const form = new FormData()
   form.append('file', file)
   if (password) form.append('password', password)
+  // the user ticked the consent box; the server records this before it reads the statement
+  if (consentVersion) { form.append('consent', 'true'); form.append('consent_version', consentVersion) }
 
   const res = await fetch(`${API_BASE}/api/statements/upload`, { method: 'POST', body: form })
   if (!res.ok) throw new Error(`Upload failed: ${res.statusText}`)

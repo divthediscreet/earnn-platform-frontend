@@ -8,6 +8,8 @@ import { SPLIT_KEYS, SimulatorStyles, SpendEntryFields, computeAmounts, splitFro
 import { StatementUpload, type StatementSubmit } from '@/components/wallet-simulator/statement-upload'
 import { ComparisonPopup, buildGapData, type GapData } from '@/components/wallet-simulator/gap-popup'
 import { pingBackend } from '@/lib/api'
+import ProfileNotice, { useProfilePref } from '@/components/profile/ProfileNotice'
+import { ensureProfileLoaded, patchProfile, readProfile } from '@/lib/profile/storage'
 import { CardColumnsLoader, loadCardIds, preloadCardImages } from '@/components/wallet-simulator/loading-columns'
 
 export default function SimulatorSpendPage() {
@@ -35,7 +37,39 @@ function SpendForm({ initial }: { initial?: SimulatorRequest }) {
     loadCardIds().then(ids => { preloadCardImages(ids); setAnimCardIds(ids) })
   }, [])
 
+  // Saved details (opt-in, this browser only): restore on first load unless "Edit my spending" supplied a session.
+  const profilePref = useProfilePref()
+  const [profileReady, setProfileReady] = useState(false)
+  useEffect(() => {
+    let alive = true
+    // waits briefly for another open earnn tab to hand over its details, then restores them
+    ensureProfileLoaded().then(() => {
+      if (!alive) return
+      const saved = initial ? null : readProfile()
+      if (saved?.spend) {
+        setSpend(Object.fromEntries(Object.entries(saved.spend).filter(([k, v]) => Number(v) > 0 && !SPLIT_KEYS.has(k))))
+        setSplits(splitFromAmounts(Object.fromEntries(Object.entries(saved.spend).map(([k, v]) => [k, Number(v) || 0]))))
+      }
+      if (saved?.salary) setSalary(saved.salary)
+      setProfileReady(true)
+    })
+    return () => { alive = false }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   const amounts = computeAmounts(spend, splits)
+  const amountsKey = JSON.stringify(amounts)
+  useEffect(() => {
+    if (!profileReady || profilePref !== 'save') return
+    const timer = setTimeout(() => patchProfile({
+      salary,
+      spend: Object.fromEntries(Object.entries(amounts).filter(([, v]) => v > 0).map(([k, v]) => [k, String(v)])),
+      monthly_total: undefined,
+    }), 400)
+    return () => clearTimeout(timer)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profileReady, profilePref, salary, amountsKey])
+
   const totalMonthly = Object.values(amounts).reduce((a, b) => a + b, 0)
   const salaryNum = parseFloat(salary) || 0
 
@@ -106,6 +140,7 @@ function SpendForm({ initial }: { initial?: SimulatorRequest }) {
 
         {mode === 'manual' && (
           <>
+            <ProfileNotice />
         <div className="sim-intro">
           <div>
             <div className="sim-eyebrow">BUILD YOUR SPENDING PROFILE</div>

@@ -9,6 +9,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { uploadStatement, fetchCardDetail, fetchCards, getCardImageUrl } from '@/lib/api'
 import { listSimulatorCards, type StatementSpendRow } from '@/lib/wallet-simulator/api'
 import { ParseDataDebug, formatBankName } from './parse-debug'
+import { STATEMENT_CONSENT_VERSION } from '@/lib/statement-consent'
 
 type SummaryRow = { earnn_category_granular_code: string | null; total_spend_aed: number; transaction_count?: number }
 type Merchant = { merchant_name: string; total_spend_aed: number; transaction_count: number }
@@ -64,7 +65,9 @@ export function StatementUpload({ onSubmit, submitting, submitError }: {
   const [reviewError, setReviewError] = useState('')
   const fileRef = useRef<HTMLInputElement>(null)
 
-  const uploadReady = !!file && (passwordMode === 'none' || (passwordMode === 'has_password' && password.trim().length > 0))
+  const [consent, setConsent] = useState(false) // explicit consent, unticked by default and reset for every upload
+  const fileReady = !!file && (passwordMode === 'none' || (passwordMode === 'has_password' && password.trim().length > 0))
+  const uploadReady = fileReady && consent
 
   const onDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault(); setDragging(false)
@@ -81,13 +84,14 @@ export function StatementUpload({ onSubmit, submitting, submitError }: {
 
   // Auto-retries once on gateway timeout (the backend may be cold-starting), as the old page did.
   const handleUpload = async (isRetry = false) => {
+    if (!consent) return setError('Please tick the consent box to continue')
     if (!file) return setError('Please select a PDF file first')
     if (passwordMode === null) return setError('Please confirm if your PDF has a password')
     if (passwordMode === 'has_password' && !password.trim()) return setError('Please enter your PDF password')
     setScanning(true)
     setError(isRetry ? 'Server was waking up — retrying now…' : '')
     try {
-      const result = await uploadStatement(file, passwordMode === 'has_password' ? password.trim() : undefined)
+      const result = await uploadStatement(file, passwordMode === 'has_password' ? password.trim() : undefined, STATEMENT_CONSENT_VERSION)
       if (result.success) {
         setError('')
         setReview(result)
@@ -168,7 +172,7 @@ export function StatementUpload({ onSubmit, submitting, submitError }: {
       {review ? (
         <div className="su-review" style={{ background: 'white', borderRadius: 20, border: '1px solid #D6E0F5', padding: 'clamp(18px, 4vw, 40px)', boxShadow: '0 4px 24px rgba(14,55,133,0.08)', marginBottom: 24 }}>
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
-            <button type="button" onClick={() => { setReview(null); setCurrentCardId(null); setSalary(''); salaryTouchedRef.current = false; setFile(null); setPasswordMode(null); setPassword(''); setError(''); setReviewError('') }}
+            <button type="button" onClick={() => { setReview(null); setCurrentCardId(null); setSalary(''); salaryTouchedRef.current = false; setFile(null); setPasswordMode(null); setPassword(''); setConsent(false); setError(''); setReviewError('') }}
               style={{ background: 'none', border: '1px solid #D6E0F5', borderRadius: 8, padding: '7px 16px', fontSize: 13, fontWeight: 600, color: '#5A6A85', cursor: 'pointer' }}>
               ← Upload another statement
             </button>
@@ -414,9 +418,20 @@ export function StatementUpload({ onSubmit, submitting, submitError }: {
             )}
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14, padding: '8px 12px', borderRadius: 10, background: 'rgba(76, 175, 136, 0.1)', border: '1px solid rgba(76, 175, 136, 0.25)', color: '#153A70', fontSize: 13, fontWeight: 600 }}>
-            <span style={{ fontSize: 15, flexShrink: 0 }}>🔒</span>
-            <span>Processed securely in the UAE · Deleted after analysis</span>
+          <div style={{ marginBottom: 14, padding: '12px 14px', borderRadius: 10, background: '#F8FAFF', border: '1px solid #D6E0F5', color: '#0D1828' }}>
+            <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer', fontSize: 13, fontWeight: 600, lineHeight: 1.45 }}>
+              <input type="checkbox" checked={consent} onChange={e => { setConsent(e.target.checked); if (e.target.checked) setError('') }}
+                style={{ marginTop: 3, width: 16, height: 16, flexShrink: 0, accentColor: '#0E3785', cursor: 'pointer' }} />
+              <span>I consent to Earnn processing my statement as described below.{' '}
+                <a href="/privacy-policy" target="_blank" rel="noopener noreferrer" style={{ color: '#0E3785' }} onClick={e => e.stopPropagation()}>Privacy Policy</a>
+              </span>
+            </label>
+            <p style={{ margin: '8px 0 0 26px', fontSize: 12, color: '#5A6A85', lineHeight: 1.5 }}>
+              Earnn analyses your statement to recommend suitable cards. Your name, card number, phone and address are masked before processing, and we don&apos;t keep your personal information or transactions afterwards. Masked statements may be used for quality assurance and to improve our models. Statements can contain sensitive information, so upload only one you&apos;re comfortable sharing.
+            </p>
+            <p style={{ margin: '6px 0 0 26px', fontSize: 12, color: '#5A6A85' }}>
+              Questions or withdrawal: <a href="mailto:earnn.money@outlook.com" style={{ color: '#0E3785' }}>earnn.money@outlook.com</a>
+            </p>
           </div>
 
           {error && <div style={{ background: '#FFF3F0', border: '1px solid #FFD0C8', borderRadius: 8, padding: '10px 14px', color: '#C0392B', fontSize: 13, marginBottom: 14 }}>⚠️ {error}</div>}
@@ -425,7 +440,7 @@ export function StatementUpload({ onSubmit, submitting, submitError }: {
             width: '100%', padding: '13px', fontSize: 14, fontWeight: 700, border: 'none', borderRadius: 10, transition: 'all 0.2s',
             background: uploadReady ? '#0E3785' : '#D6E0F5', color: uploadReady ? 'white' : '#9DAEC8', cursor: uploadReady ? 'pointer' : 'not-allowed',
           }}>
-            {scanning ? 'Analysing your statement…' : uploadReady ? 'Analyse my spending →' : 'Select a statement to continue'}
+            {scanning ? 'Analysing your statement…' : uploadReady ? 'Analyse my spending →' : fileReady ? 'Tick the consent box to continue' : 'Select a statement to continue'}
           </button>
         </div>
       )}
