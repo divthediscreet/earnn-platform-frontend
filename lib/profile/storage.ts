@@ -6,7 +6,7 @@
 // "X" click, which is why this uses storage the browser wipes by itself instead of a cleanup handler.
 // Sharing between tabs that are open at the same time uses a BroadcastChannel hand-off: a new tab asks the open tabs for
 // the details and adopts them. When the last tab closes, every copy is gone.
-// Nothing is sent to earnn. It is strictly opt-in: nothing is read or written until the user picks "Keep" (ProfileNotice).
+// Nothing is sent to earnn. It is strictly opt-in: nothing is written to storage until the user picks "Keep" (ProfileNotice).
 import type { BulkPaymentSchedule } from '@/lib/bulk-spend-miles/api'
 
 const KEY = 'earnn_profile_v1'
@@ -89,9 +89,16 @@ export function clearProfile() {
 export function writePref(pref: ProfilePref) {
   try { store().setItem(PREF_KEY, pref) } catch { /* storage unavailable: the forms still work for this visit */ }
   if (pref === 'skip') { try { store().removeItem(KEY) } catch { /* ignore */ } }
+  const waiting = pending
+  pending = null
+  if (pref === 'save' && waiting) patchProfile(waiting)   // what was typed before the choice is kept from now on
   notify()
   broadcast()
 }
+
+/** What the user typed in this tab before choosing. Held in memory only (never written to storage) until they choose "Keep". */
+let pending: Partial<Omit<SavedProfile, 'v' | 'savedAt'>> | null = null
+export const hasPendingInput = () => pending !== null
 
 /** The saved details, or null when the user has not opted in, nothing is saved, or it is stale. */
 export function readProfile(): SavedProfile | null {
@@ -114,7 +121,13 @@ const isEmpty = (patch: Partial<SavedProfile>) =>
  * use "Clear now" to empty them.
  */
 export function patchProfile(patch: Partial<Omit<SavedProfile, 'v' | 'savedAt'>>) {
-  if (readPref() !== 'save') return
+  const pref = readPref()
+  if (pref === null) {
+    // no choice yet: remember (in memory only) that the user has typed something so the notice can appear
+    if (!isEmpty(patch)) { const first = pending === null; pending = { ...pending, ...patch }; if (first) notify() }
+    return
+  }
+  if (pref !== 'save') return
   const current = readProfile()
   if (current && isEmpty(patch) && !isEmpty(current)) return
   try {

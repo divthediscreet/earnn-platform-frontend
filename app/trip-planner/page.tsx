@@ -118,7 +118,7 @@ export default function TripPlannerPage() {
   const amountsKey = JSON.stringify(amounts)
   const paymentsKey = JSON.stringify(payments.filter(row => Number(row.amount_aed) > 0 && row.due_months.length > 0))
   useEffect(() => {
-    if (!profileReady || profilePref !== 'save') return
+    if (!profileReady || profilePref === 'skip' || profilePref === 'pending') return
     const timer = setTimeout(() => patchProfile({
       salary,
       spend: Object.fromEntries(Object.entries(amounts).filter(([, v]) => v > 0).map(([k, v]) => [k, String(v)])),

@@ -60,7 +60,7 @@ function SpendForm({ initial }: { initial?: SimulatorRequest }) {
   const amounts = computeAmounts(spend, splits)
   const amountsKey = JSON.stringify(amounts)
   useEffect(() => {
-    if (!profileReady || profilePref !== 'save') return
+    if (!profileReady || profilePref === 'skip' || profilePref === 'pending') return
     const timer = setTimeout(() => patchProfile({
       salary,
       spend: Object.fromEntries(Object.entries(amounts).filter(([, v]) => v > 0).map(([k, v]) => [k, String(v)])),

@@ -74,7 +74,7 @@ export default function BulkSpendMilesPage() {
 
   const paymentsKey = JSON.stringify(payments.filter(row => Number(row.amount_aed) > 0 && row.due_months.length > 0))
   useEffect(() => {
-    if (!profileReady || profilePref !== 'save') return
+    if (!profileReady || profilePref === 'skip' || profilePref === 'pending') return
     const timer = setTimeout(() => patchProfile({ salary, monthly_total: monthlySpend || undefined, payments: JSON.parse(paymentsKey) }), 400)
     return () => clearTimeout(timer)
   }, [profileReady, profilePref, salary, monthlySpend, paymentsKey])
