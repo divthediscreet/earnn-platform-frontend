@@ -4,7 +4,7 @@ const POINTS = [
   { icon: 'ti-lock', title: 'No login needed', text: 'Explore Earnn without creating an account.' },
   { icon: 'ti-user-shield', title: 'No personal details needed', text: "We don't need your name, card number or banking credentials." },
   { icon: 'ti-file-x', title: "Your statement isn't kept", text: 'Uploaded statements are processed to understand your spending, then deleted.' },
-  { icon: 'ti-shield-check', title: 'Built for DIFC data protection requirements', text: 'Designed around the data-protection requirements applicable to Earnn in the DIFC.' },
+  { icon: 'ti-shield-check', title: 'Privacy by design', text: 'Built with UAE regulatory data protection requirements in mind.' },
 ]
 
 // A slim reassurance strip, not a full section.

@@ -30,7 +30,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           padding: '48px 24px 28px',
           fontSize: 14
         }}>
-          <div style={{ maxWidth: 1200, margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 40 }}>
+          <div style={{ maxWidth: 1440, margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 40 }}>
             <div style={{ flex: '1 1 260px', minWidth: 220 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <img src="/earnn_logo.jpeg" alt="earnn" style={{ width: 30, height: 30, borderRadius: 8, objectFit: 'cover' }} />
@@ -57,7 +57,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               </div>
             </div>
           </div>
-          <div style={{ maxWidth: 1200, margin: '32px auto 0', borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: 20, textAlign: 'center', fontSize: 13, color: 'rgba(255,255,255,0.4)' }}>
+          <div style={{ maxWidth: 1440, margin: '32px auto 0', borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: 20, textAlign: 'center', fontSize: 13, color: 'rgba(255,255,255,0.4)' }}>
             © 2026 earnn Financial Technologies · Dubai, UAE &nbsp;·&nbsp; Designed for clarity. Built for trust.
           </div>
         </footer>

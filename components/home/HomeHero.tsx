@@ -13,7 +13,7 @@ const JOURNEY = [
 
 export default function HomeHero() {
   const goToTools = () => {
-    const el = document.getElementById('tools')
+    const el = document.getElementById('personal')
     if (!el) return
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
     el.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' })

@@ -1,77 +1,92 @@
-import s from './Home.module.css'
+'use client'
 
-type Outcome = 'card' | 'wallet' | 'flight'
+import { useEffect, useRef, useState } from 'react'
+import Link from 'next/link'
+import p from './Journeys.module.css'
 
-const PROFILES: {
-  amount: string
-  spends: { label: string; icon: string }[]
-  outcome: Outcome
-  tone: string
-  tint: string
-  dark: string
-  panel: { icon: string; title: string; text: string }
-}[] = [
+// Three different ways Earnn helps, each with its own picture and a direct link into the matching tool.
+// No reward amounts and no promised flights: the figures shown are the example spend, not a result.
+const COLUMNS = [
   {
-    amount: 'AED 8K',
-    spends: [
-      { label: 'Groceries', icon: 'ti-shopping-cart' },
-      { label: 'Fuel', icon: 'ti-gas-station' },
-      { label: 'Everyday essentials', icon: 'ti-shopping-bag' },
-    ],
-    outcome: 'card',
-    tone: '#2F7D6B',
-    tint: 'rgba(47, 125, 107, .08)',
-    dark: '#1F5F4A',
-    panel: { icon: 'ti-chart-bar', title: 'Your best card', text: 'Maximise rewards on your everyday spending.' },
-  },
-  {
-    amount: 'AED 15K',
-    spends: [
+    key: 'everyday',
+    tone: 'blue',
+    top: { big: 'AED 15K', small: '/ month' },
+    chips: [
       { label: 'Dining', icon: 'ti-tools-kitchen-2' },
       { label: 'Shopping', icon: 'ti-shopping-bag' },
       { label: 'Travel', icon: 'ti-plane' },
     ],
-    outcome: 'wallet',
-    tone: '#B7791F',
-    tint: 'rgba(183, 121, 31, .08)',
-    dark: '#8A5A12',
-    panel: { icon: 'ti-wallet', title: 'Your best wallet', text: 'A combination of cards that gives you more, across categories.' },
+    title: 'Your best wallet',
+    text: 'Find the right combination of cards for your monthly spending.',
+    cta: 'Find my cards',
+    href: '/analyse',
   },
   {
-    amount: 'AED 25K',
-    spends: [
-      { label: 'Family', icon: 'ti-home' },
+    key: 'big',
+    tone: 'gold',
+    top: { big: 'AED 50K', small: '/ School fees' },
+    chips: [
       { label: 'School fees', icon: 'ti-school' },
+      { label: 'Insurance', icon: 'ti-shield-check' },
       { label: 'Travel', icon: 'ti-plane' },
     ],
-    outcome: 'flight',
-    tone: '#3B5BDB',
-    tint: 'rgba(59, 91, 219, .07)',
-    dark: '#3B5BDB',
-    panel: { icon: 'ti-plane', title: 'Turn spending into your next flight', text: 'Earnn turns your spending into a plan for your next flight.' },
+    title: 'Make big spending count',
+    text: 'Plan large payments and discover which cards could reward you most.',
+    cta: 'Plan big spending',
+    href: '/bulk-spend-miles',
   },
-]
+  {
+    key: 'travel',
+    tone: 'sky',
+    top: { big: 'Your next flight', small: 'Powered by everyday spending' },
+    chips: [
+      { label: 'Spending', icon: 'ti-credit-card' },
+      { label: 'Miles', icon: 'ti-medal' },
+      { label: 'Travel', icon: 'ti-plane-departure' },
+    ],
+    title: 'Turn spending into flights',
+    text: 'Let Earnn plan how your spending could get you closer to your next flight.',
+    cta: 'Plan my flight',
+    href: '/trip-planner',
+  },
+] as const
 
-function OutcomeArt({ kind }: { kind: Outcome }) {
-  if (kind === 'card') {
-    return (
-      <div className={s.fan} aria-hidden>
-        <i style={{ background: 'linear-gradient(135deg,#7b8aa3,#434f66)', transform: 'rotate(-10deg) translate(-34px,8px)' }} />
-        <i style={{ background: 'linear-gradient(135deg,#2f63c9,#0E3785 70%,#0a2a6b)', transform: 'rotate(6deg) translate(12px,-4px)' }}><em /></i>
-      </div>
-    )
-  }
-  if (kind === 'wallet') {
-    return (
-      <div className={s.fan} aria-hidden>
-        <i style={{ background: 'linear-gradient(135deg,#ecd28b,#b8892f)', transform: 'rotate(-14deg) translate(-44px,10px)' }} />
-        <i style={{ background: 'linear-gradient(135deg,#25b995,#0A7A60)', transform: 'rotate(-3deg) translate(-4px,-6px)' }} />
-        <i style={{ background: 'linear-gradient(135deg,#2a2f38,#0e1116)', transform: 'rotate(9deg) translate(34px,2px)' }}><em /></i>
-      </div>
-    )
-  }
+/** Column 1: a fanned stack of premium cards. */
+function CardStack() {
   return (
-    <div className={s.flightPhoto}>
+    <div className={`${p.art} ${p.stack}`} aria-hidden>
+      {[1, 2, 3].map(n => (
+        <img key={n} src={`/images/home/stack-${n}.webp`} width={480} height={300} alt="" loading="lazy" decoding="async" />
+      ))}
+    </div>
+  )
+}
+
+/** Column 2: a school-fee invoice, a term calendar and a card, drawn in CSS so it looks different from the card photos. */
+function InvoiceArt() {
+  const days = Array.from({ length: 28 }, (_, i) => i + 1)
+  const due = new Set([3, 17, 24])
+  return (
+    <div className={`${p.art} ${p.invoiceArt}`} aria-hidden>
+      <div className={p.calendar}>
+        <b>Term fees</b>
+        <div>{days.map(d => <i key={d} className={due.has(d) ? p.due : ''} />)}</div>
+      </div>
+      <div className={p.invoice}>
+        <span className={p.invoiceHead}><i className="ti ti-school" /> School fees</span>
+        <span className={p.line} /><span className={`${p.line} ${p.short}`} />
+        <span className={p.invoiceAmount}>AED 50,000</span>
+        <span className={p.paid}><i className="ti ti-circle-check-filled" /> Planned</span>
+      </div>
+      <div className={p.miniCard}><em /></div>
+    </div>
+  )
+}
+
+/** Column 3: the business-class cabin. */
+function CabinArt() {
+  return (
+    <div className={`${p.art} ${p.cabin}`}>
       <img
         src="/images/home/outcome-flight-cabin.webp"
         width={830}
@@ -80,47 +95,59 @@ function OutcomeArt({ kind }: { kind: Outcome }) {
         loading="lazy"
         decoding="async"
       />
-      <span className={s.flightBadge} aria-hidden><i className="ti ti-plane" /></span>
+      <span className={p.cabinBadge} aria-hidden><i className="ti ti-plane" /></span>
     </div>
   )
 }
 
 export default function PersonalisationSection() {
+  const ref = useRef<HTMLUListElement>(null)
+  const [seen, setSeen] = useState(false)
+
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    if (typeof IntersectionObserver === 'undefined') { const t = setTimeout(() => setSeen(true), 0); return () => clearTimeout(t) }
+    const io = new IntersectionObserver(entries => {
+      if (entries.some(e => e.isIntersecting)) { setSeen(true); io.disconnect() }
+    }, { threshold: 0.15 })
+    io.observe(el)
+    return () => io.disconnect()
+  }, [])
+
   return (
-    <section className={s.personal} aria-labelledby="personal-title">
-      <div className={s.personalInner}>
-        <div className={s.personalHead}>
-          <h2 id="personal-title">Because everyone&rsquo;s money looks different.</h2>
-          <p>How you spend matters as much as how much you spend.</p>
+    <section className={p.section} aria-labelledby="personal-title">
+      <div className={p.inner}>
+        <div className={p.head}>
+          <h2 id="personal-title">Your money. Your goals. Your Earnn.</h2>
+          <p>Every expense is an opportunity. Earnn helps you make the most of it.</p>
         </div>
 
-        <ul className={s.profiles}>
-          {PROFILES.map(p => (
-            <li
-              key={p.amount}
-              className={s.profile}
-              style={{ ['--tone' as string]: p.tone, ['--tint' as string]: p.tint, ['--dark' as string]: p.dark }}
-            >
-              <div className={s.profileTop}>
-                <strong>{p.amount}</strong><span>/ month</span>
+        <ul ref={ref} className={`${p.grid} ${seen ? p.seen : ''}`}>
+          {COLUMNS.map((c, i) => (
+            <li key={c.key} className={`${p.col} ${p[c.tone]}`} style={{ ['--i' as string]: i }}>
+              <div className={p.top}>
+                <strong className={c.key === 'travel' ? p.topTitle : ''}>{c.top.big}</strong>
+                <span>{c.top.small}</span>
               </div>
-              <ul className={s.spendList}>
-                {p.spends.map(x => <li key={x.label}><i className={`ti ${x.icon}`} aria-hidden />{x.label}</li>)}
+              <ul className={p.chips}>
+                {c.chips.map(x => <li key={x.label}><i className={`ti ${x.icon}`} aria-hidden />{x.label}</li>)}
               </ul>
-              <i className={`ti ti-arrow-down ${s.arrow}`} aria-hidden />
-              <OutcomeArt kind={p.outcome} />
-              <div className={`${s.outcomePanel} ${p.outcome === 'flight' ? s.outcomePanelStacked : ''}`}>
-                {p.outcome !== 'flight' && <span className={s.outcomeIcon} aria-hidden><i className={`ti ${p.panel.icon}`} /></span>}
-                <div>
-                  <strong>{p.panel.title}</strong>
-                  <span>{p.panel.text}</span>
-                </div>
+
+              {c.key === 'everyday' && <CardStack />}
+              {c.key === 'big' && <InvoiceArt />}
+              {c.key === 'travel' && <CabinArt />}
+
+              <div className={p.outcome}>
+                <h3>{c.title}</h3>
+                <p>{c.text}</p>
               </div>
+              <Link href={c.href} className={`btn-primary ${p.cta}`}>{c.cta} <i className="ti ti-arrow-right" aria-hidden /></Link>
             </li>
           ))}
         </ul>
 
-        <p className={s.statement}>
+        <p className={p.statement}>
           Earnn doesn&rsquo;t find the best card.<br />
           It finds <span>what&rsquo;s best for you.</span>
         </p>

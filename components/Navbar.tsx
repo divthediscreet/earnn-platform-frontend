@@ -18,7 +18,7 @@ export default function Navbar() {
       boxShadow: '0 2px 12px rgba(14,55,133,0.07)'
     }}>
       <div style={{
-        maxWidth: 1200,
+        maxWidth: 1440,
         margin: '0 auto',
         padding: '0 24px',
         height: 68,

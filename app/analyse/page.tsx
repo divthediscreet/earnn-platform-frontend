@@ -121,7 +121,7 @@ function SpendForm({ initial }: { initial?: SimulatorRequest }) {
       <div className="sim-content">
         <div className="sim-trust">
           {(mode === 'upload'
-            ? [{ icon: '🛡️', label: 'No bank login required' }, { icon: '✂️', label: 'Card details automatically redacted' }, { icon: '🇦🇪', label: 'UAE-hosted & encrypted' }, { icon: '🗑️', label: 'Statement deleted after analysis' }]
+            ? [{ icon: '🛡️', label: 'No bank login required' }, { icon: '✂️', label: 'Sensitive information automatically masked' }, { icon: '🇦🇪', label: 'No personal info is stored' }, { icon: '🗑️', label: 'Statement deleted after analysis' }]
             : [{ icon: '🔒', label: 'No bank login · No card details required' }]
           ).map(t => <div key={t.label}><span>{t.icon}</span><span>{t.label}</span></div>)}
         </div>
@@ -194,14 +194,17 @@ function SpendForm({ initial }: { initial?: SimulatorRequest }) {
         .sim-trust > div > span:first-child { font-size:13px; flex-shrink:0; }
         .sim-trust > div > span:last-child { font-size:11px; font-weight:600; color:#0E3785; }
         @media (max-width:560px) { .sim-trust { gap:6px; } .sim-trust > div { padding:4px 9px; } .sim-trust > div > span:last-child { font-size:10.5px; } }
-        .sim-method-switch { display:grid; grid-template-columns:1fr 1fr; gap:4px; background:#EEF3FF; border:1px solid #D6E0F5; border-radius:12px; padding:4px; max-width:500px; margin:10px auto; }
-        .sim-method-switch button { min-height:42px; padding:7px 12px; border-radius:8px; border:0; cursor:pointer; text-align:center; font-size:13px; font-weight:700; background:transparent; color:#5A6A85; transition:all .2s; }
-        .sim-method-switch button.on { background:#0E3785; color:#fff; }
-        .sim-method-switch small { display:block; margin-top:1px; font-size:9px; line-height:1.1; font-weight:800; color:#7A8CA8; }
-        .sim-method-switch button.on small { color:rgba(255,255,255,.72); }
+        .sim-method-switch { display:grid; grid-template-columns:1fr 1fr; gap:6px; max-width:640px; margin:16px auto 0; padding:0 6px; border-bottom:2px solid #0E3785; }
+        .sim-method-switch button { position:relative; min-height:56px; padding:8px 12px 7px; border:1.5px solid #CBD7EF; border-bottom:0; border-radius:14px 14px 0 0; cursor:pointer; text-align:center; font-size:14px; font-weight:700; background:#E6ECF9; color:#5A6A85; margin-bottom:-2px; transition:background .2s, color .2s, box-shadow .2s; }
+        .sim-method-switch button:hover:not(.on) { background:#F1F5FF; color:#0E3785; }
+        .sim-method-switch button.on { background:#fff; color:#0E3785; border-color:#0E3785; border-top-width:4px; padding-top:5px; box-shadow:0 -6px 16px rgba(14,55,133,.12); z-index:1; }
+        .sim-method-switch button:not(.on)::after { content:'Tap to open'; position:absolute; right:10px; top:6px; font-size:9px; font-weight:700; letter-spacing:.04em; color:#8A9BBA; }
+        .sim-method-switch small { display:block; margin-top:1px; font-size:9.5px; line-height:1.1; font-weight:800; color:#7A8CA8; }
+        .sim-method-switch button.on small { color:#5A6A85; }
         .sim-method-switch small.rec { letter-spacing:.08em; color:#A8801B; animation:simRecFlash 1.35s ease-in-out infinite; }
-        .sim-method-switch button.on small.rec { color:#FFD76A; }
-        @keyframes simRecFlash { 0%,100% { opacity:.45; } 50% { opacity:1; text-shadow:0 0 8px rgba(255,215,106,.72); } }
+        .sim-method-switch button.on small.rec { color:#A8801B; }
+        @keyframes simRecFlash { 0%,100% { opacity:.55; } 50% { opacity:1; } }
+        @media (max-width:560px) { .sim-method-switch button:not(.on)::after { display:none; } .sim-method-switch button { font-size:13px; } }
       `}</style>
     </div>
   )
