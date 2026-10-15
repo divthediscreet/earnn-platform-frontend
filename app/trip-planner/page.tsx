@@ -11,7 +11,6 @@ import { topicName } from '@/components/bulk-spend-miles/BulkResultView'
 import { SPLIT_KEYS, SimulatorStyles, SpendEntryFields, computeAmounts, splitFromAmounts, type SplitState } from '@/components/wallet-simulator/spend-entry'
 import { getBanks, type BankOption } from '@/lib/trip-planner/api'
 import { AIRLINE_LOGO, bankLogo } from '@/lib/trip-planner/bank-logos'
-import ProfileNotice, { useProfilePref } from '@/components/profile/ProfileNotice'
 import { ensureProfileLoaded, patchProfile, readProfile } from '@/lib/profile/storage'
 import { readTripForm, saveTripSubmission, type BankMode, type TripFormState } from '@/lib/trip-planner/session'
 import styles from '../bulk-spend-miles/page.module.css'
@@ -57,12 +56,11 @@ export default function TripPlannerPage() {
   const [error, setError] = useState('')
 
   // Coming back from the results page ("Edit my plan"): restore what the user entered.
-  const profilePref = useProfilePref()
   const [profileReady, setProfileReady] = useState(false)
   useEffect(() => {
     const saved = readTripForm()
     if (!saved) {
-      // No plan in this tab: fall back to the details kept for this visit (opt-in), shared with the other planners and open tabs.
+      // No plan in this tab: fall back to the browser-local details shared by the planners.
       let alive = true
       ensureProfileLoaded().then(() => {
         if (!alive) return
@@ -77,9 +75,9 @@ export default function TripPlannerPage() {
       })
       return () => { alive = false }
     }
-    setProfileReady(true) // eslint-disable-line react-hooks/set-state-in-effect
-    // sessionStorage only exists after hydration, so restoring has to happen in an effect.
+    // Browser storage only exists after hydration, so restoring has to happen in an effect.
     /* eslint-disable react-hooks/set-state-in-effect */
+    setProfileReady(true)
     // saved.spend holds every category's final amount; the two split sliders are rebuilt from them, as Analyse does.
     setSpend(Object.fromEntries(Object.entries(saved.spend).filter(([key]) => !SPLIT_KEYS.has(key))))
     setSplits(splitFromAmounts(Object.fromEntries(Object.entries(saved.spend).map(([key, value]) => [key, Number(value) || 0]))))
@@ -118,7 +116,7 @@ export default function TripPlannerPage() {
   const amountsKey = JSON.stringify(amounts)
   const paymentsKey = JSON.stringify(payments.filter(row => Number(row.amount_aed) > 0 && row.due_months.length > 0))
   useEffect(() => {
-    if (!profileReady || profilePref === 'skip' || profilePref === 'pending') return
+    if (!profileReady) return
     const timer = setTimeout(() => patchProfile({
       salary,
       spend: Object.fromEntries(Object.entries(amounts).filter(([, v]) => v > 0).map(([k, v]) => [k, String(v)])),
@@ -127,7 +125,7 @@ export default function TripPlannerPage() {
     }), 400)
     return () => clearTimeout(timer)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [profileReady, profilePref, salary, amountsKey, paymentsKey])
+  }, [profileReady, salary, amountsKey, paymentsKey])
   const monthlyTotal = Object.values(amounts).reduce((sum, value) => sum + value, 0)
   const updatePayment = (index: number, update: Partial<BulkPaymentSchedule>) => {
     setPayments(current => current.map((row, rowIndex) => rowIndex === index ? { ...row, ...update } : row))
@@ -208,7 +206,6 @@ export default function TripPlannerPage() {
 
     <main className={styles.content}>
       <form className={styles.formCard} onSubmit={submit}>
-        <ProfileNotice />
         <ol className={tp.stepper} aria-label="Steps">{STEPS.map((label, index) => <li key={label} className={index === step ? tp.stepOn : index < step ? tp.stepDone : ''}><button type="button" onClick={() => index <= step && setStep(index)}><b>{index + 1}</b>{label}</button></li>)}</ol>
 
         {step === 0 && <section className={`sim-page ${tp.stepPanel}`}>

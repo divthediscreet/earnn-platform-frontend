@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { getCardImageUrl, getOptimalWallet, fetchCardDetail } from '@/lib/api'
+import RewardConditionLabel from '@/components/RewardConditionLabel'
 import {
   BuildYourWallet, CardImg, CAT_EMOJI, CAT_LABELS, SPEND_CATS, SectionHeader, fmt, playbookLabel, shortCardName,
   type CustomScore, type RouteEntry, type ScoredCard, type WalletEntry, type WalletResponse,
@@ -812,6 +813,7 @@ function WhyTheseCards({ scoredCards, walletData, forcedRec, subMsg, heroIdx, sh
                 const monthlyReward = Math.round(route.annual_aed / 12)
                 const spendChunk = route.monthly_spend_chunk
                 const totalCatSpend = userSpend[key] ?? 0
+                const rewardCondition = sc?.category_reward_conditions?.[key]
                 return (
                   <div key={key} style={{ display: 'grid', gridTemplateColumns: '40px 1fr auto', alignItems: 'center', gap: 12, padding: '10px 0', borderTop: i > 0 ? '1px solid #F0F4FF' : 'none' }}>
                     {/* Icon circle */}
@@ -831,6 +833,12 @@ function WhyTheseCards({ scoredCards, walletData, forcedRec, subMsg, heroIdx, sh
                       <div style={{ fontSize: 11, color: '#5A6A85' }}>
                         Spent: AED {fmt(spendChunk)}{totalCatSpend > spendChunk ? ` / AED ${fmt(totalCatSpend)}` : ''} ({totalCatSpend > 0 ? Math.round((spendChunk / totalCatSpend) * 100) : 100}% of spend)
                       </div>
+                      <RewardConditionLabel
+                        paymentCondition={rewardCondition?.payment_condition_and_other_restrictions}
+                        merchantList={rewardCondition?.merchant_list}
+                        cardName={sc?.card_name ?? cardId}
+                        emphasis="highlight"
+                      />
                     </div>
                     {/* Reward */}
                     <div style={{ textAlign: 'right', flexShrink: 0 }}>
@@ -950,6 +958,7 @@ function CardPlaybook({ scoredCards, walletData, rec, compact = false }: { score
                 <div style={{ padding: '4px 16px 14px' }}>
                   {category.routes.map((route, index) => {
                     const card = cardFor(route.card_id)
+                    const rewardCondition = card?.category_reward_conditions?.[category.key]
                     const isFirst = index === 0
                     const isLast = index === category.routes.length - 1
                     const routeHeading = isFirst ? `First AED ${fmt(route.monthly_spend_chunk)} / month` : isLast ? `Remaining AED ${fmt(route.monthly_spend_chunk)} / month` : `Next AED ${fmt(route.monthly_spend_chunk)} / month`
@@ -970,6 +979,12 @@ function CardPlaybook({ scoredCards, walletData, rec, compact = false }: { score
                               <div style={{ minWidth: 0 }}>
                                 <div style={{ fontSize: 14, fontWeight: 700, color: '#0D1828', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{shortCardName(card?.card_name ?? route.card_name ?? route.card_id)}</div>
                                 {card?.bank_name && <div style={{ marginTop: 1, fontSize: 11, color: '#5A6A85' }}>{card.bank_name}</div>}
+                                <RewardConditionLabel
+                                  paymentCondition={rewardCondition?.payment_condition_and_other_restrictions}
+                                  merchantList={rewardCondition?.merchant_list}
+                                  cardName={card?.card_name ?? route.card_name ?? route.card_id}
+                                  emphasis="highlight"
+                                />
                               </div>
                             </div>
                           </div>

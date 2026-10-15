@@ -1,9 +1,10 @@
 'use client'
 
 import { useRewardMode } from '@/lib/wallet-simulator/reward-mode'
+import RewardConditionLabel from '@/components/RewardConditionLabel'
 import { Fragment, useCallback, useEffect, useRef, useState } from 'react'
 import type { BestOfSize, SpendGroup, Strategy, Wallet } from '@/lib/wallet-simulator/api'
-import { aed, groupIcon, groupShort, pct } from '@/lib/wallet-simulator/groups'
+import { aed, groupIcon, groupShort } from '@/lib/wallet-simulator/groups'
 import { buildPlaybook, cardGroups, sameCards, type PlaybookEntry, type PlaybookRow } from '@/lib/wallet-simulator/playbook'
 import { CardArt, CardChip, RollingAed, type CardInfo } from './card-art'
 
@@ -764,6 +765,7 @@ function PlaybookByCard({ wallet, rows, card, onDetails }: { wallet: Wallet | nu
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-[14px] font-semibold text-ws-fg">{groupShort(row.group)}</p>
                           <p className="text-[12px] text-ws-muted">{aed(row.monthlySpend)} / month · {rate(e.rate)}</p>
+                          <RewardConditionLabel paymentCondition={e.paymentCondition} merchantList={e.merchantList} cardName={cardName(info)} emphasis="highlight" />
                         </div>
                         <p className="shrink-0 text-[14px] font-semibold text-ws-gain tabular-nums">{rw(row.monthlyReward)}<span className="text-[10px] font-normal text-ws-muted"> /mo</span></p>
                       </div>
@@ -857,6 +859,7 @@ function PlaybookCard({ row, card, onDetails }: { row: PlaybookRow; card: CardLo
                         <CardLink id={e.cardId} onDetails={onDetails} className="hover:text-ws-primary">{cardName(info)}</CardLink>
                       </p>
                       {info.bank && <p className="truncate text-[11px] text-ws-muted">{info.bank}</p>}
+                      <RewardConditionLabel paymentCondition={e.paymentCondition} merchantList={e.merchantList} cardName={cardName(info)} emphasis="highlight" />
                     </div>
                   </div>
                   <div className="mt-2.5 border-t border-ws-border pt-2">
@@ -906,6 +909,7 @@ function PlaybookEntryRow({ entry, label, info, bordered, onDetails }: { entry: 
             <CardLink id={entry.cardId} onDetails={onDetails} className="hover:text-ws-primary">{cardName(info)}</CardLink>
           </p>
           {info.bank && <p className="truncate text-[11px] text-ws-muted">{info.bank}</p>}
+          <RewardConditionLabel paymentCondition={entry.paymentCondition} merchantList={entry.merchantList} cardName={cardName(info)} emphasis="highlight" />
         </div>
         <div className="shrink-0 border-l border-ws-border pl-3 text-right">
           <p className="text-[9px] font-semibold tracking-[0.12em] text-ws-muted uppercase">You could earn</p>

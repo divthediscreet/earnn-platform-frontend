@@ -6,7 +6,6 @@ import { useRouter } from 'next/navigation'
 import type { BulkPaymentSchedule, BulkSpendTopic } from '@/lib/bulk-spend-miles/api'
 import { getBulkSpendTopics } from '@/lib/bulk-spend-miles/api'
 import { topicName } from '@/components/bulk-spend-miles/BulkResultView'
-import ProfileNotice, { useProfilePref } from '@/components/profile/ProfileNotice'
 import { ensureProfileLoaded, patchProfile, readProfile } from '@/lib/profile/storage'
 import { readBulkForm, saveBulkSubmission } from '@/lib/bulk-spend-miles/session'
 import styles from './page.module.css'
@@ -31,12 +30,11 @@ export default function BulkSpendMilesPage() {
   const [error, setError] = useState('')
 
   // Coming back from the results page ("Edit my plan"): restore what the user entered.
-  const profilePref = useProfilePref()
   const [profileReady, setProfileReady] = useState(false)
   useEffect(() => {
     const saved = readBulkForm()
     if (!saved) {
-      // No plan in this tab: fall back to the details kept for this visit (opt-in), shared with the other planners and open tabs.
+      // No plan in this tab: fall back to the browser-local details shared by the planners.
       let alive = true
       ensureProfileLoaded().then(() => {
         if (!alive) return
@@ -50,9 +48,9 @@ export default function BulkSpendMilesPage() {
       })
       return () => { alive = false }
     }
-    setProfileReady(true) // eslint-disable-line react-hooks/set-state-in-effect
-    // sessionStorage only exists after hydration, so restoring has to happen in an effect.
+    // Browser storage only exists after hydration, so restoring has to happen in an effect.
     /* eslint-disable react-hooks/set-state-in-effect */
+    setProfileReady(true)
     setMonthlySpend(saved.monthlySpend)
     setSalary(saved.salary)
     if (saved.payments?.length) setPayments(saved.payments)
@@ -74,10 +72,10 @@ export default function BulkSpendMilesPage() {
 
   const paymentsKey = JSON.stringify(payments.filter(row => Number(row.amount_aed) > 0 && row.due_months.length > 0))
   useEffect(() => {
-    if (!profileReady || profilePref === 'skip' || profilePref === 'pending') return
+    if (!profileReady) return
     const timer = setTimeout(() => patchProfile({ salary, monthly_total: monthlySpend || undefined, payments: JSON.parse(paymentsKey) }), 400)
     return () => clearTimeout(timer)
-  }, [profileReady, profilePref, salary, monthlySpend, paymentsKey])
+  }, [profileReady, salary, monthlySpend, paymentsKey])
 
   const updatePayment = (index: number, update: Partial<BulkPaymentSchedule>) => {
     setPayments(current => current.map((row, rowIndex) => rowIndex === index ? { ...row, ...update } : row))
@@ -120,7 +118,6 @@ export default function BulkSpendMilesPage() {
 
     <main className={styles.content}>
       <form className={styles.formCard} onSubmit={submit}>
-        <ProfileNotice />
         <div className={styles.formHeading}><div><span>YOUR BIG-EXPENSE PLAN</span><h2>Anything extra coming up in the next 12 months?</h2><p className={formStyles.formIntro}>Add any planned expenses — we’ll show you how much further they could take you.</p></div></div>
         <section className={formStyles.expensesPanel}>
           <div className={formStyles.expensePanelHead}><h3>Upcoming expenses</h3><p>Choose what you are paying for, the amount and every month when the same payment is due.</p></div>

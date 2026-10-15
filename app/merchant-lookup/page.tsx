@@ -4,6 +4,7 @@ import { useState } from 'react'
 import PageHero from '@/components/PageHero'
 import { lookupMerchant, getCardImageUrl, type MerchantLookupCard, type MerchantLookupResult } from '@/lib/api'
 import CardNameLink from '@/components/CardNameLink'
+import RewardConditionLabel from '@/components/RewardConditionLabel'
 
 const COLORS = {
   primary:    '#0E3785',
@@ -28,7 +29,7 @@ type ViewMode = 'cashback' | 'miles'
 // Miles view: the API sends rates and reward caps already converted (rate_pct = miles per AED 100); spend stays in AED.
 const fmtReward = (mode: ViewMode, n: number) => (mode === 'miles' ? `${Math.round(n).toLocaleString()} miles` : `AED ${Math.round(n).toLocaleString()}`)
 
-function CardRow({ card, rank, mode, onShowMalls }: { card: MerchantLookupCard; rank: number; mode: ViewMode; onShowMalls: (card: MerchantLookupCard) => void }) {
+function CardRow({ card, rank, mode }: { card: MerchantLookupCard; rank: number; mode: ViewMode }) {
   return (
     <div style={{
       display: 'flex', gap: 16, alignItems: 'flex-start',
@@ -69,59 +70,12 @@ function CardRow({ card, rank, mode, onShowMalls }: { card: MerchantLookupCard; 
           ))}
         </div>
 
-        {card.matched_malls.length > 0 && (
-          <button
-            onClick={() => onShowMalls(card)}
-            style={{
-              marginTop: 8, padding: 0, border: 'none', background: 'none',
-              color: COLORS.primary, fontSize: 12.5, fontWeight: 600,
-              textDecoration: 'underline', cursor: 'pointer',
-            }}
-          >
-            Selected Stores Only
-          </button>
-        )}
-      </div>
-    </div>
-  )
-}
-
-function MallListPopup({ card, onClose }: { card: MerchantLookupCard; onClose: () => void }) {
-  return (
-    <div
-      onClick={onClose}
-      style={{
-        position: 'fixed', inset: 0, background: 'rgba(13,24,40,0.45)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 20,
-      }}
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          background: '#fff', borderRadius: 14, padding: '22px 24px', maxWidth: 420,
-          width: '100%', maxHeight: '70vh', overflowY: 'auto',
-        }}
-      >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
-          <div>
-            <div style={{ fontWeight: 800, fontSize: 16, color: COLORS.text }}>Selected Stores Only</div>
-            <div style={{ fontSize: 12.5, color: COLORS.secondary, marginTop: 4 }}>
-              This rate applies at {card.card_name} only where the store is located inside one of these malls:
-            </div>
-          </div>
-          <button
-            onClick={onClose}
-            style={{ border: 'none', background: 'none', fontSize: 18, color: COLORS.secondary, cursor: 'pointer', lineHeight: 1 }}
-          >×</button>
-        </div>
-        <ul style={{ margin: '14px 0 0', padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 6 }}>
-          {card.matched_malls.map((mall) => (
-            <li key={mall} style={{
-              fontSize: 13.5, color: COLORS.text, padding: '7px 10px',
-              background: COLORS.bgTint, borderRadius: 8,
-            }}>{mall}</li>
-          ))}
-        </ul>
+        <RewardConditionLabel
+          paymentCondition={card.payment_condition_and_other_restrictions}
+          merchantList={card.merchant_list}
+          matchedMalls={card.matched_malls}
+          cardName={card.card_name}
+        />
       </div>
     </div>
   )
@@ -140,7 +94,6 @@ export default function MerchantLookupPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<MerchantLookupResult | null>(null)
-  const [mallPopupCard, setMallPopupCard] = useState<MerchantLookupCard | null>(null)
   const [mode, setMode] = useState<ViewMode>('cashback') // always opens on cashback
   const [searched, setSearched] = useState('')           // the name the current results are for
 
@@ -253,7 +206,7 @@ export default function MerchantLookupPage() {
           )}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {result.cards.map((card, i) => (
-              <CardRow key={card.earnn_card_id} card={card} rank={i + 1} mode={mode} onShowMalls={setMallPopupCard} />
+              <CardRow key={card.earnn_card_id} card={card} rank={i + 1} mode={mode} />
             ))}
           </div>
           </div>
@@ -269,9 +222,6 @@ export default function MerchantLookupPage() {
 
       </div>
 
-      {mallPopupCard && (
-        <MallListPopup card={mallPopupCard} onClose={() => setMallPopupCard(null)} />
-      )}
     </div>
     </>
   )

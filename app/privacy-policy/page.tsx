@@ -88,7 +88,7 @@ const sections: LegalSection[] = [
     blocks: [
       p('Earnn may use cookies and similar technologies that are necessary for the operation, security and performance of the Platform.'),
       p('Where we use analytics or other non-essential technologies that require consent under applicable law, we will provide appropriate information and choices.'),
-      p('If you choose "Keep for this visit", Earnn holds the details you type into its planning tools (such as salary, monthly spending and planned payments) in your session storage in your browser so you do not have to enter them again while you use the site, including in another open tab. This information stays on your device, is never sent to Earnn, and is deleted automatically when you close the site. You can also clear it at any time using the "Clear now" link on those pages. Earnn does not store this information unless you choose to keep it.'),
+      p('Earnn automatically saves the details you type into its planning tools (such as salary, monthly spending and planned payments) locally in your browser on your device, so you do not have to enter them again across tabs and future visits. This information stays on your device and is never sent to Earnn. You can remove it by clearing Earnn site data in your browser settings.'),
       p('You can also control certain cookies through your browser settings. Disabling certain technologies may affect the operation of parts of the Platform.'),
     ],
   },

@@ -8,7 +8,6 @@ import { SPLIT_KEYS, SimulatorStyles, SpendEntryFields, computeAmounts, splitFro
 import { StatementUpload, type StatementSubmit } from '@/components/wallet-simulator/statement-upload'
 import { ComparisonPopup, buildGapData, type GapData } from '@/components/wallet-simulator/gap-popup'
 import { pingBackend } from '@/lib/api'
-import ProfileNotice, { useProfilePref } from '@/components/profile/ProfileNotice'
 import { ensureProfileLoaded, patchProfile, readProfile } from '@/lib/profile/storage'
 import { CardColumnsLoader, loadCardIds, preloadCardImages } from '@/components/wallet-simulator/loading-columns'
 
@@ -37,8 +36,7 @@ function SpendForm({ initial }: { initial?: SimulatorRequest }) {
     loadCardIds().then(ids => { preloadCardImages(ids); setAnimCardIds(ids) })
   }, [])
 
-  // Saved details (opt-in, this browser only): restore on first load unless "Edit my spending" supplied a session.
-  const profilePref = useProfilePref()
+  // Saved details: restore the browser-local profile unless "Edit my spending" supplied a session.
   const [profileReady, setProfileReady] = useState(false)
   useEffect(() => {
     let alive = true
@@ -60,7 +58,7 @@ function SpendForm({ initial }: { initial?: SimulatorRequest }) {
   const amounts = computeAmounts(spend, splits)
   const amountsKey = JSON.stringify(amounts)
   useEffect(() => {
-    if (!profileReady || profilePref === 'skip' || profilePref === 'pending') return
+    if (!profileReady) return
     const timer = setTimeout(() => patchProfile({
       salary,
       spend: Object.fromEntries(Object.entries(amounts).filter(([, v]) => v > 0).map(([k, v]) => [k, String(v)])),
@@ -68,7 +66,7 @@ function SpendForm({ initial }: { initial?: SimulatorRequest }) {
     }), 400)
     return () => clearTimeout(timer)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [profileReady, profilePref, salary, amountsKey])
+  }, [profileReady, salary, amountsKey])
 
   const totalMonthly = Object.values(amounts).reduce((a, b) => a + b, 0)
   const salaryNum = parseFloat(salary) || 0
@@ -140,7 +138,6 @@ function SpendForm({ initial }: { initial?: SimulatorRequest }) {
 
         {mode === 'manual' && (
           <>
-            <ProfileNotice />
         <div className="sim-intro">
           <div>
             <div className="sim-eyebrow">BUILD YOUR SPENDING PROFILE</div>

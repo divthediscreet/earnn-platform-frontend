@@ -14,6 +14,8 @@ export type PlaybookEntry = {
   monthlyReward: number // backend reward for that spend
   rate: number          // headline rate of the rule earning it
   limitReached: boolean // part of this spend is past the rule's bonus limit
+  paymentCondition: string | null
+  merchantList: string | null
   threshold?: ThresholdNote
 }
 
@@ -61,9 +63,12 @@ export function buildPlaybook(wallet: Wallet | null, groups: SpendGroup[]): Play
       const amount = lines.reduce((s, l) => s + l.amount_aed, 0)
       const monthlyReward = lines.reduce((s, l) => s + l.monthly_reward_aed, 0)
       const rate = Math.max(...lines.map(l => l.rate))
+      const conditionLine = [...lines].sort((a, b) => b.monthly_reward_aed - a.monthly_reward_aed || b.rate - a.rate)[0]
       return {
         cardId, amount, monthlyReward, rate,
         limitReached: lines.some(l => l.post_cap_spend_aed > 0.005),
+        paymentCondition: conditionLine.payment_condition_and_other_restrictions,
+        merchantList: conditionLine.merchant_list,
         threshold: thresholdNote(wallet, cardId, g.group, rate),
       }
     }).sort((x, y) => (y.monthlyReward / y.amount) - (x.monthlyReward / x.amount) || y.rate - x.rate

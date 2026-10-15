@@ -26,6 +26,10 @@ export interface ScoredCard {
   card_summary_tag?: string
   category_monthly_rewards: Record<string, number>
   category_effective_rates: Record<string, number>
+  category_reward_conditions?: Record<string, {
+    payment_condition_and_other_restrictions: string
+    merchant_list: string | null
+  }>
 }
 
 export interface RouteEntry {

@@ -66,6 +66,8 @@ export interface MerchantLookupCard {
   bank_name:        string
   reward_rate_pct:  number
   matched_malls:    string[]
+  payment_condition_and_other_restrictions: string | null
+  merchant_list:    string | null
   tier_breakdown:   MerchantLookupTier[]
 }
 

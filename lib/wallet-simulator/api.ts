@@ -40,6 +40,8 @@ export type AllocationLine = {
   bonus_spend_aed: number
   post_cap_spend_aed: number
   monthly_reward_aed: number
+  payment_condition_and_other_restrictions: string | null
+  merchant_list: string | null
 }
 
 export type Wallet = {
