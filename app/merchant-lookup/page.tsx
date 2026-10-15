@@ -29,6 +29,12 @@ type ViewMode = 'cashback' | 'miles'
 // Miles view: the API sends rates and reward caps already converted (rate_pct = miles per AED 100); spend stays in AED.
 const fmtReward = (mode: ViewMode, n: number) => (mode === 'miles' ? `${Math.round(n).toLocaleString()} miles` : `AED ${Math.round(n).toLocaleString()}`)
 
+/** A cap amount with a light highlight on just the "AED 500" part; "No" when there is no cap. */
+function CapAmount({ mode, amount }: { mode: ViewMode; amount: number | null | undefined }) {
+  if (!amount) return <>No</>
+  return <span style={{ background: '#FFF1C2', color: '#7A5A00', fontWeight: 700, padding: '1px 5px', borderRadius: 4 }}>{fmtReward(mode, amount)}</span>
+}
+
 function CardRow({ card, rank, mode }: { card: MerchantLookupCard; rank: number; mode: ViewMode }) {
   return (
     <div style={{
@@ -64,7 +70,7 @@ function CardRow({ card, rank, mode }: { card: MerchantLookupCard; rank: number;
               <strong style={{ color: COLORS.earn }}>{mode === 'miles' ? `${tier.rate_pct.toFixed(1)} mi` : `${tier.rate_pct.toFixed(2)}%`}</strong>
               <span style={{ color: COLORS.secondary }}>: {tierRangeLabel(tier.min_monthly_spend_aed, tier.max_monthly_spend_aed)}</span>
               <span style={{ color: '#7A8BA8', fontSize: 11.5 }}>
-                (Category Cap: {tier.cap_aed ? fmtReward(mode, tier.cap_aed) : 'No'} ; Card Level Cap: {tier.card_cap_aed ? fmtReward(mode, tier.card_cap_aed) : 'No'})
+                (Category Cap: <CapAmount mode={mode} amount={tier.cap_aed} /> ; Card Level Cap: <CapAmount mode={mode} amount={tier.card_cap_aed} />)
               </span>
             </div>
           ))}
