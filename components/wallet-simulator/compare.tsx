@@ -5,6 +5,7 @@ import { evaluateWallet, listSimulatorCards, SimulatorApiError, type RewardMode,
 import { useRewardMode } from '@/lib/wallet-simulator/reward-mode'
 import { aed, groupIcon, groupShort, MAX_WALLET } from '@/lib/wallet-simulator/groups'
 import { CardArt, CardChip, type CardInfo } from './card-art'
+import { FeeMathDialog } from './fee-math'
 
 type CardLookup = (id: string) => CardInfo
 
@@ -14,7 +15,7 @@ function loadCardList(mode: RewardMode): Promise<CardInfo[]> {
   // the simulator's own card list for this view (same cached rules as the engine), with one automatic retry
   cardListPromise[mode] ??= listSimulatorCards(mode)
     .catch(() => new Promise(r => setTimeout(r, 1200)).then(() => listSimulatorCards(mode)))
-    .then(cards => cards.map(c => ({ id: c.card_id, name: c.card_name, bank: c.bank_name })))
+    .then(cards => cards.map(c => ({ id: c.card_id, name: c.card_name, bank: c.bank_name, bankCode: c.bank_code })))
     .catch(e => { delete cardListPromise[mode]; throw e })
   return cardListPromise[mode]!
 }
@@ -47,6 +48,7 @@ export function CompareDialog({ request, smart, groups, card, onClose }: {
   const [running, setRunning] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [existing, setExisting] = useState<Wallet | null>(null)
+  const [margin, setMargin] = useState(0) // a switch must win by more than this a year, after fees (backend setting)
 
   const [attempt, setAttempt] = useState(0)
   useEffect(() => {
@@ -67,6 +69,12 @@ export function CompareDialog({ request, smart, groups, card, onClose }: {
 
   const byId = useMemo(() => new Map((cards ?? []).map(c => [c.id, c])), [cards])
   const banks = useMemo(() => [...new Set((cards ?? []).map(c => c.bank).filter((b): b is string => !!b))].sort(), [cards])
+  // "First Abu Dhabi Bank (FAB)": the bank's code from the card data, so similar names stay distinguishable
+  const bankLabel = useMemo(() => {
+    const codes = new Map<string, string>()
+    for (const c of cards ?? []) if (c.bank && c.bankCode && !codes.has(c.bank)) codes.set(c.bank, c.bankCode.replace(/_/g, ' '))
+    return (b: string) => (codes.has(b) ? `${b} (${codes.get(b)})` : b)
+  }, [cards])
   const bankCards = useMemo(() => (cards ?? []).filter(c => c.bank === bank).sort((a, b) => a.name.localeCompare(b.name)), [cards, bank])
   const info = (id: string) => byId.get(id) ?? card(id)
   const full = selected.length >= MAX_WALLET
@@ -90,7 +98,7 @@ export function CompareDialog({ request, smart, groups, card, onClose }: {
     setError(null)
     // same engine as the simulator: the backend's exact evaluation of this card set on the same spend
     evaluateWallet(request, selected)
-      .then(res => setExisting(res.wallet))
+      .then(res => { setMargin(res.meta.switch_margin ?? 0); setExisting(res.wallet) })
       .catch(e => setError(e instanceof SimulatorApiError ? e.message : 'Something went wrong on our side. Please try again.'))
       .finally(() => setRunning(false))
   }
@@ -115,7 +123,7 @@ export function CompareDialog({ request, smart, groups, card, onClose }: {
         </div>
 
         {showResult ? (
-          <CompareResult smart={smart} existing={existing} groups={groups} card={info} />
+          <CompareResult smart={smart} existing={existing} groups={groups} card={info} margin={margin} />
         ) : (
           <div className="ws-scrollbar flex-1 overflow-y-auto px-6 py-5">
             {/* the "cart" */}
@@ -153,7 +161,7 @@ export function CompareDialog({ request, smart, groups, card, onClose }: {
                   <select id="ws-compare-bank" value={bank} onChange={e => setBank(e.target.value)} disabled={!cards}
                     className="h-11 w-full appearance-none rounded-xl border border-ws-border bg-ws-card pr-10 pl-3.5 text-[14px] text-ws-fg outline-none focus:border-ws-primary disabled:opacity-60">
                     <option value="">{cards ? 'Select your bank' : listError ? 'Card list unavailable' : 'Loading banks…'}</option>
-                    {banks.map(b => <option key={b} value={b}>{b}</option>)}
+                    {banks.map(b => <option key={b} value={b}>{bankLabel(b)}</option>)}
                   </select>
                   <span aria-hidden className="pointer-events-none absolute top-1/2 right-3.5 -translate-y-1/2 text-[12px] text-ws-muted">▼</span>
                 </div>
@@ -225,13 +233,21 @@ function Stack({ ids, card }: { ids: string[]; card: CardLookup }) {
 
 /** Result: the two wallets, the outcome, then category by category. Both wallets are styled the
  *  same — whichever genuinely earns more in a row is marked, including the user's own wallet. */
-function CompareResult({ smart, existing, groups, card }: { smart: Wallet; existing: Wallet; groups: SpendGroup[]; card: CardLookup }) {
+function CompareResult({ smart, existing, groups, card, margin }: { smart: Wallet; existing: Wallet; groups: SpendGroup[]; card: CardLookup; margin: number }) {
   const { rw, isMiles } = useRewardMode()
+  const [feeFor, setFeeFor] = useState<'smart' | 'existing' | null>(null)
   const s = byGroup(smart)
   const e = byGroup(existing)
   const rows = groups.filter(g => g.monthly_spend_aed > 0)
-  const gap = smart.monthly_reward_aed - existing.monthly_reward_aed
-  const even = Math.abs(gap) < 1
+  // The decision is on rewards AFTER fees, same spending and same calculation for both wallets. Fees are
+  // in AED; in the miles view `net_annual_value_aed` already has the fee converted to miles (backend).
+  const rewardGap = smart.annual_reward_aed - existing.annual_reward_aed          // per year
+  const extraFees = smart.total_fee_aed - existing.total_fee_aed                  // AED per year
+  const netGain = smart.net_annual_value_aed - existing.net_annual_value_aed      // per year, view unit
+  const switchWins = netGain > margin
+  const keepWins = !switchWins
+  const gap = netGain / 12                                                         // per month, for the headline
+  const clearlyBetter = netGain < -margin
   const grid = 'grid grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)_minmax(0,1fr)]'
   const amount = (v: number, wins: boolean) => (
     <div className="flex items-center justify-end gap-1.5 px-3 py-3 sm:px-5">
@@ -246,27 +262,27 @@ function CompareResult({ smart, existing, groups, card }: { smart: Wallet; exist
     <div className="ws-scrollbar flex-1 overflow-y-auto px-5 py-5 sm:px-7">
       {/* the two wallets */}
       <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3 sm:gap-5">
-        <WalletSummary label="Earnn Smart Wallet" ids={smart.cards} monthly={smart.monthly_reward_aed} card={card} />
+        <WalletSummary label="Earnn Smart Wallet" ids={smart.cards} monthly={smart.monthly_reward_aed} fees={smart.total_fee_aed} card={card} onFees={() => setFeeFor('smart')} />
         <span className="text-[13px] font-semibold text-ws-muted">vs.</span>
-        <WalletSummary label="Your current wallet" ids={existing.cards} monthly={existing.monthly_reward_aed} card={card} />
+        <WalletSummary label="Your current wallet" ids={existing.cards} monthly={existing.monthly_reward_aed} fees={existing.total_fee_aed} card={card} onFees={() => setFeeFor('existing')} />
       </div>
 
-      {/* the outcome */}
+      {/* the outcome: after fees, with a small margin so noise does not tell people to switch */}
       <div className="mt-5 rounded-2xl bg-ws-ink px-5 py-5 text-center text-white">
-        {even ? (
+        {switchWins ? (
           <p className="font-display text-[20px] leading-snug font-semibold text-balance sm:text-[24px]">
-            Your current wallet already earns about the same as ours.
+            You&apos;re potentially leaving <span className="text-[#F7C948]">{rw(gap)}/month</span> on the table, after fees
           </p>
-        ) : gap > 0 ? (
+        ) : clearlyBetter ? (
           <p className="font-display text-[20px] leading-snug font-semibold text-balance sm:text-[24px]">
-            You&apos;re potentially leaving <span className="text-[#F7C948]">{rw(gap)}/month</span> on the table
+            Your current wallet earns <span className="text-[#F7C948]">{rw(-gap)}/month</span> more than ours after fees
           </p>
         ) : (
           <p className="font-display text-[20px] leading-snug font-semibold text-balance sm:text-[24px]">
-            Your current wallet earns <span className="text-[#F7C948]">{rw(-gap)}/month</span> more than ours on this spending
+            Your current wallet is about as good as ours after fees
           </p>
         )}
-        {!even && gap < 0 && <p className="mt-1.5 text-[13px] text-white/70">Keep what you have — it&apos;s working for you.</p>}
+        {keepWins && <p className="mt-1.5 text-[13px] text-white/70">Keep your existing wallet — it&apos;s working for you.</p>}
       </div>
 
       {/* category by category */}
@@ -298,30 +314,42 @@ function CompareResult({ smart, existing, groups, card }: { smart: Wallet; exist
       </p>
 
       {/* the decision */}
-      {gap >= 1 && (
-        <div className="mt-6 rounded-2xl border border-ws-border p-5">
-          <p className="font-display text-[18px] font-semibold text-ws-fg">Switching could add {rw(gap)}/month</p>
-          <p className="text-[13px] text-ws-muted">without changing how much you spend.</p>
-          <dl className="mt-4 space-y-2 border-t border-ws-border pt-4 text-[13px]">
-            <div className="flex justify-between gap-4"><dt className="text-ws-muted">Extra rewards</dt><dd className="font-semibold text-ws-fg tabular-nums">+{rw(gap)}</dd></div>
-            <div className="flex justify-between gap-4"><dt className="text-ws-muted">Extra annual fees</dt><dd className="text-ws-muted">TBD</dd></div>
-            {!isMiles && (
-              <div className="flex justify-between gap-4 border-t border-ws-border pt-2"><dt className="font-semibold text-ws-fg">Net benefit of switching</dt><dd className="text-ws-muted">TBD — fees coming soon</dd></div>
-            )}
-          </dl>
-        </div>
+      <div className="mt-6 rounded-2xl border border-ws-border p-5">
+        <p className="font-display text-[18px] font-semibold text-ws-fg">
+          {switchWins ? `Switching could add ${rw(gap)}/month after fees` : 'Switching would not pay off'}
+        </p>
+        <p className="text-[13px] text-ws-muted">
+          {switchWins ? 'without changing how much you spend.' : `It would need to add more than ${rw(margin / 12)}/month after fees to be worth the change.`}
+        </p>
+        <dl className="mt-4 space-y-2 border-t border-ws-border pt-4 text-[13px]">
+          <div className="flex justify-between gap-4"><dt className="text-ws-muted">Extra rewards</dt><dd className="font-semibold text-ws-fg tabular-nums">{rewardGap < 0 ? '−' : '+'}{rw(Math.abs(rewardGap))}/year</dd></div>
+          <div className="flex justify-between gap-4"><dt className="text-ws-muted">Extra annual fees</dt><dd className="font-semibold text-ws-fg tabular-nums">{extraFees < 0 ? '−' : '+'}{aed(Math.abs(extraFees))}/year</dd></div>
+          <div className="flex justify-between gap-4 border-t border-ws-border pt-2"><dt className="font-semibold text-ws-fg">Net benefit of switching</dt><dd className={`font-semibold tabular-nums ${netGain > 0 ? 'text-ws-gain' : 'text-ws-loss'}`}>{netGain < 0 ? '−' : ''}{rw(Math.abs(netGain))}/year</dd></div>
+        </dl>
+        {isMiles && <p className="mt-3 text-[11px] text-ws-muted">Fees are in AED. To compare them with miles, they are converted to miles for this calculation.</p>}
+        <p className="mt-3 text-[11px] text-ws-muted">Both wallets use the same spending and the same estimated fees.</p>
+      </div>
+
+      {feeFor && (
+        <FeeMathDialog
+          title={feeFor === 'smart' ? 'Earnn Smart Wallet' : 'Your current wallet'}
+          cards={(feeFor === 'smart' ? smart : existing).per_card}
+          nameOf={id => card(id).name}
+          onClose={() => setFeeFor(null)} />
       )}
     </div>
   )
 }
 
-function WalletSummary({ label, ids, monthly, card }: { label: string; ids: string[]; monthly: number; card: CardLookup }) {
+function WalletSummary({ label, ids, monthly, fees, card, onFees }: { label: string; ids: string[]; monthly: number; fees: number; card: CardLookup; onFees: () => void }) {
   const { rw } = useRewardMode()
   return (
     <div className="flex min-w-0 flex-col items-center rounded-2xl border border-ws-border px-3 py-4 text-center">
       <p className="text-[10px] font-bold tracking-[0.12em] text-ws-muted uppercase">{label}</p>
       <div className="mt-3"><Stack ids={ids} card={card} /></div>
       <p className="mt-3 font-display text-[20px] font-semibold text-ws-fg tabular-nums sm:text-[24px]">{rw(monthly)}<span className="text-[13px] font-normal text-ws-muted">/month</span></p>
+      <p className="mt-1.5 text-[12px] text-ws-muted tabular-nums">Est. annual fees <strong className="font-semibold text-ws-fg">{aed(fees)}</strong></p>
+      <button type="button" onClick={onFees} className="mt-0.5 text-[11px] font-semibold text-ws-primary hover:underline">How is this calculated?</button>
     </div>
   )
 }

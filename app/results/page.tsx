@@ -426,8 +426,7 @@ function buildHeroCards(walletData: WalletResponse, scoredCards: ScoredCard[]): 
   const h1Nav = h1.net_annual_value_aed
   const heroes: HeroCardData[] = [toHero(h1,
     h1.n_cards === 1 ? 'Your Best Card for This Spend' :
-    h1.n_cards === 2 ? '2 Cards Deliver You Maximum Rewards' :
-    `${h1.n_cards} Cards Deliver You Maximum Rewards`
+    'Recommended Balance of Value and Effort'
   )]
 
   if (h1.n_cards >= 3) {
@@ -507,7 +506,7 @@ function Screen1Hero({ scoredCards, walletData, onNext, onExplore }: {
   const walletCardSummaries = buildWalletCardSummaries(rec.walletEntry, scoredCards)
 
   const portfolioTabs = [
-    'Recommended · Maximum Rewards',
+    'Recommended · Balance of Value & Effort',
     'Best Balance · Low Effort',
     'Keep It Simple · Minimum Effort',
   ]
@@ -866,7 +865,7 @@ function WhyTheseCards({ scoredCards, walletData, forcedRec, subMsg, heroIdx, sh
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: 12, padding: '14px 20px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <span style={{ fontSize: 20 }}>🏆</span>
-          <span style={{ fontSize: 14, fontWeight: 600, color: '#92400E' }}>Follow this strategy to earn the maximum rewards</span>
+          <span style={{ fontSize: 14, fontWeight: 600, color: '#92400E' }}>Follow this strategy for the best balance of value and effort</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 24, flexShrink: 0 }}>
           <div style={{ textAlign: 'right' }}>

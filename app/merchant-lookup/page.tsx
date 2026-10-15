@@ -178,8 +178,11 @@ export default function MerchantLookupPage() {
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', marginBottom: 14 }}>
             <div style={{ fontSize: 13.5, color: COLORS.secondary }}>
               Showing results for <strong style={{ color: COLORS.text }}>{result.merchant_name}</strong>
-              {result.category ? <> — category: <strong style={{ color: COLORS.text }}>{result.category.replace(/_/g, ' ')}</strong></> : null}
-              {' · '}{result.cards.length} card{result.cards.length === 1 ? '' : 's'}
+              {result.category ? <> — category: <strong style={{ color: COLORS.text }}>{result.category_label || result.category.replace(/_/g, ' ')}</strong></> : null}
+              {result.also_online ? <>. Also comes under <strong style={{ color: COLORS.text }}>Online Payment</strong></> : null}
+              <div style={{ fontSize: 11.5, marginTop: 2 }}>
+                {result.cards.length} card{result.cards.length === 1 ? '' : 's'}
+              </div>
             </div>
             <div role="radiogroup" aria-label="Reward view" style={{ display: 'inline-flex', gap: 2, padding: 2, borderRadius: 8, background: COLORS.bgTint, border: `1px solid ${COLORS.border}` }}>
               {(['cashback', 'miles'] as const).map(m => (

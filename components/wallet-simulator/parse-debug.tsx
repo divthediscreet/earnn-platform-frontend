@@ -19,7 +19,7 @@ const BANK_ABBREV: Record<string, string> = {
 }
 
 const BANK_NO_ABBREV = new Set([
-  'First Abu Dhabi Bank PJSC',
+  'Dubai First Bank PJSC',
   'Ajman Bank',
   'HSBC Middle East Limited',
 ])

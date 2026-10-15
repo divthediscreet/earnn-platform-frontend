@@ -9,6 +9,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { uploadStatement, fetchCardDetail, fetchCards, getCardImageUrl } from '@/lib/api'
 import { listSimulatorCards, type StatementSpendRow } from '@/lib/wallet-simulator/api'
 import { ParseDataDebug, formatBankName } from './parse-debug'
+import { SalaryPrompt } from './salary-prompt'
 import { STATEMENT_CONSENT_VERSION } from '@/lib/statement-consent'
 
 type SummaryRow = { earnn_category_granular_code: string | null; total_spend_aed: number; transaction_count?: number }
@@ -36,10 +37,65 @@ function granularSplit(rows: SummaryRow[]) {
     .sort((a, b) => b.amount - a.amount)
 }
 
-export function StatementUpload({ onSubmit, submitting, submitError }: {
+/** Customer-friendly text for a failed statement upload (the backend's own message is technical). */
+function uploadErrorText(code: unknown): string {
+  switch (code) {
+    case 'PDF_ENCRYPTED_NO_PASSWORD': return 'This PDF is password-protected. Please enter its password and try again.'
+    case 'PDF_WRONG_PASSWORD': return 'That password did not open the PDF. Please check it and try again.'
+    case 'CONSENT_REQUIRED': return 'Please tick the consent box to continue.'
+    case 'NOT_CREDIT_CARD_STATEMENT': return 'We could not find the details we need in this file. It may be incomplete, or not a credit card statement.'
+    case 'PDF_READ_ERROR': return 'We could not open this PDF. The file may be damaged or not a normal PDF.'
+    case 'GATEWAY_TIMEOUT': case 'GATEWAY_ERROR': return 'Our server is taking longer than usual. Please try again in a moment.'
+    case 'REDACTION_FAILED': return 'We could not process this file securely just now. Please try again.'
+    default: return 'We could not read this statement. It may be missing some details we need, or something went wrong on our side.'
+  }
+}
+
+// Errors where the file itself is the likely problem: we show what a readable statement looks like.
+const FILE_PROBLEM_CODES = new Set(['NOT_CREDIT_CARD_STATEMENT', 'PDF_READ_ERROR', 'PARSE_FAILED', 'ALL_PARSERS_FAILED', 'LLM_DISABLED', 'UNKNOWN'])
+// Errors that are worth simply retrying with the same file.
+const RETRY_SAME_FILE_CODES = new Set(['GATEWAY_TIMEOUT', 'GATEWAY_ERROR', 'REDACTION_FAILED', 'UNKNOWN', 'ALL_PARSERS_FAILED', 'LLM_DISABLED'])
+
+/** What a readable statement needs, and what to do next, shown under a failed upload. */
+function UploadHelp({ code, onChooseAnother, onRetry, onManual, busy }: {
+  code: string
+  onChooseAnother: () => void
+  onRetry: () => void
+  onManual?: () => void
+  busy: boolean
+}) {
+  const fileProblem = FILE_PROBLEM_CODES.has(code)
+  const button = (primary: boolean): React.CSSProperties => ({
+    padding: '9px 14px', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: busy ? 'not-allowed' : 'pointer',
+    border: primary ? 'none' : '1px solid #C8D4E8', background: primary ? '#0E3785' : 'white', color: primary ? 'white' : '#0E3785',
+  })
+  return (
+    <div style={{ background: '#F8FAFF', border: '1px solid #D6E0F5', borderRadius: 10, padding: '14px 16px', marginBottom: 14, fontSize: 13, color: '#0D1828' }}>
+      {fileProblem && (
+        <>
+          <div style={{ fontWeight: 700, marginBottom: 6 }}>What we can read</div>
+          <ul style={{ margin: '0 0 10px 18px', padding: 0, lineHeight: 1.6, color: '#5A6A85' }}>
+            <li>A credit card statement saved as a <strong>PDF</strong> from your bank&apos;s app or website. Photos, screenshots and other file types are not supported.</li>
+            <li>The <strong>complete statement</strong>: every page, not a single page or a summary.</li>
+            <li>It should show the <strong>bank and card</strong>, the <strong>statement period dates</strong>, and the <strong>list of transactions</strong> with date, description and amount.</li>
+            <li>If the PDF has a password, tell us so and enter it.</li>
+          </ul>
+        </>
+      )}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+        <button type="button" onClick={onChooseAnother} disabled={busy} style={button(true)}>Choose another file</button>
+        {RETRY_SAME_FILE_CODES.has(code) && <button type="button" onClick={onRetry} disabled={busy} style={button(false)}>Try this file again</button>}
+        {onManual && <button type="button" onClick={onManual} disabled={busy} style={button(false)}>Enter my spending manually</button>}
+      </div>
+    </div>
+  )
+}
+
+export function StatementUpload({ onSubmit, submitting, submitError, onManual }: {
   onSubmit: (s: StatementSubmit) => void
   submitting: boolean
   submitError: string
+  onManual?: () => void   // switch the page to manual entry
 }) {
   const [file, setFile] = useState<File | null>(null)
   const [passwordMode, setPasswordMode] = useState<'none' | 'has_password' | null>(null)
@@ -48,6 +104,7 @@ export function StatementUpload({ onSubmit, submitting, submitError }: {
   const [dragging, setDragging] = useState(false)
   const [scanning, setScanning] = useState(false)
   const [error, setError] = useState('')
+  const [errorCode, setErrorCode] = useState('') // set only when the server rejected the upload
   const [review, setReview] = useState<any>(null)
   const [reviewTab, setReviewTab] = useState<'category' | 'merchants'>('category')
   const [cardInfo, setCardInfo] = useState<{ card_name: string; bank_name?: string } | null>(null)
@@ -63,11 +120,17 @@ export function StatementUpload({ onSubmit, submitting, submitError }: {
   const [pickerLoading, setPickerLoading] = useState(false)
   const [pickerSearch, setPickerSearch] = useState('')
   const [reviewError, setReviewError] = useState('')
+  const [askSalary, setAskSalary] = useState(false) // friendly prompt instead of an error when salary is empty
   const fileRef = useRef<HTMLInputElement>(null)
 
   const [consent, setConsent] = useState(false) // explicit consent, unticked by default and reset for every upload
   const fileReady = !!file && (passwordMode === 'none' || (passwordMode === 'has_password' && password.trim().length > 0))
   const uploadReady = fileReady && consent
+  // name the step that is actually still missing, in the order the form asks for them
+  const missingStep = !file ? 'Select a statement to continue'
+    : passwordMode === null ? 'Tell us if your PDF has a password'
+    : !fileReady ? 'Enter your PDF password to continue'
+    : 'Tick the consent box to continue'
 
   const onDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault(); setDragging(false)
@@ -89,6 +152,7 @@ export function StatementUpload({ onSubmit, submitting, submitError }: {
     if (passwordMode === null) return setError('Please confirm if your PDF has a password')
     if (passwordMode === 'has_password' && !password.trim()) return setError('Please enter your PDF password')
     setScanning(true)
+    setErrorCode('')
     setError(isRetry ? 'Server was waking up — retrying now…' : '')
     try {
       const result = await uploadStatement(file, passwordMode === 'has_password' ? password.trim() : undefined, STATEMENT_CONSENT_VERSION)
@@ -111,10 +175,14 @@ export function StatementUpload({ onSubmit, submitting, submitError }: {
           setScanning(false)
           return handleUpload(true)
         }
-        setError(result.error_message || 'Could not parse this statement. Try manual entry.')
+        // never show the parser's own message to customers; keep it for support
+        console.warn('statement upload failed', result.error_code, result.error_message)
+        setErrorCode(String(result.error_code || 'UNKNOWN'))
+        setError(uploadErrorText(result.error_code))
       }
     } catch {
-      setError('Upload failed. Please try again or use manual entry.')
+      setErrorCode('GATEWAY_ERROR')
+      setError('The upload did not go through. Please check your connection and try again.')
     } finally { setScanning(false) }
   }
 
@@ -144,15 +212,16 @@ export function StatementUpload({ onSubmit, submitting, submitError }: {
   const total = split.reduce((s, r) => s + r.amount, 0)
   const salaryNum = parseFloat(salary) || 0
 
-  const proceed = () => {
+  const proceed = (salaryOverride?: number) => {
+    const salaryValue = salaryOverride ?? salaryNum
     if (total <= 0) return setReviewError('No categorised spend was found in this statement.')
-    if (salaryNum <= 0) return setReviewError('Enter your monthly salary so we only suggest cards you can apply for.')
+    if (salaryValue <= 0) { setReviewError(''); return setAskSalary(true) }
     setReviewError('')
     onSubmit({
       spend_summary: (review.spend_summary as SummaryRow[]).map(r => ({
         earnn_category_granular_code: r.earnn_category_granular_code, total_spend_aed: Number(r.total_spend_aed) || 0,
       })),
-      salary_aed: salaryNum,
+      salary_aed: salaryValue,
       currentCardId: cardUnsupported ? null : currentCardId, // miles-only cards can't be compared in cashback yet
     })
   }
@@ -341,12 +410,17 @@ export function StatementUpload({ onSubmit, submitting, submitError }: {
 
           {(reviewError || submitError) && <div style={{ background: '#FFF3F0', border: '1px solid #FFD0C8', borderRadius: 8, padding: '12px 16px', color: '#C0392B', fontSize: 14, marginBottom: 20 }}>⚠️ {reviewError || submitError}</div>}
 
-          <button type="button" onClick={proceed} disabled={submitting} style={{
+          <button type="button" onClick={() => proceed()} disabled={submitting} style={{
             width: '100%', padding: '18px', fontSize: 17, fontWeight: 700, border: 'none', borderRadius: 10,
             background: submitting ? '#6B8EC7' : '#0E3785', color: 'white', cursor: submitting ? 'default' : 'pointer', boxShadow: '0 6px 20px rgba(14,55,133,0.25)',
           }}>
             {submitting ? 'Finding your best cards…' : 'Here is your spend — Find the best card for me →'}
           </button>
+
+          {askSalary && (
+            <SalaryPrompt salary={salary} setSalary={setSalary} onClose={() => setAskSalary(false)}
+              onConfirm={value => { setAskSalary(false); proceed(value) }} />
+          )}
 
           <ParseDataDebug data={review} />
         </div>
@@ -383,7 +457,7 @@ export function StatementUpload({ onSubmit, submitting, submitError }: {
                 Browse
               </button>
             </div>
-            <input ref={fileRef} type="file" accept=".pdf" style={{ display: 'none' }} onChange={e => { const f = e.target.files?.[0]; if (f) { setFile(f); setPasswordMode(null); setPassword('') } }} />
+            <input ref={fileRef} type="file" accept=".pdf" style={{ display: 'none' }} onChange={e => { const f = e.target.files?.[0]; if (f) { setFile(f); setPasswordMode(null); setPassword(''); setError(''); setErrorCode('') } }} />
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 12 }}>
@@ -435,12 +509,18 @@ export function StatementUpload({ onSubmit, submitting, submitError }: {
           </div>
 
           {error && <div style={{ background: '#FFF3F0', border: '1px solid #FFD0C8', borderRadius: 8, padding: '10px 14px', color: '#C0392B', fontSize: 13, marginBottom: 14 }}>⚠️ {error}</div>}
+          {errorCode && !scanning && errorCode !== 'PDF_ENCRYPTED_NO_PASSWORD' && errorCode !== 'PDF_WRONG_PASSWORD' && (
+            <UploadHelp code={errorCode} busy={scanning}
+              onChooseAnother={() => fileRef.current?.click()}
+              onRetry={() => handleUpload()}
+              onManual={onManual} />
+          )}
 
           <button type="button" onClick={() => handleUpload()} disabled={!uploadReady || scanning} style={{
             width: '100%', padding: '13px', fontSize: 14, fontWeight: 700, border: 'none', borderRadius: 10, transition: 'all 0.2s',
             background: uploadReady ? '#0E3785' : '#D6E0F5', color: uploadReady ? 'white' : '#9DAEC8', cursor: uploadReady ? 'pointer' : 'not-allowed',
           }}>
-            {scanning ? 'Analysing your statement…' : uploadReady ? 'Analyse my spending →' : fileReady ? 'Tick the consent box to continue' : 'Select a statement to continue'}
+            {scanning ? 'Analysing your statement…' : uploadReady ? 'Analyse my spending →' : missingStep}
           </button>
         </div>
       )}

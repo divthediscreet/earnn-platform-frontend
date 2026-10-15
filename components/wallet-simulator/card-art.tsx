@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { getCardImageUrl } from '@/lib/api'
 
-export type CardInfo = { id: string; name: string; bank: string | null }
+export type CardInfo = { id: string; name: string; bank: string | null; bankCode?: string | null }
 
 const FINISHES = ['ws-finish-navy', 'ws-finish-obsidian', 'ws-finish-emerald', 'ws-finish-plum', 'ws-finish-steel', 'ws-finish-gold']
 

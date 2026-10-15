@@ -7,38 +7,36 @@ import { SIMULATOR_GROUPS, aed } from '@/lib/wallet-simulator/groups'
 
 export const MAX_CATEGORY_AED = 100_000
 
-/** Two related categories entered as one total plus a slider: 0 = all on the left option, 10 = all on the right. */
+/** Two related categories, each with its own amount; the card's main box only shows their sum (read-only). */
 export type SplitDef = { id: 'grocery' | 'dining'; title: string; icon: string; left: { key: string; label: string; icon: string }; right: { key: string; label: string; icon: string } }
 export const SPLITS: SplitDef[] = [
   { id: 'grocery', title: 'Grocery store', icon: '🥬', left: { key: 'grocery_store', label: 'In-store', icon: '🛒' }, right: { key: 'grocery_online', label: 'Online', icon: '📱' } },
   { id: 'dining', title: 'Dining', icon: '🍽️', left: { key: 'dineout', label: 'Dine out', icon: '🍴' }, right: { key: 'food_delivery', label: 'Delivery', icon: '🛵' } },
 ]
 export const SPLIT_KEYS = new Set(SPLITS.flatMap(d => [d.left.key, d.right.key]))
-export type SplitState = Record<SplitDef['id'], { total: string; step: number }>
+export type SplitState = Record<SplitDef['id'], { left: string; right: string }>
 
-/** Rebuild the slider state from saved per-category amounts (share rounded to the nearest 10%). */
+/** Rebuild the two amounts of each pair from saved per-category amounts. */
 export function splitFromAmounts(spend: Record<string, number> | undefined): SplitState {
   const out = {} as SplitState
   for (const d of SPLITS) {
     const l = (spend?.[d.left.key] ?? 0) + (d.left.key === 'grocery_store' ? (spend?.grocery ?? 0) : 0) // `grocery` = key used by older saved sessions
     const r = spend?.[d.right.key] ?? 0
-    const total = l + r
-    out[d.id] = { total: total > 0 ? String(total) : '', step: total > 0 ? Math.round((r / total) * 10) : 5 }
+    out[d.id] = { left: l > 0 ? String(l) : '', right: r > 0 ? String(r) : '' }
   }
   return out
 }
 
-export function splitAmounts(total: string, step: number): [number, number] {
-  const t = parseFloat(total) || 0
-  const left = Math.round((t * (10 - step)) / 10)
-  return [left, t - left]
+/** The two amounts of a pair as numbers. */
+export function splitAmounts(split: { left: string; right: string }): [number, number] {
+  return [parseFloat(split.left) || 0, parseFloat(split.right) || 0]
 }
 
-/** Per-category monthly amounts (split sliders resolved into their two categories). */
+/** Per-category monthly amounts (each pair resolved into its two categories). */
 export function computeAmounts(spend: Record<string, string>, splits: SplitState): Record<string, number> {
   const amounts: Record<string, number> = Object.fromEntries(SIMULATOR_GROUPS.map(g => [g.key, parseFloat(spend[g.key] || '0') || 0]))
   for (const d of SPLITS) {
-    const [l, r] = splitAmounts(splits[d.id].total, splits[d.id].step)
+    const [l, r] = splitAmounts(splits[d.id])
     amounts[d.left.key] = l
     amounts[d.right.key] = r
   }
@@ -92,10 +90,13 @@ export function SpendEntryFields({ spend, setSpend, splits, setSplits, cta, summ
             </div>
             <div className="sim-pairs">
               {SPLITS.map(d => {
-                const { total, step } = splits[d.id]
-                const [l, r] = splitAmounts(total, step)
-                const active = (parseFloat(total) || 0) > 0
-                const leftPct = (10 - step) * 10
+                const [l, r] = splitAmounts(splits[d.id])
+                const sum = l + r
+                const active = sum > 0
+                const setPart = (side: 'left' | 'right', raw: string) => {
+                  const parsed = Math.min(MAX_CATEGORY_AED, Math.max(0, parseFloat(raw) || 0))
+                  setSplits(prev => ({ ...prev, [d.id]: { ...prev[d.id], [side]: raw === '' ? '' : String(parsed) } }))
+                }
                 return (
                   <article key={d.id} className={`sim-cat sim-split ${active ? 'is-active' : ''}`}>
                     <div className="sim-split-head">
@@ -103,36 +104,24 @@ export function SpendEntryFields({ spend, setSpend, splits, setSplits, cta, summ
                         <span className="sim-cat-icon">{d.icon}</span>
                         <div>
                           <h3>{d.title}</h3>
-                          <p>{active ? 'Monthly spending' : 'Total, then slide to split'}</p>
+                          <p>{active ? 'Monthly spending' : d.left.label + ' + ' + d.right.label.toLowerCase()}</p>
                         </div>
                       </div>
-                      <label className="sim-aed">
-                        <span>AED</span>
-                        <input type="number" inputMode="numeric" min="0" max={MAX_CATEGORY_AED} step="100" placeholder="0"
-                          value={total}
-                          onChange={e => {
-                            const raw = e.target.value
-                            const parsed = Math.min(MAX_CATEGORY_AED, Math.max(0, parseFloat(raw) || 0))
-                            setSplits(prev => ({ ...prev, [d.id]: { ...prev[d.id], total: raw === '' ? '' : String(parsed) } }))
-                          }}
-                          aria-label={`${d.title} total monthly spend in AED`} />
-                      </label>
+                      {/* the total is only the sum of the two boxes below: plain text, shown once something is entered */}
+                      {active && <div className="sim-split-total" aria-label={`${d.title} total monthly spend`}>{aed(sum)}</div>}
                     </div>
-                    <div className="sim-slide-pct" aria-hidden="true"><b>{leftPct}%</b><b>{100 - leftPct}%</b></div>
-                    <input type="range" min={0} max={10} step={1} value={step} className="sim-range"
-                      style={{ ['--pos' as string]: `${step * 10}%` }}
-                      onChange={e => { const v = Number(e.target.value); setSplits(prev => ({ ...prev, [d.id]: { ...prev[d.id], step: v } })) }}
-                      aria-label={`${d.title}: share spent ${d.left.label.toLowerCase()} versus ${d.right.label.toLowerCase()}`}
-                      aria-valuetext={`${leftPct}% ${d.left.label}, ${100 - leftPct}% ${d.right.label}`} />
-                    <div className="sim-slide-labels">
-                      <span className="sim-slide-end">
-                        <i>{d.left.icon}</i>
-                        <span><b>{d.left.label}</b><em>{active ? aed(l) : ''}</em></span>
-                      </span>
-                      <span className="sim-slide-end is-right">
-                        <span><b>{d.right.label}</b><em>{active ? aed(r) : ''}</em></span>
-                        <i>{d.right.icon}</i>
-                      </span>
+                    <div className="sim-sub-grid">
+                      {([['left', d.left, splits[d.id].left], ['right', d.right, splits[d.id].right]] as const).map(([side, part, value]) => (
+                        <label key={side} className="sim-sub">
+                          <span className="sim-sub-name"><i>{part.icon}</i><b>{part.label}</b></span>
+                          <span className="sim-aed">
+                            <span>AED</span>
+                            <input type="number" inputMode="numeric" min="0" max={MAX_CATEGORY_AED} step="100" placeholder="0"
+                              value={value} onChange={e => setPart(side, e.target.value)}
+                              aria-label={`${d.title} ${part.label.toLowerCase()} monthly spend in AED`} />
+                          </span>
+                        </label>
+                      ))}
                     </div>
                   </article>
                 )
@@ -234,19 +223,15 @@ export function SimulatorStyles() {
         .sim-pairs { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; margin-bottom:12px; }
         .sim-split { flex-direction:column; align-items:stretch; justify-content:flex-start; gap:12px; padding:12px 14px; }
         .sim-split-head { display:flex; align-items:center; justify-content:space-between; gap:10px; width:100%; }
-        .sim-slide-labels { display:flex; align-items:center; justify-content:space-between; gap:10px; width:100%; margin-top:-2px; }
-        .sim-slide-end { display:inline-flex; align-items:center; gap:5px; min-width:0; white-space:nowrap; }
-        .sim-slide-end i { font-style:normal; font-size:18px; line-height:1; }
-        .sim-slide-end > span { display:flex; flex-direction:column; gap:1px; line-height:1.2; }
-        .sim-slide-end.is-right > span { text-align:right; align-items:flex-end; }
-        .sim-slide-end b { color:#0D1828; font-size:12px; }
-        .sim-slide-end em { font-style:normal; color:#0E3785; font-size:10.5px; font-weight:750; }
-        .sim-slide-pct { display:flex; justify-content:space-between; align-self:stretch; width:100%; margin:2px 0 -4px; font-size:11px; font-weight:500; color:#9aa7bf; }
-        .sim-range { -webkit-appearance:none; appearance:none; width:100%; height:6px; border-radius:99px; outline:0; cursor:pointer;
-          background:linear-gradient(90deg,#AFC5E9 0 var(--pos),#E0E7F3 var(--pos) 100%); }
-        .sim-range::-webkit-slider-thumb { -webkit-appearance:none; width:22px; height:22px; border-radius:50%; background:#0E3785; border:3px solid #fff; box-shadow:0 2px 8px rgba(14,55,133,.4); }
-        .sim-range::-moz-range-thumb { width:18px; height:18px; border-radius:50%; background:#0E3785; border:3px solid #fff; box-shadow:0 2px 8px rgba(14,55,133,.4); }
-        .sim-range:focus-visible { outline:2px solid rgba(57,121,232,.5); outline-offset:6px; }
+        .sim-sub-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; width:100%; }
+        .sim-sub { display:flex; flex-direction:column; gap:6px; background:#F8FAFF; border:1px solid #E0E7F3; border-radius:10px; padding:8px 9px; cursor:text; }
+        .sim-sub-name { display:flex; align-items:center; gap:6px; min-width:0; }
+        .sim-sub-name i { font-style:normal; font-size:16px; line-height:1; }
+        .sim-sub-name b { color:#0D1828; font-size:12px; white-space:nowrap; }
+        .sim-sub .sim-aed { width:100%; box-sizing:border-box; background:#fff; border:1px solid #E0E7F3; }
+        .sim-sub .sim-aed input { width:100%; }
+        .sim-sub:focus-within { border-color:#AFC5E9; box-shadow:0 0 0 2px rgba(57,121,232,.15); }
+        .sim-split-total { color:#0E3785; font-size:16px; font-weight:800; white-space:nowrap; font-variant-numeric:tabular-nums; }
         .sim-cat { background:#fff; border:1px solid #E0E7F3; border-radius:14px; padding:14px; min-height:72px; display:flex; align-items:center; justify-content:space-between; gap:10px; transition:background .2s,border-color .2s,box-shadow .2s; }
         .sim-cat.is-active { background:#FAFCFF; border-color:#AFC5E9; box-shadow:0 5px 15px rgba(14,55,133,.07); }
         .sim-cat-name { display:flex; align-items:center; gap:9px; min-width:0; }

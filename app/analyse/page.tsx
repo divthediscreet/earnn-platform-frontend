@@ -9,6 +9,7 @@ import { StatementUpload, type StatementSubmit } from '@/components/wallet-simul
 import { ComparisonPopup, buildGapData, type GapData } from '@/components/wallet-simulator/gap-popup'
 import { pingBackend } from '@/lib/api'
 import { ensureProfileLoaded, patchProfile, readProfile } from '@/lib/profile/storage'
+import { SalaryPrompt } from '@/components/wallet-simulator/salary-prompt'
 import { CardColumnsLoader, loadCardIds, preloadCardImages } from '@/components/wallet-simulator/loading-columns'
 
 export default function SimulatorSpendPage() {
@@ -28,6 +29,7 @@ function SpendForm({ initial }: { initial?: SimulatorRequest }) {
   const [error, setError] = useState('')
   const [mode, setMode] = useState<'upload' | 'manual'>(initial?.form_spend ? 'manual' : 'upload') // upload first, as in the old Analyse page
   const [gap, setGap] = useState<GapData | null>(null)
+  const [askSalary, setAskSalary] = useState(false) // friendly prompt instead of an error when salary is empty
   const [animCardIds, setAnimCardIds] = useState<string[]>([]) // card images for the holding screen
 
   useEffect(() => {
@@ -71,12 +73,13 @@ function SpendForm({ initial }: { initial?: SimulatorRequest }) {
   const totalMonthly = Object.values(amounts).reduce((a, b) => a + b, 0)
   const salaryNum = parseFloat(salary) || 0
 
-  const submit = async () => {
+  const submit = async (salaryOverride?: number) => {
+    const salaryValue = salaryOverride ?? salaryNum
     if (totalMonthly <= 0) return setError('Enter at least one monthly amount.')
-    if (salaryNum <= 0) return setError('Enter your monthly salary so we only suggest cards you can apply for.')
+    if (salaryValue <= 0) { setError(''); return setAskSalary(true) }
     setError('')
     setLoading(true)
-    const request: SimulatorRequest = { form_spend: amounts, salary_aed: salaryNum, reward_mode: rewardMode }
+    const request: SimulatorRequest = { form_spend: amounts, salary_aed: salaryValue, reward_mode: rewardMode }
     try {
       const result = await recommendWallet(request)
       saveSession({ request, result })
@@ -134,7 +137,7 @@ function SpendForm({ initial }: { initial?: SimulatorRequest }) {
           ))}
         </div>
 
-        {mode === 'upload' && <StatementUpload onSubmit={submitStatement} submitting={loading} submitError={error} />}
+        {mode === 'upload' && <StatementUpload onSubmit={submitStatement} submitting={loading} submitError={error} onManual={() => { setMode('manual'); setError('') }} />}
 
         {mode === 'manual' && (
           <>
@@ -169,9 +172,13 @@ function SpendForm({ initial }: { initial?: SimulatorRequest }) {
                 onClick={() => setRewardMode(m)}>{m === 'cashback' ? 'Cashback' : 'Miles'}</button>
             ))}
           </div>} cta={
-          <button type="button" className="sim-cta" onClick={submit} disabled={totalMonthly <= 0 || loading}>
+          <button type="button" className="sim-cta" onClick={() => submit()} disabled={totalMonthly <= 0 || loading}>
             {loading ? 'Building your smart wallet…' : 'Build My Smart Wallet →'}
           </button>} />
+          {askSalary && (
+            <SalaryPrompt salary={salary} setSalary={setSalary} onClose={() => setAskSalary(false)}
+              onConfirm={value => { setAskSalary(false); submit(value) }} />
+          )}
           </>
         )}
       </div>

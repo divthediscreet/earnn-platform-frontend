@@ -14,6 +14,19 @@ export type SpendSummary = {
   groups: SpendGroup[]
 }
 
+/** The numbers behind a card's expected annual fee (shown in the "how is this calculated" popup). */
+export type FeeDetail = {
+  free_for_life: boolean
+  first_year_fee_aed: number | null // only when it differs from the year-2 fee
+  year2_fee_aed: number
+  waiver_threshold_aed: number | null // annual spend that waives the fee; null = no spend waiver
+  annual_spend_aed: number
+  waiver_applied: boolean // fee counted as fully waived
+  spend_gap_aed: number // yearly spend still needed to reach the waiver target (0 = met)
+  fee_benefit_aed: number
+  expected_fee_aed: number
+}
+
 export type CardInWallet = {
   card_id: string
   card_name: string
@@ -28,6 +41,7 @@ export type CardInWallet = {
   card_cap_hit: boolean
   salary_eligible: boolean | null
   annual_fee_aed: number // true annual fee (waivers and fee benefits applied), as in Analyse
+  fee_detail?: FeeDetail | null
 }
 
 export type AllocationLine = {
@@ -124,7 +138,7 @@ export type EvaluateResponse = {
   mode?: RewardMode
   spend: SpendSummary
   wallet: Wallet
-  meta: { elapsed_ms: number }
+  meta: { elapsed_ms: number; switch_margin?: number }
 }
 
 /** The view: AED cashback (default) or miles. In the miles view every `*_aed` reward figure from the
@@ -182,7 +196,7 @@ export function evaluateWallet(request: SimulatorRequest, cardIds: string[], sig
   return post<EvaluateResponse>('/api/simulator/evaluate', { ...request, card_ids: cardIds }, signal)
 }
 
-export type SimulatorCard = { card_id: string; card_name: string; bank_name: string | null }
+export type SimulatorCard = { card_id: string; card_name: string; bank_name: string | null; bank_code?: string | null }
 
 /** Every card the simulator can evaluate, from the backend's cached rules (sorted by bank, then name). */
 export async function listSimulatorCards(mode: RewardMode = 'cashback', signal?: AbortSignal): Promise<SimulatorCard[]> {

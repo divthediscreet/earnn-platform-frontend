@@ -75,6 +75,8 @@ export interface MerchantLookupResult {
   resolved:      boolean
   merchant_name: string
   category?:     string
+  category_label?: string | null
+  also_online?:  boolean
   cards:         MerchantLookupCard[]
 }
 

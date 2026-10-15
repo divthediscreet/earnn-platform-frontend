@@ -7,6 +7,7 @@ import type { BestOfSize, SpendGroup, Strategy, Wallet } from '@/lib/wallet-simu
 import { aed, groupIcon, groupShort } from '@/lib/wallet-simulator/groups'
 import { buildPlaybook, cardGroups, sameCards, type PlaybookEntry, type PlaybookRow } from '@/lib/wallet-simulator/playbook'
 import { CardArt, CardChip, RollingAed, type CardInfo } from './card-art'
+import { FeeMathDialog, NetOfFeesDialog } from './fee-math'
 
 type CardLookup = (id: string) => CardInfo
 type CardDetails = (id: string) => void   // opens the card-information popup
@@ -659,6 +660,7 @@ function WalletIllustration({ ids, chips, card }: { ids: string[]; chips: Playbo
 export function PlaybookBody({ wallet, groups, monthlySpend, card, updating, onDetails }: PlaybookProps) {
   const { rw, isMiles } = useRewardMode()
   const [view, setView] = useState<'card' | 'category'>('card')
+  const [explain, setExplain] = useState<'fees' | 'net' | null>(null)
   const rows = buildPlaybook(wallet, groups)
   const full = rows.filter((r, i) => i < FULL_ROWS || r.kind !== 'single' || r.entries.some(e => e.threshold))
   const compact = rows.filter(r => !full.includes(r))
@@ -672,13 +674,18 @@ export function PlaybookBody({ wallet, groups, monthlySpend, card, updating, onD
   }
   return (
     <div className={`mt-8 transition-opacity ${updating ? 'opacity-60' : ''}`}>
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <SummaryTile label="Monthly spend" value={aed(monthlySpend)} />
         <SummaryTile label="Your rewards" value={`${rw(monthlyReward)} / mo`} tone="gain" />
-        {isMiles
-          ? <SummaryTile label="Annual fees" value={aed(wallet?.total_fee_aed ?? 0)} tone="highlight" className="col-span-2 sm:col-span-1" />
-          : <SummaryTile label="After annual fees" value={`${rw((wallet?.net_annual_value_aed ?? 0) / 12)} / mo`} tone="highlight" className="col-span-2 sm:col-span-1" />}
+        <SummaryTile label="Annual fees" value={aed(wallet?.total_fee_aed ?? 0)} tone="highlight" onInfo={() => setExplain('fees')} />
+        {!isMiles && <SummaryTile label="After annual fees" value={`${rw((wallet?.net_annual_value_aed ?? 0) / 12)} / mo`} tone="emerald" onInfo={() => setExplain('net')} />}
       </div>
+      {explain === 'fees' && wallet && (
+        <FeeMathDialog title="This wallet" cards={wallet.per_card} nameOf={id => card(id).name} onClose={() => setExplain(null)} />
+      )}
+      {explain === 'net' && wallet && (
+        <NetOfFeesDialog title="This wallet" monthlyReward={monthlyReward} yearlyFee={wallet.total_fee_aed} onClose={() => setExplain(null)} />
+      )}
 
       <div className="mt-8 flex items-center justify-between gap-3">
         <p className="text-[11px] font-semibold tracking-[0.16em] text-ws-muted uppercase">
@@ -805,11 +812,42 @@ function PlaybookByCard({ wallet, rows, card, onDetails }: { wallet: Wallet | nu
   )
 }
 
-function SummaryTile({ label, value, tone, className = '' }: { label: string; value: string; tone?: 'gain' | 'highlight'; className?: string }) {
+/** A light bulb with rays and a "?" inside: opens the explanation for a figure. */
+function IdeaBulb({ tone }: { tone: 'amber' | 'light' }) {
+  const ray = tone === 'light' ? '#FFFFFF' : '#F59E0B'
+  const glass = tone === 'light' ? '#FFFFFF' : '#FEF3C7'
+  const edge = tone === 'light' ? '#FFFFFF' : '#D97706'
+  const mark = tone === 'light' ? '#059669' : '#B45309'
   return (
-    <div className={`rounded-2xl border px-4 py-3 ${tone === 'highlight' ? 'border-ws-gain/30 bg-ws-gain/10' : 'border-ws-border bg-ws-card'} ${className}`}>
-      <p className="text-[10px] font-semibold tracking-[0.14em] text-ws-muted uppercase">{label}</p>
-      <p className={`mt-1 font-display text-[18px] font-semibold tabular-nums sm:text-[20px] ${tone === 'gain' ? 'text-ws-gain' : 'text-ws-fg'}`}>{value}</p>
+    <svg viewBox="0 0 40 40" className="size-9" aria-hidden>
+      <g stroke={ray} strokeWidth="2.4" strokeLinecap="round">
+        <line x1="20" y1="1.5" x2="20" y2="5" />
+        <line x1="6" y1="7" x2="8.6" y2="9.6" />
+        <line x1="34" y1="7" x2="31.4" y2="9.6" />
+        <line x1="1.5" y1="19" x2="5" y2="19" />
+        <line x1="38.5" y1="19" x2="35" y2="19" />
+      </g>
+      <path d="M20 6.5c-6.4 0-11 4.6-11 10.6 0 3.6 1.8 5.9 3.7 7.9 1.2 1.3 1.8 2.5 1.8 3.9v.6h11v-.6c0-1.4.6-2.6 1.8-3.9 1.9-2 3.7-4.3 3.7-7.9 0-6-4.6-10.6-11-10.6z"
+        fill={glass} stroke={edge} strokeWidth="1.8" strokeLinejoin="round" />
+      <rect x="14.6" y="30" width="10.8" height="3" rx="1.5" fill={edge} />
+      <rect x="16.4" y="33.6" width="7.2" height="2.6" rx="1.3" fill={edge} />
+      <text x="20" y="22.6" textAnchor="middle" fontSize="15" fontWeight="900" fontFamily="system-ui, sans-serif" fill={mark}>?</text>
+    </svg>
+  )
+}
+
+function SummaryTile({ label, value, tone, className = '', onInfo }: { label: string; value: string; tone?: 'gain' | 'highlight' | 'emerald'; className?: string; onInfo?: () => void }) {
+  const emerald = tone === 'emerald'
+  return (
+    <div className={`relative rounded-2xl border px-4 py-3 ${emerald ? 'border-[#059669] bg-[#10B981]' : tone === 'highlight' ? 'border-ws-gain/30 bg-ws-gain/10' : 'border-ws-border bg-ws-card'} ${className}`}>
+      {onInfo && (
+        <button type="button" onClick={onInfo} aria-label={`How "${label}" is calculated`}
+          className="absolute top-1 right-1 grid size-10 place-items-center rounded-full transition-transform hover:scale-110">
+          <IdeaBulb tone={emerald ? 'light' : 'amber'} />
+        </button>
+      )}
+      <p className={`pr-10 text-[10px] font-semibold tracking-[0.14em] uppercase ${emerald ? 'text-white/85' : 'text-ws-muted'}`}>{label}</p>
+      <p className={`mt-1 font-display text-[18px] font-semibold tabular-nums sm:text-[20px] ${emerald ? 'text-white' : tone === 'gain' ? 'text-ws-gain' : 'text-ws-fg'}`}>{value}</p>
     </div>
   )
 }
