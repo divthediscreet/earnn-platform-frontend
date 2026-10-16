@@ -187,7 +187,7 @@ export default function MerchantLookupPage() {
               {result.category ? <> — category: <strong style={{ color: COLORS.text }}>{result.category_label || result.category.replace(/_/g, ' ')}</strong></> : null}
               {result.also_online ? <>. Also comes under <strong style={{ color: COLORS.text }}>Online Payment</strong></> : null}
               <div style={{ fontSize: 11.5, marginTop: 2 }}>
-                {result.cards.length} card{result.cards.length === 1 ? '' : 's'}
+                {result.cards.length} card{result.cards.length === 1 ? '' : 's'} (estimated rate)
               </div>
             </div>
             <div role="radiogroup" aria-label="Reward view" style={{ display: 'inline-flex', gap: 2, padding: 2, borderRadius: 8, background: COLORS.bgTint, border: `1px solid ${COLORS.border}` }}>
@@ -218,6 +218,9 @@ export default function MerchantLookupPage() {
               <CardRow key={card.earnn_card_id} card={card} rank={i + 1} mode={mode} />
             ))}
           </div>
+          </div>
+          <div style={{ marginTop: 16, fontSize: 12, color: COLORS.secondary, textAlign: 'center', lineHeight: 1.5 }}>
+            All rates are estimates only and may differ from the rate your bank actually applies.
           </div>
         </div>
       )}
