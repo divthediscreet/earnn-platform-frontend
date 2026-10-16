@@ -122,7 +122,7 @@ function SpendForm({ initial }: { initial?: SimulatorRequest }) {
       <div className="sim-content">
         <div className="sim-trust">
           {(mode === 'upload'
-            ? [{ icon: '🛡️', label: 'No bank login required' }, { icon: '✂️', label: 'Sensitive information automatically masked' }, { icon: '🇦🇪', label: 'No personal info is stored' }, { icon: '🗑️', label: 'Statement deleted after analysis' }]
+            ? [{ icon: '🛡️', label: 'No bank login required' }, { icon: '✂️', label: 'Sensitive information automatically masked' }, { icon: '🇦🇪', label: 'No personal info is stored' }, { icon: '🤝', label: 'Your data is never shared with third parties' }]
             : [{ icon: '🔒', label: 'No bank login · No card details required' }]
           ).map(t => <div key={t.label}><span>{t.icon}</span><span>{t.label}</span></div>)}
         </div>
