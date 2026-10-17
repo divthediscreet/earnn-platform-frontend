@@ -17,7 +17,7 @@ export type RewardRow = {
   aed_to_miles_conversion_ratio?: number | null
 }
 
-export type RewardItem = { label: string; rate: string; currency: string; group: string; tierMin: number; sortRate: number; generic?: boolean; cap?: string }
+export type RewardItem = { label: string; rate: string; currency: string; group: string; tierMin: number; sortRate: number; cap?: string }
 export type RewardWindow = { isMiles: boolean; high: RewardItem[]; low: RewardItem[]; intlEu: RewardItem[]; intlOther: RewardItem[]; base: RewardItem[]; currencies: string[] }
 
 const capitalise = (text: string) => text.charAt(0).toUpperCase() + text.slice(1)
@@ -36,9 +36,6 @@ const tierCap = (row: RewardRow, miles: boolean, ratio: number | null) => {
   const period = row.cap_period === 'monthly' ? '/mo' : row.cap_period ? `/${row.cap_period}` : ''
   return `Cap: ${miles && ratio ? '' : 'AED '}${new Intl.NumberFormat('en-AE', { maximumFractionDigits: 0 }).format(value)}${miles && ratio ? ' mi' : ''}${period}`
 }
-
-// Plain `international` (no EU/UK split) applies to both regions; a region-specific row overrides it.
-const hasBothTag = (tokens: string[]) => tokens.includes('international') && !tokens.includes('int_eu_uk') && !tokens.includes('int_non_eu_uk')
 
 // Miles view = every AED rate and cap divided by the card's AED-per-mile ratio (same rule as the Analyze simulator).
 export function buildRewardWindow(rows: RewardRow[], view: { miles?: boolean; ratio?: number | null } = {}): RewardWindow {
@@ -62,22 +59,25 @@ export function buildRewardWindow(rows: RewardRow[], view: { miles?: boolean; ra
       group: label.replace(TIER_SUFFIX, ''),
       tierMin: row.min_monthly_spend_aed_on_card ?? 0,
       sortRate: percent,
-      generic: hasBothTag(tokens),
       cap: tierCap(row, miles, ratio),
     }
 
-    if (row.earn_type === 'base') { result.base.push(item); continue }
-    const hasBoth = hasBothTag(tokens)
-    const eu = hasBoth || tokens.includes('int_eu_uk')
-    const other = hasBoth || tokens.includes('int_non_eu_uk')
-    if (eu || other) {
-      if (eu) result.intlEu.push(item)
-      if (other) result.intlOther.push(item)
-    } else if (row.earn_type === 'accelerated') result.high.push(item)
-    else if (row.earn_type === 'penalized') result.low.push(item)
+    // International box: only the category code decides, whatever the earn type.
+    //   EU/UK            = category has int_eu_uk     or international
+    //   Other than EU/UK = category has int_non_eu_uk or international
+    const eu = tokens.includes('international') || tokens.includes('int_eu_uk')
+    const other = tokens.includes('international') || tokens.includes('int_non_eu_uk')
+    if (eu) result.intlEu.push(item)
+    if (other) result.intlOther.push(item)
+
+    // High / Low / Base: by earn type (a row that is an international rate is not repeated under High or Low).
+    if (row.earn_type === 'base') result.base.push(item)
+    else if (!eu && !other) {
+      if (row.earn_type === 'accelerated') result.high.push(item)
+      else if (row.earn_type === 'penalized') result.low.push(item)
+    }
   }
 
-  for (const key of ['intlEu', 'intlOther'] as const) if (result[key].some(item => !item.generic)) result[key] = result[key].filter(item => !item.generic)
   for (const key of ['high', 'low', 'intlEu', 'intlOther', 'base'] as const) result[key] = orderItems(result[key])
   return result
 }
