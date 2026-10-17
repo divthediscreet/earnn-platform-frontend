@@ -2,7 +2,13 @@
 import { useMemo, useRef, useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import PageHero from '@/components/PageHero'
-import { fetchCards, fetchCardDetail, getCardImageUrl } from '@/lib/api'
+import { fetchCards, fetchPersonalisedCards, fetchCardDetail, getCardImageUrl } from '@/lib/api'
+import PersonaliseDialog, { type PersonalSpend } from '@/components/PersonaliseDialog'
+import CompareWallet from '@/components/compare/CompareWallet'
+import { WalletFullDialog } from '@/components/wallet-simulator/dock'
+import { RewardModeProvider } from '@/lib/wallet-simulator/reward-mode'
+import type { CardInfo } from '@/components/wallet-simulator/card-art'
+import type { SimulatorRequest } from '@/lib/wallet-simulator/api'
 import CardNameLink from '@/components/CardNameLink'
 import RewardConditionLabel from '@/components/RewardConditionLabel'
 
@@ -255,6 +261,13 @@ const rewardProgramLabel = (value: string) =>
 export default function ComparePage() {
   const [fromResults, setFromResults] = useState(false)
   const [mode, setMode] = useState<ViewMode>('cashback') // cashback by default; miles shows miles cards in miles
+  // "Personalize these results": when set, the list is the same engine run on the user's own monthly spend
+  const [personal, setPersonal] = useState<PersonalSpend | null>(null)
+  const [personaliseOpen, setPersonaliseOpen] = useState(false)
+  // "Add to Wallet": up to 3 cards in the Analyze-style wallet bar at the bottom (needs the user's own spend)
+  const [walletIds, setWalletIds] = useState<string[]>([])
+  const [walletFullOpen, setWalletFullOpen] = useState(false)
+  const [pendingWalletId, setPendingWalletId] = useState<string | null>(null) // card to add once the spend is entered
 
   const [cards, setCards]           = useState<ApiCard[]>([])
   const [catalogueRewardRates, setCatalogueRewardRates] = useState<number[]>([])
@@ -309,14 +322,17 @@ export default function ComparePage() {
   useEffect(() => {
     let active = true
     setLoading(true)
-    fetchCards({ sort_by: 'card_ranking', min_salary: salaryMin ?? undefined, mode })
+    const request = personal
+      ? fetchPersonalisedCards({ spend: personal.amounts, mode, min_salary: salaryMin ?? undefined })
+      : fetchCards({ sort_by: 'card_ranking', min_salary: salaryMin ?? undefined, mode })
+    request
       .then(d => {
         if (!active) return
         setCards(promoteOneFamilyMember(d.cards || []))
         setError(null)
         // Without a salary filter this response IS the full catalogue, so it also feeds the reward-rate badges
-        // (no second request for the same data).
-        if (salaryMin == null) {
+        // (no second request for the same data). A personalised list keeps the default catalogue as the benchmark.
+        if (salaryMin == null && !personal) {
           catalogueModeRef.current = mode
           setCatalogueRewardRates(rewardRatesOf(d.cards))
         }
@@ -328,13 +344,13 @@ export default function ComparePage() {
         if (active) setLoading(false)
       })
     return () => { active = false }
-  }, [salaryMin, mode])
+  }, [salaryMin, mode, personal])
 
   // The reward-rate badge is benchmarked against the full active catalogue,
   // independent of the user’s temporary salary or card filters.
   // Only needed while a salary filter hides part of the list; otherwise the main fetch above already supplies it.
   useEffect(() => {
-    if (salaryMin == null || catalogueModeRef.current === mode) return
+    if ((salaryMin == null && !personal) || catalogueModeRef.current === mode) return
     let active = true
     fetchCards({ sort_by: 'card_ranking', mode })
       .then(data => {
@@ -344,7 +360,7 @@ export default function ComparePage() {
       })
       .catch(() => { /* The modal safely falls back to its selected cards. */ })
     return () => { active = false }
-  }, [salaryMin, mode])
+  }, [salaryMin, mode, personal])
 
   // ── Fetch card detail lazily on expand ──────────────────────────────────
   const loadDetail = useCallback(async (cardId: string, refreshLegacyDetail = false) => {
@@ -451,6 +467,20 @@ export default function ComparePage() {
   }, [loadDetail])
 
   const compareCards = compareIds.map(id => cards.find(c => c.earnn_card_id === id)!).filter(Boolean)
+
+  // The wallet is calculated on the user's own spend (same request shape as Analyze's manual form).
+  const walletRequest = useMemo<SimulatorRequest | null>(() => {
+    if (!personal) return null
+    const salary = Number(personal.salary)
+    return { form_spend: personal.amounts, salary_aed: salary > 0 ? salary : undefined, reward_mode: mode }
+  }, [personal, mode])
+  const walletDirectory = useMemo(() => new Map<string, CardInfo>(cards.map(c => [c.earnn_card_id, { id: c.earnn_card_id, name: c.card_name, bank: c.bank_name }])), [cards])
+  const toggleWallet = useCallback((id: string) => {
+    if (walletIds.includes(id)) { setWalletIds(prev => prev.filter(x => x !== id)); return }
+    if (walletIds.length >= 3) { setWalletFullOpen(true); return }
+    if (!personal) { setPendingWalletId(id); setPersonaliseOpen(true); return } // the wallet needs the user's spend first
+    setWalletIds(prev => [...prev, id])
+  }, [walletIds, personal])
   const resetFilters = () => {
     setCardNameQuery('')
     setSalaryInput('')
@@ -552,21 +582,21 @@ export default function ComparePage() {
             </div>
           ))}
         </div>
-        <Link href="/analyse" style={{
-          display: 'inline-flex', alignItems: 'center', gap: 12,
+        <button type="button" onClick={() => setPersonaliseOpen(true)} style={{
+          display: 'inline-flex', alignItems: 'center', gap: 12, border: 0, cursor: 'pointer',
           background: 'linear-gradient(90deg, #F7C948, #FFD76A)', color: '#0A2860', padding: '13px 28px', borderRadius: 999,
           fontSize: 16, fontWeight: 800, textDecoration: 'none',
           boxShadow: '0 12px 34px rgba(247,201,72,0.38)'
         }}>
           <span aria-hidden>🎯</span> Personalize these results <span aria-hidden>→</span>
-        </Link>
+        </button>
       </PageHero></div>}
 
       {/* ── REWARD VIEW: two slim tabs, half the width each, the active one highlighted ── */}
       <div role="tablist" aria-label="Reward view" style={{ display: 'flex', margin: '0 0 12px', padding: 3, gap: 3, borderRadius: 12, background: '#EEF3FF', border: '1px solid #D6E0F5' }}>
         {(['cashback', 'miles'] as const).map(m => (
           <button key={m} type="button" role="tab" aria-selected={mode === m}
-            onClick={() => { if (m !== mode) { setMode(m); setCompareIds([]); setCompareOpen(false); setExpanded(null); setPage(1) } }}
+            onClick={() => { if (m !== mode) { setMode(m); setCompareIds([]); setCompareOpen(false); setExpanded(null); setPage(1); setWalletIds([]) } }}
             style={{ flex: 1, border: 'none', cursor: 'pointer', padding: '7px 12px', borderRadius: 9, fontSize: 13.5, fontWeight: 800, textAlign: 'center',
               background: mode === m ? '#0E3785' : 'transparent', color: mode === m ? 'white' : '#5A6A85',
               boxShadow: mode === m ? '0 2px 8px rgba(14,55,133,0.25)' : 'none', transition: 'background 0.15s, color 0.15s' }}>
@@ -574,6 +604,26 @@ export default function ComparePage() {
           </button>
         ))}
       </div>
+
+      {personal && (
+        <div role="status" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '6px 14px', margin: '0 0 12px', padding: '10px 14px', borderRadius: 12, background: '#FFF6E0', border: '1px solid #F5D98A', color: '#5A4200', fontSize: 13.5 }}>
+          <span aria-hidden>🎯</span>
+          <span><strong>Personalised to your spend</strong> · AED {Math.round(Object.values(personal.amounts).reduce((a, b) => a + b, 0)).toLocaleString()} / month · cards re-ranked for you</span>
+          <span style={{ marginLeft: 'auto', display: 'flex', gap: 14 }}>
+            <button type="button" onClick={() => setPersonaliseOpen(true)} style={{ border: 0, background: 'none', color: '#0E3785', fontWeight: 800, cursor: 'pointer', fontSize: 13.5 }}>Edit spend</button>
+            <button type="button" onClick={() => { setPersonal(null); setCompareIds([]); setExpanded(null); setPage(1); setWalletIds([]) }} style={{ border: 0, background: 'none', color: '#8A4B00', fontWeight: 800, cursor: 'pointer', fontSize: 13.5 }}>Back to default</button>
+          </span>
+        </div>
+      )}
+      {personaliseOpen && (
+        <PersonaliseDialog current={personal} mode={mode} onClose={() => { setPersonaliseOpen(false); setPendingWalletId(null) }}
+          onSubmit={value => {
+            setPersonal(value); setPersonaliseOpen(false); setCompareIds([]); setCompareOpen(false); setExpanded(null); setPage(1)
+            if (pendingWalletId) { const id = pendingWalletId; setPendingWalletId(null); setWalletIds(prev => (prev.includes(id) || prev.length >= 3 ? prev : [...prev, id])) }
+            const digits = value.salary.replace(/\D/g, '').slice(0, 6)
+            setSalaryInput(digits)       // the page's own salary filter follows what was entered
+          }} />
+      )}
 
       {/* ── FILTER BAR ───────────────────────────────────────────────────── */}
       <div style={{
@@ -764,6 +814,8 @@ export default function ComparePage() {
             inCompare={compareIds.includes(card.earnn_card_id)}
             compareFull={compareIds.length >= 3 && !compareIds.includes(card.earnn_card_id)}
             onToggleCompare={(e) => toggleCompare(card.earnn_card_id, e)}
+            inWallet={walletIds.includes(card.earnn_card_id)}
+            onToggleWallet={() => toggleWallet(card.earnn_card_id)}
             expanded={expanded === card.earnn_card_id}
             onExpand={() => handleExpand(card.earnn_card_id)}
             onHover={() => loadDetail(card.earnn_card_id)}
@@ -790,6 +842,22 @@ export default function ComparePage() {
           ))}
           <button disabled={page >= totalPages} onClick={() => setPage(p => Math.min(totalPages, p + 1))} style={pagerBtn(page >= totalPages)}>Next →</button>
         </div>
+      )}
+
+      {/* ── ADD TO WALLET: the Analyze result's wallet bar (dock), fed by the tiles' "Add to Wallet" boxes ── */}
+      {walletIds.length > 0 && <div aria-hidden style={{ height: 128 }} />}
+      {walletRequest && walletIds.length > 0 && (
+        <CompareWallet key={JSON.stringify(walletRequest)} request={walletRequest} mode={mode} ids={walletIds} onIdsChange={setWalletIds}
+          directory={walletDirectory}
+          onAddMore={() => document.querySelector('.compare-filter-ribbon')?.scrollIntoView({ behavior: 'smooth', block: 'center' })} />
+      )}
+      {walletFullOpen && (
+        <RewardModeProvider mode={mode}>
+          <div className="ws-root">
+            <WalletFullDialog ids={walletIds} wallet={null} card={id => walletDirectory.get(id) ?? { id, name: id, bank: null }}
+              onRemove={id => setWalletIds(prev => prev.filter(x => x !== id))} onClose={() => setWalletFullOpen(false)} />
+          </div>
+        </RewardModeProvider>
       )}
 
       {/* ── PERSISTENT COMPARE ACTION ─────────────────────────────────────── */}
@@ -841,15 +909,31 @@ export default function ComparePage() {
 // CARD TILE — miles view: one row, left to right: image · name, summary and top categories · top reward rates ·
 // effective rate · estimated annual reward · fee · score and compare. Used only when mode === 'miles'.
 // ─────────────────────────────────────────────────────────────────────────────
+// "Add to Wallet" box on a tile (same family as the Compare box): adds or removes the card from the bottom wallet bar.
+function WalletToggle({ inWallet, onToggle }: { inWallet: boolean; onToggle: () => void }) {
+  return (
+    <button type="button" aria-pressed={inWallet} onClick={e => { e.stopPropagation(); onToggle() }}
+      style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 11px', borderRadius: 100, cursor: 'pointer', fontSize: 11.5, fontWeight: 800,
+        border: inWallet ? '1px solid #C9972B' : '1px solid #E9C46A', background: inWallet ? '#F7C948' : '#FFF6E0', color: inWallet ? '#4A3000' : '#8A6100' }}>
+      <svg aria-hidden viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M3 7a2 2 0 0 1 2-2h13v4" /><path d="M3 7v11a2 2 0 0 0 2 2h14a1 1 0 0 0 1-1v-9a1 1 0 0 0-1-1H5a2 2 0 0 1-2-2" /><circle cx="16" cy="14" r="1" fill="currentColor" />
+      </svg>
+      {inWallet ? 'In wallet ✓' : 'Add to Wallet'}
+    </button>
+  )
+}
+
 const MILES_COL: React.CSSProperties = { flexShrink: 0, padding: '14px 10px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', justifyContent: 'center', position: 'relative', cursor: 'help' }
 
-function MilesTileTop({ card, fee, topEarnRates, inCompare, compareFull, onToggleCompare, expanded, hoverNav, setHoverNav, sortCat, sortCatSpend }: {
+function MilesTileTop({ card, fee, topEarnRates, inCompare, compareFull, onToggleCompare, inWallet, onToggleWallet, expanded, hoverNav, setHoverNav, sortCat, sortCatSpend }: {
   card: ApiCard
   fee: number
   topEarnRates: string[]
   inCompare: boolean
   compareFull: boolean
   onToggleCompare: (e?: React.MouseEvent) => void
+  inWallet: boolean
+  onToggleWallet: () => void
   expanded: boolean
   hoverNav: string | null
   setHoverNav: (v: string | null) => void
@@ -892,7 +976,7 @@ function MilesTileTop({ card, fee, topEarnRates, inCompare, compareFull, onToggl
       {/* name, bank, summary, categories */}
       <div style={{ ...MILES_COL, cursor: 'pointer', flex: '1 1 200px', minWidth: 190 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-          <span style={{ fontSize: 15.5, fontWeight: 800, color: '#0D1828', lineHeight: 1.25 }}><CardNameLink cardId={card.earnn_card_id}>{card.card_name}</CardNameLink></span>
+          <span style={{ fontSize: 15.5, fontWeight: 800, color: '#0D1828', lineHeight: 1.25 }}><CardNameLink cardId={card.earnn_card_id} mode="miles">{card.card_name}</CardNameLink></span>
           {card.free_for_life && <span style={{ background: '#EAFBF4', color: '#00785C', fontWeight: 700, fontSize: 10, padding: '2px 7px', borderRadius: 100 }}>FREE FOR LIFE</span>}
         </div>
         <div style={{ fontSize: 11.5, color: '#5A6A85', marginTop: 3 }}>{card.bank_name} · {card.network}</div>
@@ -963,6 +1047,8 @@ function MilesTileTop({ card, fee, topEarnRates, inCompare, compareFull, onToggl
         </button>
       </div>
 
+      <div style={{ position: 'absolute', right: 14, bottom: 4 }}><WalletToggle inWallet={inWallet} onToggle={onToggleWallet} /></div>
+
       {/* More details: bottom edge of the tile, centred (clicking anywhere on the tile expands it) */}
       <div style={{ position: 'absolute', left: 0, right: 0, bottom: 6, textAlign: 'center', fontSize: 11.5, fontWeight: 700, color: '#0E3785', pointerEvents: 'none' }}>
         {expanded ? 'Hide details ↑' : 'More details ↓'}
@@ -974,13 +1060,15 @@ function MilesTileTop({ card, fee, topEarnRates, inCompare, compareFull, onToggl
 // ─────────────────────────────────────────────────────────────────────────────
 // CARD TILE — new layout
 // ─────────────────────────────────────────────────────────────────────────────
-function CardTile({ card, detail, detailLoading, inCompare, compareFull, onToggleCompare, expanded, onExpand, onHover, hoverNav, setHoverNav, mode, sortCat, sortCatSpend }: {
+function CardTile({ card, detail, detailLoading, inCompare, compareFull, onToggleCompare, inWallet, onToggleWallet, expanded, onExpand, onHover, hoverNav, setHoverNav, mode, sortCat, sortCatSpend }: {
   card: ApiCard
   detail: CardDetail | null
   detailLoading: boolean
   inCompare: boolean
   compareFull: boolean
   onToggleCompare: (e?: React.MouseEvent) => void
+  inWallet: boolean
+  onToggleWallet: () => void
   expanded: boolean
   onExpand: () => void
   onHover: () => void
@@ -1014,7 +1102,7 @@ function CardTile({ card, detail, detailLoading, inCompare, compareFull, onToggl
 
       {mode === 'miles' ? (
         <MilesTileTop card={card} fee={fee} topEarnRates={topEarnRates} inCompare={inCompare} compareFull={compareFull}
-          onToggleCompare={onToggleCompare} expanded={expanded} hoverNav={hoverNav} setHoverNav={setHoverNav} sortCat={sortCat} sortCatSpend={sortCatSpend} />
+          onToggleCompare={onToggleCompare} inWallet={inWallet} onToggleWallet={onToggleWallet} expanded={expanded} hoverNav={hoverNav} setHoverNav={setHoverNav} sortCat={sortCat} sortCatSpend={sortCatSpend} />
       ) : (<>
       {/* ── HEADER ROW: rank · name · score badge · button ── */}
       <div className="compare-card-header" style={{
@@ -1027,7 +1115,7 @@ function CardTile({ card, detail, detailLoading, inCompare, compareFull, onToggl
         {/* Name + bank */}
         <div className="compare-card-name" style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 15.5, fontWeight: 800, color: '#0D1828', lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            <CardNameLink cardId={card.earnn_card_id}>{card.card_name}</CardNameLink>
+            <CardNameLink cardId={card.earnn_card_id} mode={mode}>{card.card_name}</CardNameLink>
           </div>
           <div style={{ fontSize: 11.5, color: '#5A6A85', marginTop: 2 }}>
             {card.bank_name} · {card.network}
@@ -1161,7 +1249,8 @@ function CardTile({ card, detail, detailLoading, inCompare, compareFull, onToggl
       </>)}
 
       {/* Expand / collapse caret */}
-      <div style={{ display: mode === 'miles' ? 'none' : 'flex', justifyContent: 'center', padding: '4px 0 8px' }}>
+      <div style={{ display: mode === 'miles' ? 'none' : 'flex', justifyContent: 'center', alignItems: 'center', padding: '4px 0 8px', position: 'relative', minHeight: 30 }}>
+        {mode !== 'miles' && <div style={{ position: 'absolute', right: 14, bottom: 4 }}><WalletToggle inWallet={inWallet} onToggle={onToggleWallet} /></div>}
         <span style={{ fontSize: 10, color: '#C2CCDD', fontWeight: 700, letterSpacing: '0.06em' }}>
           {expanded ? 'HIDE DETAILS ▲' : 'MORE DETAILS ▼'}
         </span>

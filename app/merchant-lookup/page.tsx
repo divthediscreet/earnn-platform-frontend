@@ -58,7 +58,7 @@ function CardRow({ card, rank, mode }: { card: MerchantLookupCard; rank: number;
       />
 
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontWeight: 700, fontSize: 15, color: COLORS.text }}><CardNameLink cardId={card.earnn_card_id}>{card.card_name}</CardNameLink></div>
+        <div style={{ fontWeight: 700, fontSize: 15, color: COLORS.text }}><CardNameLink cardId={card.earnn_card_id} mode={mode}>{card.card_name}</CardNameLink></div>
         <div style={{ fontSize: 12.5, color: COLORS.secondary, marginTop: 2 }}>{card.bank_name}</div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 10 }}>

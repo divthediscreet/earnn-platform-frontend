@@ -129,7 +129,7 @@ export default function MilesResultSummaryCard({ card, focused, destinationLabel
       <div className={`${storyStyles.panel} ${storyStyles.exploitability} ${insightStyles.insight}`}><span><i className="ti ti-sparkles" /> WHY THIS WORKS</span>{whyMessages.map((message, index) => <small key={message} className={index === 0 ? insightStyles.reason : undefined}>• {message}</small>)}</div>
     </div>
 
-    <div className={styles.actions}><button type="button" className="btn-primary" onClick={() => setExpanded(value => !value)} aria-expanded={expanded}>{expanded ? 'Hide full plan' : 'See full plan'} <i className={`ti ti-chevron-${expanded ? 'up' : 'down'}`} /></button><Link href="/compare">Get this card <i className="ti ti-arrow-up-right" /></Link></div>
+    <div className={styles.actions}><button type="button" className="btn-primary" onClick={() => setExpanded(value => !value)} aria-expanded={expanded}>{expanded ? 'Hide full plan' : 'See full plan'} <i className={`ti ti-chevron-${expanded ? 'up' : 'down'}`} /></button><Link href="/all-uae-cards">Get this card <i className="ti ti-arrow-up-right" /></Link></div>
     {expanded && <MilesCardDetails card={card} focused={focused} responses={responses} toggles={toggles} onToggleChange={onToggleChange} monthlySpend={monthlySpend} />}
   </article>
 }

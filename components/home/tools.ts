@@ -73,7 +73,7 @@ export const TOOLS: HomeTool[] = [
   {
     key: 'compare',
     name: 'Compare',
-    route: '/compare',
+    route: '/all-uae-cards',
     hook: ['Put two cards', 'to the test.'],
     headline: 'Which card actually comes out ahead?',
     description: 'Compare UAE credit cards side by side and see the differences that matter.',

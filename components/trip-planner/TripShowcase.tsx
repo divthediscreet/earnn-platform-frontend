@@ -194,7 +194,7 @@ export function TripDetail({ trip, request, existingOnly, onBack }: { trip: Trip
             <span className={styles.routeKicker}><i className="ti ti-bolt" aria-hidden="true" /> YOUR FASTEST ROUTE</span>
             <div className={styles.routeMain}>
               <img src={getCardImageUrl(card.earnn_card_id)} alt="" onError={event => { event.currentTarget.src = '/card-dummy.svg' }} />
-              <div className={styles.routeName}><strong><CardNameLink cardId={card.earnn_card_id}>{card.card_name}</CardNameLink></strong><span>{card.bank_name}</span>
+              <div className={styles.routeName}><strong><CardNameLink cardId={card.earnn_card_id} mode="miles">{card.card_name}</CardNameLink></strong><span>{card.bank_name}</span>
                 <p><b><i className="ti ti-plane" aria-hidden="true" /> Earns {AIRLINE_LABEL[trip.airline]}</b>{result && result.include_welcome && result.card.guaranteed_welcome_miles > 0 && <b><i className="ti ti-gift" aria-hidden="true" /> Welcome bonus included</b>}</p></div>
               <div className={styles.routeEarn}><small>Earns you in 12 months</small><strong>{cardPlan ? formatMiles(cardPlan.total) : '…'}</strong>
                 <span>{trip.ready_now ? 'Enough for this trip now' : trip.months > 12 ? `Reaches this trip in ${monthsPhrase(trip)}` : `Enough for this trip in ${monthsPhrase(trip)}`}</span></div>

@@ -117,16 +117,51 @@ export async function fetchCards(params?: {
   return res.json()
 }
 
+// The Compare list scored on the user's own monthly spend (same engine and response shape as fetchCards).
+// `spend` uses the Analyze form's keys (grocery_store, dineout, taxi, ...); the backend sums them into the engine's groups.
+export async function fetchPersonalisedCards(params: {
+  spend: Record<string, number>
+  mode?: 'cashback' | 'miles'
+  min_salary?: number
+}) {
+  const res = await fetch(`${API_BASE}/api/cards/personalised`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ spend: params.spend, mode: params.mode, min_salary: params.min_salary }),
+  })
+  if (!res.ok) {
+    let detail = res.statusText
+    try { const body = await res.json(); if (typeof body?.detail === 'string') detail = body.detail } catch { /* keep statusText */ }
+    throw new Error(detail || 'Could not personalise the cards')
+  }
+  return res.json()
+}
+
 // Search cards by name/bank — used by the "Add card manually" picker
 export async function searchCards(query: string) {
   if (!query.trim()) return { cards: [], count: 0 }
   return fetchCards({ search: query.trim(), limit: 20 })
 }
 
-export async function fetchCardDetail(cardId: string) {
-  const res = await fetch(`${API_BASE}/api/cards/${cardId}`)
-  if (!res.ok) throw new Error(`Card detail failed: ${res.statusText}`)
-  return res.json()
+// Card detail is static per session: remember each card's response (and in-flight request) so reopening a popup,
+// or opening one that was prefetched on hover, is instant. Failed requests are not cached.
+const cardDetailCache = new Map<string, Promise<any>>()
+
+export function fetchCardDetail(cardId: string): Promise<any> {
+  const cached = cardDetailCache.get(cardId)
+  if (cached) return cached
+  const request = fetch(`${API_BASE}/api/cards/${cardId}`).then(res => {
+    if (!res.ok) throw new Error(`Card detail failed: ${res.statusText}`)
+    return res.json()
+  })
+  cardDetailCache.set(cardId, request)
+  request.catch(() => cardDetailCache.delete(cardId))
+  return request
+}
+
+// Fire-and-forget warm-up (e.g. when the pointer reaches a card name).
+export function prefetchCardDetail(cardId: string) {
+  fetchCardDetail(cardId).catch(() => {})
 }
 
 // Gated card image — served via backend endpoint, not a public static path
