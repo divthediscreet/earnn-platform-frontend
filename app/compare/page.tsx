@@ -161,19 +161,19 @@ const categoryEffectiveRate = (card: ApiCard, category: string): number | null =
 /** The card-summary text without anything in brackets: the cap and the minimum spend are shown as their own boxes below it. */
 const summaryWithoutBrackets = (tag: string | null): string => (tag ?? '').replace(/\s*\([^)]*\)/g, '').replace(/\s+/g, ' ').trim()
 
-const LIMIT_PILL: React.CSSProperties = { display: 'inline-flex', alignItems: 'center', padding: '3px 10px', borderRadius: 999, fontSize: 11.5, fontWeight: 800, whiteSpace: 'nowrap' }
+const LIMIT_PILL: React.CSSProperties = { display: 'inline-flex', alignItems: 'center', padding: '2px 9px', borderRadius: 999, fontSize: 11.5, fontWeight: 800, whiteSpace: 'nowrap' }
 const CAP_PILL: React.CSSProperties = { ...LIMIT_PILL, border: '1px solid #F5C451', background: 'linear-gradient(135deg,#FFE08A 0%,#F5B93A 100%)', color: '#4A3000', boxShadow: '0 1px 5px rgba(245,185,58,.35)' }
 const MIN_PILL: React.CSSProperties = { ...LIMIT_PILL, border: '1px solid #B9A2FF', background: 'linear-gradient(135deg,#E6DCFF 0%,#B99CFF 100%)', color: '#241150', boxShadow: '0 1px 5px rgba(185,156,255,.45)' }
 
 /** Card-level monthly cap and minimum spend, straight from the tables (the same fields as the card-details popup);
  *  always shown: the value, or "No monthly cap" / "No min spend". */
-function CardLimits({ card, mode }: { card: ApiCard; mode: ViewMode }) {
+function CardLimits({ card, mode, stacked }: { card: ApiCard; mode: ViewMode; stacked?: boolean }) {
   const cap = typeof card.card_cap_aed === 'number' && card.card_cap_aed > 0 ? card.card_cap_aed : null
   const minOn = card.is_min_spend_applicable === true || String(card.is_min_spend_applicable).toLowerCase() === 'true'
   const min = minOn && typeof card.min_monthly_spend_aed_on_card === 'number' && card.min_monthly_spend_aed_on_card > 0 ? card.min_monthly_spend_aed_on_card : null
   const fmt = (n: number) => Math.round(n).toLocaleString('en-US')
   return (
-    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
+    <div style={stacked ? { display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4, flexShrink: 0 } : { display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
       <span style={CAP_PILL}>{cap !== null ? `Monthly earn cap: ${mode === 'miles' ? `${fmt(cap)} miles` : `AED ${fmt(cap)}`}` : 'No monthly cap'}</span>
       <span style={MIN_PILL}>{min !== null ? `Min spend: AED ${fmt(min)} / month` : 'No min spend'}</span>
     </div>
@@ -966,7 +966,7 @@ function WalletToggle({ inWallet, onToggle, compact }: { inWallet: boolean; onTo
   )
 }
 
-const MILES_COL: React.CSSProperties = { flexShrink: 0, padding: '14px 10px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', justifyContent: 'center', position: 'relative', cursor: 'help' }
+const MILES_COL: React.CSSProperties = { flexShrink: 0, padding: '8px 10px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', justifyContent: 'center', position: 'relative', cursor: 'help' }
 
 function MilesTileTop({ card, fee, topEarnRates, inCompare, compareFull, onToggleCompare, inWallet, onToggleWallet, hoverNav, setHoverNav, sortCat, sortCatSpend }: {
   card: ApiCard
@@ -1022,9 +1022,13 @@ function MilesTileTop({ card, fee, topEarnRates, inCompare, compareFull, onToggl
           {card.free_for_life && <span style={{ background: '#EAFBF4', color: '#00785C', fontWeight: 700, fontSize: 10, padding: '2px 7px', borderRadius: 100 }}>FREE FOR LIFE</span>}
         </div>
         <div style={{ fontSize: 11.5, color: '#5A6A85', marginTop: 3 }}>{card.bank_name} · {card.network}</div>
-        <div style={{ ...label, color: '#0E3785', marginTop: 8, marginBottom: 3 }}>Card summary</div>
-        <div style={{ fontSize: 12, color: card.card_summary_tag ? '#0D1828' : '#94A3B8', lineHeight: 1.4 }}>{summaryWithoutBrackets(card.card_summary_tag) || 'No card summary available'}</div>
-        <CardLimits card={card} mode="miles" />
+        <div style={{ marginTop: 8, padding: '8px 10px', borderRadius: 10, background: '#EEF3FF', border: '1px solid #DCE6F8' }}>
+        <div style={{ ...label, color: '#0E3785', marginBottom: 3 }}>Card summary</div>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
+          <div style={{ fontSize: 12, color: card.card_summary_tag ? '#0D1828' : '#94A3B8', lineHeight: 1.4, minWidth: 0, flex: 1 }}>{summaryWithoutBrackets(card.card_summary_tag) || 'No card summary available'}</div>
+          <CardLimits card={card} mode="miles" stacked />
+        </div>
+        </div>
         {topCategories.length > 0 && (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 9 }}>
             {topCategories.map(c => (
@@ -1146,7 +1150,7 @@ function CardTile({ card, detail, detailLoading, inCompare, compareFull, onToggl
       {/* ── HEADER ROW: rank · name · score badge · button ── */}
       <div className="compare-card-header" style={{
         display: 'flex', alignItems: 'center', gap: 12,
-        padding: '12px 16px', borderBottom: '1px solid #EEF3FF',
+        padding: '8px 16px', borderBottom: '1px solid #EEF3FF',
         background: inCompare ? '#F0F4FF' : 'white',
         borderTopLeftRadius: inCompare ? 14 : 15,
         borderTopRightRadius: inCompare ? 14 : 15
@@ -1197,7 +1201,7 @@ function CardTile({ card, detail, detailLoading, inCompare, compareFull, onToggl
       <div className="compare-card-body" style={{ display: 'flex', alignItems: 'stretch', gap: 0 }}>
 
         {/* Card image + salary requirement */}
-        <div className="compare-card-media" style={{ flexShrink: 0, width: 164, boxSizing: 'border-box', padding: '14px 12px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 9, textAlign: 'center' }}>
+        <div className="compare-card-media" style={{ flexShrink: 0, width: 164, boxSizing: 'border-box', padding: '8px 12px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, textAlign: 'center' }}>
           <img src={getCardImageUrl(card.earnn_card_id)} alt={card.card_name} width={126} height={78} loading="lazy"
             onError={(e) => { (e.target as HTMLImageElement).src = '/card-dummy.svg' }}
             style={{ borderRadius: 8, objectFit: 'cover', boxShadow: '0 4px 16px rgba(14,55,133,0.2)', display: 'block' }} />
@@ -1210,10 +1214,10 @@ function CardTile({ card, detail, detailLoading, inCompare, compareFull, onToggl
         </div>
 
         {/* Divider */}
-        <div className="compare-card-divider" style={{ width: 1, background: '#EEF3FF', margin: '12px 0' }} />
+        <div className="compare-card-divider" style={{ width: 1, background: '#EEF3FF', margin: '8px 0' }} />
 
         {/* Rate bars — 2 columns × 4 rows, fixed positions */}
-        <div className="compare-card-rates" style={{ flex: 1, padding: '13px 16px', display: 'grid', gridTemplateColumns: 'minmax(0, 7fr) minmax(0, 3fr)', columnGap: 16, rowGap: 12, minWidth: 0 }}>
+        <div className="compare-card-rates" style={{ flex: 1, padding: '8px 14px', display: 'grid', gridTemplateColumns: 'minmax(0, 7fr) minmax(0, 3fr)', columnGap: 16, rowGap: 8, minWidth: 0 }}>
           <div style={{ minWidth: 0, paddingRight: 16, borderRight: '1px solid #EEF3FF' }}>
             <div style={{ fontSize: 10.5, fontWeight: 800, color: '#0E3785', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 7 }}>Top reward rates</div>
             {topEarnRates.length > 0 ? (
@@ -1222,9 +1226,9 @@ function CardTile({ card, detail, detailLoading, inCompare, compareFull, onToggl
               </ul>
             ) : <div style={{ fontSize: 12, color: '#94A3B8' }}>No top earn rates available</div>}
           </div>
-          <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 5 }}>
+          <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
           <div
-            style={{ minWidth: 0, minHeight: 88, padding: '10px 8px', borderRadius: 10, background: '#00A67E', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 7, boxShadow: '0 3px 10px rgba(0,166,126,0.24)', position: 'relative', cursor: 'help' }}
+            style={{ minWidth: 0, minHeight: 72, padding: '8px 8px', borderRadius: 10, background: '#00A67E', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 7, boxShadow: '0 3px 10px rgba(0,166,126,0.24)', position: 'relative', cursor: 'help' }}
             onMouseEnter={() => setHoverNav(`effective_rate_${card.earnn_card_id}`)}
             onMouseLeave={() => setHoverNav(null)}
             onClick={event => event.stopPropagation()}
@@ -1238,12 +1242,14 @@ function CardTile({ card, detail, detailLoading, inCompare, compareFull, onToggl
           </div>
           {catRate !== null && <div style={{ fontSize: 10.5, fontWeight: 600, color: '#5A6A85', textAlign: 'center', lineHeight: 1.25 }}>Overall effective rate: {(card.effective_reward_rate * 100).toFixed(1)}%</div>}
           </div>
-          <div style={{ gridColumn: '1 / -1', minWidth: 0, paddingTop: 10, borderTop: '1px solid #EEF3FF' }}>
-            <div style={{ fontSize: 10.5, fontWeight: 800, color: '#0E3785', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 5 }}>Card summary</div>
-            <div style={{ fontSize: 12, color: card.card_summary_tag ? '#0D1828' : '#94A3B8', lineHeight: 1.45 }}>
-              {summaryWithoutBrackets(card.card_summary_tag) || 'No card summary available'}
+          <div style={{ gridColumn: '1 / -1', minWidth: 0, marginTop: 0, padding: '6px 10px', borderRadius: 10, background: '#EEF3FF', border: '1px solid #DCE6F8', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <div style={{ fontSize: 10.5, fontWeight: 800, color: '#0E3785', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 5 }}>Card summary</div>
+              <div style={{ fontSize: 12, color: card.card_summary_tag ? '#0D1828' : '#94A3B8', lineHeight: 1.45 }}>
+                {summaryWithoutBrackets(card.card_summary_tag) || 'No card summary available'}
+              </div>
             </div>
-            <CardLimits card={card} mode={mode} />
+            <CardLimits card={card} mode={mode} stacked />
           </div>
         </div>
 
@@ -1253,7 +1259,7 @@ function CardTile({ card, detail, detailLoading, inCompare, compareFull, onToggl
         {/* Estimated annual reward — hero number */}
         <div className="compare-card-financials">
         <div className="compare-card-annual"
-          style={{ flexShrink: 0, width: 130, padding: '14px 10px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 3, position: 'relative', cursor: 'help' }}
+          style={{ flexShrink: 0, width: 130, padding: '8px 10px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 3, position: 'relative', cursor: 'help' }}
           onMouseEnter={() => setHoverNav(navKey)} onMouseLeave={() => setHoverNav(null)}
           onClick={e => e.stopPropagation()}
         >
