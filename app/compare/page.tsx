@@ -2,7 +2,7 @@
 import { useMemo, useRef, useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import PageHero from '@/components/PageHero'
-import { fetchCards, fetchPersonalisedCards, fetchCardDetail, getCardImageUrl } from '@/lib/api'
+import { fetchCards, fetchPersonalisedCards, fetchCardDetail, prefetchCardDetail, getCardImageUrl } from '@/lib/api'
 import PersonaliseDialog, { type PersonalSpend } from '@/components/PersonaliseDialog'
 import CompareWallet from '@/components/compare/CompareWallet'
 import { WalletFullDialog } from '@/components/wallet-simulator/dock'
@@ -10,6 +10,8 @@ import { RewardModeProvider } from '@/lib/wallet-simulator/reward-mode'
 import type { CardInfo } from '@/components/wallet-simulator/card-art'
 import type { SimulatorRequest } from '@/lib/wallet-simulator/api'
 import CardNameLink from '@/components/CardNameLink'
+import CardDetailPopup from '@/components/CardDetailPopup'
+import { createPortal } from 'react-dom'
 import RewardConditionLabel from '@/components/RewardConditionLabel'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -22,6 +24,9 @@ interface ApiCard {
   bank_code: string | null
   best_for: string | null
   card_summary_tag: string | null
+  card_cap_aed?: number | null              // card-level monthly cap (dim_cards); miles in the miles view
+  is_min_spend_applicable?: boolean | string | null
+  min_monthly_spend_aed_on_card?: number | null // card-level minimum monthly spend (AED)
   network: string
   reward_program_type: string | null
   reward_currency_name: string | null
@@ -153,6 +158,28 @@ const categoryEffectiveRate = (card: ApiCard, category: string): number | null =
   if (category === 'all_spend' || (typeof spend === 'number' && spend > 0)) return own
   return typeof card.effective_reward_rate_all_spend === 'number' ? card.effective_reward_rate_all_spend : own
 }
+/** The card-summary text without anything in brackets: the cap and the minimum spend are shown as their own boxes below it. */
+const summaryWithoutBrackets = (tag: string | null): string => (tag ?? '').replace(/\s*\([^)]*\)/g, '').replace(/\s+/g, ' ').trim()
+
+const LIMIT_PILL: React.CSSProperties = { display: 'inline-flex', alignItems: 'center', padding: '3px 10px', borderRadius: 999, fontSize: 11.5, fontWeight: 800, whiteSpace: 'nowrap' }
+const CAP_PILL: React.CSSProperties = { ...LIMIT_PILL, border: '1px solid #F5C451', background: 'linear-gradient(135deg,#FFE08A 0%,#F5B93A 100%)', color: '#4A3000', boxShadow: '0 1px 5px rgba(245,185,58,.35)' }
+const MIN_PILL: React.CSSProperties = { ...LIMIT_PILL, border: '1px solid #B9A2FF', background: 'linear-gradient(135deg,#E6DCFF 0%,#B99CFF 100%)', color: '#241150', boxShadow: '0 1px 5px rgba(185,156,255,.45)' }
+
+/** Card-level monthly cap and minimum spend, straight from the tables (the same fields as the card-details popup);
+ *  always shown: the value, or "No monthly cap" / "No min spend". */
+function CardLimits({ card, mode }: { card: ApiCard; mode: ViewMode }) {
+  const cap = typeof card.card_cap_aed === 'number' && card.card_cap_aed > 0 ? card.card_cap_aed : null
+  const minOn = card.is_min_spend_applicable === true || String(card.is_min_spend_applicable).toLowerCase() === 'true'
+  const min = minOn && typeof card.min_monthly_spend_aed_on_card === 'number' && card.min_monthly_spend_aed_on_card > 0 ? card.min_monthly_spend_aed_on_card : null
+  const fmt = (n: number) => Math.round(n).toLocaleString('en-US')
+  return (
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
+      <span style={CAP_PILL}>{cap !== null ? `Monthly earn cap: ${mode === 'miles' ? `${fmt(cap)} miles` : `AED ${fmt(cap)}`}` : 'No monthly cap'}</span>
+      <span style={MIN_PILL}>{min !== null ? `Min spend: AED ${fmt(min)} / month` : 'No min spend'}</span>
+    </div>
+  )
+}
+
 /** The card's ACTUAL (published) rate in a category: the split-reward-rule rate the backend attaches as
  *  display_reward_rate_<category> (miles view: already in miles). Not our spend-weighted estimate. */
 const categoryActualRate = (card: ApiCard, category: string): number | null => {
@@ -834,8 +861,6 @@ export default function ComparePage() {
             onToggleCompare={(e) => toggleCompare(card.earnn_card_id, e)}
             inWallet={walletIds.includes(card.earnn_card_id)}
             onToggleWallet={() => toggleWallet(card.earnn_card_id)}
-            expanded={expanded === card.earnn_card_id}
-            onExpand={() => handleExpand(card.earnn_card_id)}
             onHover={() => loadDetail(card.earnn_card_id)}
             hoverNav={hoverNav}
             setHoverNav={setHoverNav}
@@ -928,10 +953,10 @@ export default function ComparePage() {
 // effective rate · estimated annual reward · fee · score and compare. Used only when mode === 'miles'.
 // ─────────────────────────────────────────────────────────────────────────────
 // "Add to Wallet" box on a tile (same family as the Compare box): adds or removes the card from the bottom wallet bar.
-function WalletToggle({ inWallet, onToggle }: { inWallet: boolean; onToggle: () => void }) {
+function WalletToggle({ inWallet, onToggle, compact }: { inWallet: boolean; onToggle: () => void; compact?: boolean }) {
   return (
     <button type="button" aria-pressed={inWallet} onClick={e => { e.stopPropagation(); onToggle() }}
-      style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 11px', borderRadius: 100, cursor: 'pointer', fontSize: 11.5, fontWeight: 800,
+      style={{ display: 'inline-flex', alignItems: 'center', gap: compact ? 4 : 6, padding: compact ? '5px 8px' : '5px 11px', borderRadius: 100, cursor: 'pointer', fontSize: compact ? 10.5 : 11.5, fontWeight: 800, whiteSpace: 'nowrap',
         border: inWallet ? '1px solid #C9972B' : '1px solid #E9C46A', background: inWallet ? '#F7C948' : '#FFF6E0', color: inWallet ? '#4A3000' : '#8A6100' }}>
       <svg aria-hidden viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M3 7a2 2 0 0 1 2-2h13v4" /><path d="M3 7v11a2 2 0 0 0 2 2h14a1 1 0 0 0 1-1v-9a1 1 0 0 0-1-1H5a2 2 0 0 1-2-2" /><circle cx="16" cy="14" r="1" fill="currentColor" />
@@ -943,7 +968,7 @@ function WalletToggle({ inWallet, onToggle }: { inWallet: boolean; onToggle: () 
 
 const MILES_COL: React.CSSProperties = { flexShrink: 0, padding: '14px 10px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', justifyContent: 'center', position: 'relative', cursor: 'help' }
 
-function MilesTileTop({ card, fee, topEarnRates, inCompare, compareFull, onToggleCompare, inWallet, onToggleWallet, expanded, hoverNav, setHoverNav, sortCat, sortCatSpend }: {
+function MilesTileTop({ card, fee, topEarnRates, inCompare, compareFull, onToggleCompare, inWallet, onToggleWallet, hoverNav, setHoverNav, sortCat, sortCatSpend }: {
   card: ApiCard
   fee: number
   topEarnRates: string[]
@@ -952,7 +977,6 @@ function MilesTileTop({ card, fee, topEarnRates, inCompare, compareFull, onToggl
   onToggleCompare: (e?: React.MouseEvent) => void
   inWallet: boolean
   onToggleWallet: () => void
-  expanded: boolean
   hoverNav: string | null
   setHoverNav: (v: string | null) => void
   sortCat?: string
@@ -977,7 +1001,7 @@ function MilesTileTop({ card, fee, topEarnRates, inCompare, compareFull, onToggl
   const hover = (key: string) => ({ onMouseEnter: () => setHoverNav(key), onMouseLeave: () => setHoverNav(null), onClick: (e: React.MouseEvent) => e.stopPropagation() })
   const label: React.CSSProperties = { fontSize: 10, fontWeight: 800, color: '#5A6A85', textTransform: 'uppercase', letterSpacing: '0.05em' }
   return (
-    <div className="compare-miles-tile" style={{ position: 'relative', display: 'flex', alignItems: 'stretch', flexWrap: 'wrap', gap: 0, padding: '4px 4px 26px' }}>
+    <div className="compare-miles-tile" style={{ position: 'relative', display: 'flex', alignItems: 'stretch', flexWrap: 'wrap', gap: 0, padding: '4px 4px 6px' }}>
       {/* image */}
       <div style={{ ...MILES_COL, cursor: 'pointer', width: 142, alignItems: 'center', gap: 9, textAlign: 'center' }}>
         <img src={getCardImageUrl(id)} alt={card.card_name} width={126} height={78} loading="lazy"
@@ -999,7 +1023,8 @@ function MilesTileTop({ card, fee, topEarnRates, inCompare, compareFull, onToggl
         </div>
         <div style={{ fontSize: 11.5, color: '#5A6A85', marginTop: 3 }}>{card.bank_name} · {card.network}</div>
         <div style={{ ...label, color: '#0E3785', marginTop: 8, marginBottom: 3 }}>Card summary</div>
-        <div style={{ fontSize: 12, color: card.card_summary_tag ? '#0D1828' : '#94A3B8', lineHeight: 1.4 }}>{card.card_summary_tag || 'No card summary available'}</div>
+        <div style={{ fontSize: 12, color: card.card_summary_tag ? '#0D1828' : '#94A3B8', lineHeight: 1.4 }}>{summaryWithoutBrackets(card.card_summary_tag) || 'No card summary available'}</div>
+        <CardLimits card={card} mode="miles" />
         {topCategories.length > 0 && (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 9 }}>
             {topCategories.map(c => (
@@ -1044,10 +1069,11 @@ function MilesTileTop({ card, fee, topEarnRates, inCompare, compareFull, onToggl
       </div>
 
       {/* fee */}
-      <div style={{ ...MILES_COL, width: 96, borderLeft: '1px solid #EEF3FF', textAlign: 'center', alignItems: 'center' }} {...hover(`fee_${id}`)}>
+      <div style={{ ...MILES_COL, width: 120, borderLeft: '1px solid #EEF3FF', textAlign: 'center', alignItems: 'center' }} {...hover(`fee_${id}`)}>
         <span style={{ ...label, borderBottom: '1.5px dotted #9CA3AF' }}>Eff. fee</span>
         <span style={{ fontSize: 20, fontWeight: 800, color: fee === 0 ? '#00A67E' : '#C95B00', lineHeight: 1.2, marginTop: 5 }}>AED {(card.true_annual_fee_aed ?? 0).toLocaleString()}</span>
         <span style={{ fontSize: 10, color: '#9CA3AF', marginTop: 2 }}>per year</span>
+        <div style={{ position: 'absolute', left: 0, right: 0, bottom: 10, display: 'flex', justifyContent: 'center' }}><WalletToggle inWallet={inWallet} onToggle={onToggleWallet} compact /></div>
         {hoverNav === `fee_${id}` && <InlineTooltip text="Estimating how much you could pay in annual fees based on your spending — after waivers and first-year offers." />}
       </div>
 
@@ -1066,12 +1092,7 @@ function MilesTileTop({ card, fee, topEarnRates, inCompare, compareFull, onToggl
         </button>
       </div>
 
-      <div style={{ position: 'absolute', right: 14, bottom: 4 }}><WalletToggle inWallet={inWallet} onToggle={onToggleWallet} /></div>
 
-      {/* More details: bottom edge of the tile, centred (clicking anywhere on the tile expands it) */}
-      <div style={{ position: 'absolute', left: 0, right: 0, bottom: 6, textAlign: 'center', fontSize: 11.5, fontWeight: 700, color: '#0E3785', pointerEvents: 'none' }}>
-        {expanded ? 'Hide details ↑' : 'More details ↓'}
-      </div>
     </div>
   )
 }
@@ -1079,7 +1100,7 @@ function MilesTileTop({ card, fee, topEarnRates, inCompare, compareFull, onToggl
 // ─────────────────────────────────────────────────────────────────────────────
 // CARD TILE — new layout
 // ─────────────────────────────────────────────────────────────────────────────
-function CardTile({ card, detail, detailLoading, inCompare, compareFull, onToggleCompare, inWallet, onToggleWallet, expanded, onExpand, onHover, hoverNav, setHoverNav, mode, sortCat, sortCatSpend }: {
+function CardTile({ card, detail, detailLoading, inCompare, compareFull, onToggleCompare, inWallet, onToggleWallet, onHover, hoverNav, setHoverNav, mode, sortCat, sortCatSpend }: {
   card: ApiCard
   detail: CardDetail | null
   detailLoading: boolean
@@ -1088,8 +1109,6 @@ function CardTile({ card, detail, detailLoading, inCompare, compareFull, onToggl
   onToggleCompare: (e?: React.MouseEvent) => void
   inWallet: boolean
   onToggleWallet: () => void
-  expanded: boolean
-  onExpand: () => void
   onHover: () => void
   hoverNav: string | null
   setHoverNav: (v: string | null) => void
@@ -1097,6 +1116,7 @@ function CardTile({ card, detail, detailLoading, inCompare, compareFull, onToggl
   sortCat?: string   // the category chosen in "Best for", if any
   sortCatSpend?: number   // Earnn's average monthly spend in that category
 }) {
+  const [popupOpen, setPopupOpen] = useState(false) // clicking anywhere on the tile opens the card details popup
   const fee = effectiveFeeAed(card)
   const catRate = sortCat ? categoryEffectiveRate(card, sortCat) : null
   const catActual = sortCat ? categoryActualRate(card, sortCat) : null // published rate, shown in the green box
@@ -1110,18 +1130,18 @@ function CardTile({ card, detail, detailLoading, inCompare, compareFull, onToggl
   return (
     <div
       className="compare-card-tile"
-      onClick={onExpand}
-      onMouseEnter={onHover}
+      onClick={() => setPopupOpen(true)}
+      onMouseEnter={() => { onHover(); prefetchCardDetail(card.earnn_card_id) }}
       style={{
         position: 'relative', background: 'white', borderRadius: 16, cursor: 'pointer', overflow: 'visible',
-        border: inCompare ? '2px solid #0E3785' : expanded ? '1.5px solid #C2CCDD' : '1px solid #D6E0F5',
+        border: inCompare ? '2px solid #0E3785' : '1px solid #D6E0F5',
         boxShadow: inCompare ? '0 8px 28px rgba(14,55,133,0.14)' : '0 2px 12px rgba(14,55,133,0.05)',
         transition: 'all 0.18s'
       }}>
 
       {mode === 'miles' ? (
         <MilesTileTop card={card} fee={fee} topEarnRates={topEarnRates} inCompare={inCompare} compareFull={compareFull}
-          onToggleCompare={onToggleCompare} inWallet={inWallet} onToggleWallet={onToggleWallet} expanded={expanded} hoverNav={hoverNav} setHoverNav={setHoverNav} sortCat={sortCat} sortCatSpend={sortCatSpend} />
+          onToggleCompare={onToggleCompare} inWallet={inWallet} onToggleWallet={onToggleWallet} hoverNav={hoverNav} setHoverNav={setHoverNav} sortCat={sortCat} sortCatSpend={sortCatSpend} />
       ) : (<>
       {/* ── HEADER ROW: rank · name · score badge · button ── */}
       <div className="compare-card-header" style={{
@@ -1221,8 +1241,9 @@ function CardTile({ card, detail, detailLoading, inCompare, compareFull, onToggl
           <div style={{ gridColumn: '1 / -1', minWidth: 0, paddingTop: 10, borderTop: '1px solid #EEF3FF' }}>
             <div style={{ fontSize: 10.5, fontWeight: 800, color: '#0E3785', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 5 }}>Card summary</div>
             <div style={{ fontSize: 12, color: card.card_summary_tag ? '#0D1828' : '#94A3B8', lineHeight: 1.45 }}>
-              {card.card_summary_tag || 'No card summary available'}
+              {summaryWithoutBrackets(card.card_summary_tag) || 'No card summary available'}
             </div>
+            <CardLimits card={card} mode={mode} />
           </div>
         </div>
 
@@ -1251,7 +1272,7 @@ function CardTile({ card, detail, detailLoading, inCompare, compareFull, onToggl
 
         {/* Effective Fee */}
         <div className="compare-card-fee"
-          style={{ flexShrink: 0, width: 110, padding: '14px 10px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 3, position: 'relative', cursor: 'help', background: fee === 0 ? '#FAFFFE' : '#FFFAF6' }}
+          style={{ flexShrink: 0, width: 128, padding: '14px 8px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 3, position: 'relative', cursor: 'help', background: fee === 0 ? '#FAFFFE' : '#FFFAF6' }}
           onMouseEnter={() => setHoverNav(`fee_${card.earnn_card_id}`)} onMouseLeave={() => setHoverNav(null)}
           onClick={e => e.stopPropagation()}
         >
@@ -1260,6 +1281,7 @@ function CardTile({ card, detail, detailLoading, inCompare, compareFull, onToggl
             AED {(card.true_annual_fee_aed ?? 0).toLocaleString()}
           </span>
           <span style={{ fontSize: 10.5, color: '#9CA3AF' }}>per year</span>
+          <div style={{ position: 'absolute', left: 0, right: 0, bottom: 10, display: 'flex', justifyContent: 'center' }}><WalletToggle inWallet={inWallet} onToggle={onToggleWallet} compact /></div>
           {hoverNav === `fee_${card.earnn_card_id}` && (
             <InlineTooltip text="Estimating how much you could pay in annual fees based on your spending — after waivers and first-year offers." />
           )}
@@ -1270,52 +1292,11 @@ function CardTile({ card, detail, detailLoading, inCompare, compareFull, onToggl
 
       </>)}
 
-      {/* Expand / collapse caret */}
-      <div style={{ display: mode === 'miles' ? 'none' : 'flex', justifyContent: 'center', alignItems: 'center', padding: '4px 0 8px', position: 'relative', minHeight: 30 }}>
-        {mode !== 'miles' && <div style={{ position: 'absolute', right: 14, bottom: 4 }}><WalletToggle inWallet={inWallet} onToggle={onToggleWallet} /></div>}
-        <span style={{ fontSize: 10, color: '#C2CCDD', fontWeight: 700, letterSpacing: '0.06em' }}>
-          {expanded ? 'HIDE DETAILS ▲' : 'MORE DETAILS ▼'}
-        </span>
-      </div>
 
-      {/* ── EXPANDED SECTION ── */}
-      {expanded && (
-        <div onClick={e => e.stopPropagation()} style={{
-          borderTop: '1px solid #EEF3FF', padding: '20px 24px', background: '#FBFCFF',
-          display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 24
-        }}>
-          {detailLoading ? (
-            <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '20px 0', color: '#5A6A85', fontSize: 13 }}>Loading card details…</div>
-          ) : detail ? (
-            <>
-              <div>
-                <div style={{ fontSize: 11.5, fontWeight: 700, color: '#0E3785', letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: 10 }}>🎁 Top Benefits</div>
-                <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 7 }}>
-                  {detail.benefits.length > 0 ? detail.benefits.map((b, i) => <li key={i} style={{ fontSize: 13, color: '#0D1828', lineHeight: 1.5 }}>• {b}</li>) : <li style={{ fontSize: 13, color: '#9CA3AF' }}>No featured benefits listed</li>}
-                </ul>
-              </div>
-              <div>
-                <div style={{ fontSize: 11.5, fontWeight: 700, color: '#00A67E', letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: 10 }}>💡 Best For</div>
-                <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 7 }}>
-                  {bestForItems.length > 0 ? bestForItems.map((b, i) => <li key={i} style={{ fontSize: 13, color: '#0D1828', lineHeight: 1.5 }}>• {b}</li>) : <li style={{ fontSize: 13, color: '#9CA3AF' }}>—</li>}
-                </ul>
-                <div style={{ fontSize: 11.5, fontWeight: 700, color: '#C95B00', letterSpacing: '0.05em', textTransform: 'uppercase', margin: '16px 0 10px' }}>✨ Highlight</div>
-                <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 7 }}>
-                  {highlightItems.length > 0 ? highlightItems.map((item, index) => <li key={index} style={{ fontSize: 13, color: '#0D1828', lineHeight: 1.5 }}>• {item}</li>) : <li style={{ fontSize: 13, color: '#9CA3AF' }}>—</li>}
-                </ul>
-              </div>
-              <div>
-                <div style={{ fontSize: 11.5, fontWeight: 700, color: '#5A6A85', letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: 10 }}>⚠️ Things To Note</div>
-                <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 7 }}>
-                  {detail.card_disclaimer.length > 0 ? detail.card_disclaimer.map((d, i) => <li key={i} style={{ fontSize: 12.5, color: '#5A6A85', lineHeight: 1.6, fontStyle: 'italic' }}>• {d}</li>) : <li style={{ fontSize: 13, color: '#9CA3AF' }}>—</li>}
-                </ul>
-              </div>
-            </>
-          ) : (
-            <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '20px 0', color: '#9CA3AF', fontSize: 13 }}>Could not load card details</div>
-          )}
-        </div>
-      )}
+      {/* the same popup as the card-name link; its clicks must not reach the tile (which would reopen it) */}
+      {popupOpen && typeof document !== 'undefined' && createPortal(
+        <div onClick={e => e.stopPropagation()}><CardDetailPopup cardId={card.earnn_card_id} mode={mode} onClose={() => setPopupOpen(false)} /></div>, document.body)}
+
     </div>
   )
 }
