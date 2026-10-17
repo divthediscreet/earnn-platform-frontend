@@ -21,7 +21,7 @@ export default function PersonaliseDialog({ current, mode, onClose, onSubmit }: 
   const [salary, setSalary] = useState('')
   const [error, setError] = useState('')
 
-  // Same restore order as Analyze: what is applied now, else the details saved in this browser.
+  // Restore order: what is applied now, else the spend saved in this browser (never the saved salary).
   useEffect(() => {
     let alive = true
     const apply = (amounts: Record<string, number>, savedSalary?: string) => {
@@ -33,8 +33,8 @@ export default function PersonaliseDialog({ current, mode, onClose, onSubmit }: 
     ensureProfileLoaded().then(() => {
       if (!alive) return
       const saved = readProfile()
-      if (saved?.spend) apply(Object.fromEntries(Object.entries(saved.spend).map(([k, v]) => [k, Number(v) || 0])), saved.salary)
-      else if (saved?.salary) setSalary(saved.salary)
+      // the saved salary is deliberately NOT restored here: salary stays blank until the user enters it
+      if (saved?.spend) apply(Object.fromEntries(Object.entries(saved.spend).map(([k, v]) => [k, Number(v) || 0])))
     })
     return () => { alive = false }
     // eslint-disable-next-line react-hooks/exhaustive-deps

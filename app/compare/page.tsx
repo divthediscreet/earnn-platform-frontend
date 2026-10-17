@@ -615,6 +615,13 @@ export default function ComparePage() {
           </span>
         </div>
       )}
+      {!personal && (
+        <div role="note" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '6px 14px', margin: '0 0 12px', padding: '10px 14px', borderRadius: 12, background: '#DDF5EA', border: '1px solid #8FD3B4', color: '#0B4D38', fontSize: 13.5, fontWeight: 600 }}>
+          <span aria-hidden>ℹ️</span>
+          <span>All rates are estimated on a typical UAE spending pattern. Customize them to your own spend anytime.</span>
+          <button type="button" onClick={() => setPersonaliseOpen(true)} style={{ marginLeft: 'auto', border: 0, background: 'none', color: '#0A6B4B', fontWeight: 800, cursor: 'pointer', fontSize: 13.5, textDecoration: 'underline' }}>Customize</button>
+        </div>
+      )}
       {personaliseOpen && (
         <PersonaliseDialog current={personal} mode={mode} onClose={() => { setPersonaliseOpen(false); setPendingWalletId(null) }}
           onSubmit={value => {
