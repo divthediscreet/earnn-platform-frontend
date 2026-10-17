@@ -161,7 +161,7 @@ const categoryEffectiveRate = (card: ApiCard, category: string): number | null =
 /** The card-summary text without anything in brackets: the cap and the minimum spend are shown as their own boxes below it. */
 const summaryWithoutBrackets = (tag: string | null): string => (tag ?? '').replace(/\s*\([^)]*\)/g, '').replace(/\s+/g, ' ').trim()
 
-const LIMIT_PILL: React.CSSProperties = { display: 'inline-flex', alignItems: 'center', padding: '2px 9px', borderRadius: 999, fontSize: 11.5, fontWeight: 800, whiteSpace: 'nowrap' }
+const LIMIT_PILL: React.CSSProperties = { display: 'inline-flex', alignItems: 'center', padding: '1px 7px', borderRadius: 999, fontSize: 10, fontWeight: 800, whiteSpace: 'nowrap', lineHeight: 1.45 }
 const CAP_PILL: React.CSSProperties = { ...LIMIT_PILL, border: '1px solid #F5C451', background: 'linear-gradient(135deg,#FFE08A 0%,#F5B93A 100%)', color: '#4A3000', boxShadow: '0 1px 5px rgba(245,185,58,.35)' }
 const MIN_PILL: React.CSSProperties = { ...LIMIT_PILL, border: '1px solid #B9A2FF', background: 'linear-gradient(135deg,#E6DCFF 0%,#B99CFF 100%)', color: '#241150', boxShadow: '0 1px 5px rgba(185,156,255,.45)' }
 
@@ -173,7 +173,7 @@ function CardLimits({ card, mode, stacked }: { card: ApiCard; mode: ViewMode; st
   const min = minOn && typeof card.min_monthly_spend_aed_on_card === 'number' && card.min_monthly_spend_aed_on_card > 0 ? card.min_monthly_spend_aed_on_card : null
   const fmt = (n: number) => Math.round(n).toLocaleString('en-US')
   return (
-    <div style={stacked ? { display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4, flexShrink: 0 } : { display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
+    <div style={stacked ? { display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4, flexShrink: 0 } : { display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 5 }}>
       <span style={CAP_PILL}>{cap !== null ? `Monthly earn cap: ${mode === 'miles' ? `${fmt(cap)} miles` : `AED ${fmt(cap)}`}` : 'No monthly cap'}</span>
       <span style={MIN_PILL}>{min !== null ? `Min spend: AED ${fmt(min)} / month` : 'No min spend'}</span>
     </div>
@@ -1024,10 +1024,8 @@ function MilesTileTop({ card, fee, topEarnRates, inCompare, compareFull, onToggl
         <div style={{ fontSize: 11.5, color: '#5A6A85', marginTop: 3 }}>{card.bank_name} · {card.network}</div>
         <div style={{ marginTop: 8, padding: '8px 10px', borderRadius: 10, background: '#EEF3FF', border: '1px solid #DCE6F8' }}>
         <div style={{ ...label, color: '#0E3785', marginBottom: 3 }}>Card summary</div>
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
-          <div style={{ fontSize: 12, color: card.card_summary_tag ? '#0D1828' : '#94A3B8', lineHeight: 1.4, minWidth: 0, flex: 1 }}>{summaryWithoutBrackets(card.card_summary_tag) || 'No card summary available'}</div>
-          <CardLimits card={card} mode="miles" stacked />
-        </div>
+        <div style={{ fontSize: 12, color: card.card_summary_tag ? '#0D1828' : '#94A3B8', lineHeight: 1.4 }}>{summaryWithoutBrackets(card.card_summary_tag) || 'No card summary available'}</div>
+        <CardLimits card={card} mode="miles" />
         </div>
         {topCategories.length > 0 && (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 9 }}>
@@ -1242,14 +1240,12 @@ function CardTile({ card, detail, detailLoading, inCompare, compareFull, onToggl
           </div>
           {catRate !== null && <div style={{ fontSize: 10.5, fontWeight: 600, color: '#5A6A85', textAlign: 'center', lineHeight: 1.25 }}>Overall effective rate: {(card.effective_reward_rate * 100).toFixed(1)}%</div>}
           </div>
-          <div style={{ gridColumn: '1 / -1', minWidth: 0, marginTop: 0, padding: '6px 10px', borderRadius: 10, background: '#EEF3FF', border: '1px solid #DCE6F8', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
-            <div style={{ minWidth: 0, flex: 1 }}>
-              <div style={{ fontSize: 10.5, fontWeight: 800, color: '#0E3785', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 5 }}>Card summary</div>
-              <div style={{ fontSize: 12, color: card.card_summary_tag ? '#0D1828' : '#94A3B8', lineHeight: 1.45 }}>
-                {summaryWithoutBrackets(card.card_summary_tag) || 'No card summary available'}
-              </div>
+          <div style={{ gridColumn: '1 / -1', minWidth: 0, marginTop: 0, padding: '6px 10px', borderRadius: 10, background: '#EEF3FF', border: '1px solid #DCE6F8' }}>
+            <div style={{ fontSize: 10.5, fontWeight: 800, color: '#0E3785', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 5 }}>Card summary</div>
+            <div style={{ fontSize: 12, color: card.card_summary_tag ? '#0D1828' : '#94A3B8', lineHeight: 1.45 }}>
+              {summaryWithoutBrackets(card.card_summary_tag) || 'No card summary available'}
             </div>
-            <CardLimits card={card} mode={mode} stacked />
+            <CardLimits card={card} mode={mode} />
           </div>
         </div>
 
