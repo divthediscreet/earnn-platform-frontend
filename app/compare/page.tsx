@@ -153,6 +153,17 @@ const categoryEffectiveRate = (card: ApiCard, category: string): number | null =
   if (category === 'all_spend' || (typeof spend === 'number' && spend > 0)) return own
   return typeof card.effective_reward_rate_all_spend === 'number' ? card.effective_reward_rate_all_spend : own
 }
+/** The card's ACTUAL (published) rate in a category: the split-reward-rule rate the backend attaches as
+ *  display_reward_rate_<category> (miles view: already in miles). Not our spend-weighted estimate. */
+const categoryActualRate = (card: ApiCard, category: string): number | null => {
+  const v = card[`display_reward_rate_${category}` as keyof ApiCard]
+  return typeof v === 'number' ? v : null
+}
+/** The category's cap per month from the same rules (AED; miles in the miles view), when the card has one. */
+const categoryActualCap = (card: ApiCard, category: string): number | null => {
+  const v = card[`display_tier_cap_${category}` as keyof ApiCard]
+  return typeof v === 'number' && v > 0 ? v : null
+}
 /** Earnn's average monthly spend in each category (the same for every card; read from the cards that carry it). */
 const categoryDefaultSpend = (cards: ApiCard[], category: string): number =>
   cards.reduce((max, c) => {
@@ -949,8 +960,8 @@ function MilesTileTop({ card, fee, topEarnRates, inCompare, compareFull, onToggl
 }) {
   const id = card.earnn_card_id
   const catRate = sortCat ? categoryEffectiveRate(card, sortCat) : null
-  // estimated monthly reward in the chosen category (none for "All Other", which has no spend behind it)
-  const catReward = catRate !== null && sortCat !== 'all_spend' && sortCatSpend ? catRate * sortCatSpend : null
+  const catActual = sortCat ? categoryActualRate(card, sortCat) : null // published rate, shown in the green box
+  const catActualCap = sortCat ? categoryActualCap(card, sortCat) : null
   // Tags: the categories where this card pays MORE than its base rate (raw published rates), highest first, plus
   // "Overall Expense" (the base rate on everything else) when it is among the top three. A card that earns the same
   // everywhere therefore shows just "Overall Expense" instead of an arbitrary first few categories.
@@ -1013,13 +1024,14 @@ function MilesTileTop({ card, fee, topEarnRates, inCompare, compareFull, onToggl
       {/* effective reward rate */}
       <div style={{ ...MILES_COL, width: 150 }} {...hover(`effective_rate_${id}`)}>
         <div style={{ borderRadius: 10, background: '#E3F6EC', border: '1px solid #BFE8D4', padding: '10px 12px', textAlign: 'center' }}>
-          <div style={{ fontSize: 11, fontWeight: 800, color: '#1B6B4A', lineHeight: 1.25 }}>{catReward !== null ? `Est. ${CATEGORY_NAMES[sortCat!]} reward` : catRate !== null ? `${CATEGORY_NAMES[sortCat!]} reward rate` : 'Effective reward rate'} <span aria-hidden style={{ opacity: 0.7 }}>ⓘ</span></div>
-          <div style={{ fontSize: 26, fontWeight: 900, color: '#087448', lineHeight: 1.15, marginTop: 4 }}>{catReward !== null ? Math.round(catReward).toLocaleString('en-US') : ((catRate ?? card.effective_reward_rate) * 100).toFixed(1)}</div>
-          <div style={{ fontSize: 10.5, fontWeight: 700, color: '#1B6B4A' }}>{catReward !== null ? 'miles per month' : 'miles per AED 100'}</div>
-          {catRate !== null && <div style={{ fontSize: 10, color: '#4B7F66', marginTop: 17, lineHeight: 1.3 }}>Overall effective rate: {(card.effective_reward_rate * 100).toFixed(1)}</div>}
+          <div style={{ fontSize: 11, fontWeight: 800, color: '#1B6B4A', lineHeight: 1.25 }}>{catRate !== null ? `${CATEGORY_NAMES[sortCat!]} reward rate` : 'Effective reward rate'} <span aria-hidden style={{ opacity: 0.7 }}>ⓘ</span></div>
+          <div style={{ fontSize: 26, fontWeight: 900, color: '#087448', lineHeight: 1.15, marginTop: 4 }}>{(((catActual ?? catRate) ?? card.effective_reward_rate) * 100).toFixed(1)}</div>
+          <div style={{ fontSize: 10.5, fontWeight: 700, color: '#1B6B4A' }}>miles per AED 100</div>
+          {catRate !== null && catActualCap !== null && <div style={{ fontSize: 10, color: '#4B7F66', marginTop: 8, lineHeight: 1.3 }}>Cap: {Math.round(catActualCap).toLocaleString('en-US')} miles/mo</div>}
         </div>
+        {catRate !== null && <div style={{ fontSize: 10.5, fontWeight: 600, color: '#4B7F66', textAlign: 'center', lineHeight: 1.25, marginTop: 6 }}>Overall effective rate: {(card.effective_reward_rate * 100).toFixed(1)} mi</div>}
         {hoverNav === `effective_rate_${id}` && (
-          <InlineTooltip text={catReward !== null ? `Estimated miles this card earns each month on ${CATEGORY_NAMES[sortCat!].toLowerCase()} spend, using Earnn's average monthly spend in that category, after reward caps and minimum-spend requirements. The small lines show the rate behind it and the card's overall effective rate.` : catRate !== null ? `The miles this card actually earns per AED 100 spent on ${CATEGORY_NAMES[sortCat!].toLowerCase()}, after reward caps and minimum-spend requirements. The small line is the card's overall effective rate across all categories.` : 'A generic estimate of the miles an average UAE resident could earn per AED 100 spent across all categories, after minimum-spend requirements and reward caps.'} />
+          <InlineTooltip text={catRate !== null ? `The card's published rate on ${CATEGORY_NAMES[sortCat!].toLowerCase()}, in miles per AED 100 spent, taken straight from its reward rules (not an estimate). The small line is the monthly cap on that category, if it has one.` : 'A generic estimate of the miles an average UAE resident could earn per AED 100 spent across all categories, after minimum-spend requirements and reward caps.'} />
         )}
       </div>
 
@@ -1087,8 +1099,8 @@ function CardTile({ card, detail, detailLoading, inCompare, compareFull, onToggl
 }) {
   const fee = effectiveFeeAed(card)
   const catRate = sortCat ? categoryEffectiveRate(card, sortCat) : null
-  // estimated monthly reward in the chosen category (none for "All Other", which has no spend behind it)
-  const catReward = catRate !== null && sortCat !== 'all_spend' && sortCatSpend ? catRate * sortCatSpend : null
+  const catActual = sortCat ? categoryActualRate(card, sortCat) : null // published rate, shown in the green box
+  const catActualCap = sortCat ? categoryActualCap(card, sortCat) : null
   const navKey = `earn_${card.earnn_card_id}`
   const bestForItems = detail ? bestForSectionItems(detail.best_for, 'Best for') : []
   const highlightItems = detail ? bestForSectionItems(detail.best_for, 'Highlight') : []
@@ -1190,18 +1202,21 @@ function CardTile({ card, detail, detailLoading, inCompare, compareFull, onToggl
               </ul>
             ) : <div style={{ fontSize: 12, color: '#94A3B8' }}>No top earn rates available</div>}
           </div>
+          <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 5 }}>
           <div
             style={{ minWidth: 0, minHeight: 88, padding: '10px 8px', borderRadius: 10, background: '#00A67E', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 7, boxShadow: '0 3px 10px rgba(0,166,126,0.24)', position: 'relative', cursor: 'help' }}
             onMouseEnter={() => setHoverNav(`effective_rate_${card.earnn_card_id}`)}
             onMouseLeave={() => setHoverNav(null)}
             onClick={event => event.stopPropagation()}
           >
-            <div style={{ fontSize: 11.5, fontWeight: 800, color: 'white', textAlign: 'center', lineHeight: 1.25 }}>{catReward !== null ? `Est. ${CATEGORY_NAMES[sortCat!]} Reward` : catRate !== null ? `${CATEGORY_NAMES[sortCat!]} Reward Rate` : 'Overall Effective Reward Rate'}</div>
-            <div style={{ fontSize: 22, fontWeight: 900, color: 'white', lineHeight: 1 }}>{catReward !== null ? <>AED {catReward.toLocaleString('en-US', { maximumFractionDigits: 1 })}<span style={{ fontSize: 11, fontWeight: 700 }}> / mo</span></> : `${((catRate ?? card.effective_reward_rate) * 100).toFixed(1)}%`}</div>
-            {catRate !== null && <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.85)', textAlign: 'center', lineHeight: 1.25, marginTop: 10 }}>Overall effective rate: {(card.effective_reward_rate * 100).toFixed(1)}%</div>}
+            <div style={{ fontSize: 11.5, fontWeight: 800, color: 'white', textAlign: 'center', lineHeight: 1.25 }}>{catRate !== null ? `${CATEGORY_NAMES[sortCat!]} Reward Rate` : 'Overall Effective Reward Rate'}</div>
+            <div style={{ fontSize: 22, fontWeight: 900, color: 'white', lineHeight: 1 }}>{fmtRate((catActual ?? catRate) ?? card.effective_reward_rate)}</div>
+            {catRate !== null && catActualCap !== null && <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.85)', textAlign: 'center', lineHeight: 1.25, marginTop: 10 }}>Cap: AED {Math.round(catActualCap).toLocaleString('en-US')}/mo</div>}
             {hoverNav === `effective_rate_${card.earnn_card_id}` && (
-              <InlineTooltip text={catReward !== null ? `Estimated reward this card earns each month on ${CATEGORY_NAMES[sortCat!].toLowerCase()} spend, using Earnn's average monthly spend in that category, after reward caps and minimum-spend requirements. The small lines show the rate behind it and the card's overall effective rate.` : catRate !== null ? `What this card actually earns back on ${CATEGORY_NAMES[sortCat!].toLowerCase()} spending, after reward caps and minimum-spend requirements. The small line is the card's overall effective rate across all categories.` : 'A generic estimate of how much an average UAE resident could potentially earn across all spending categories, after accounting for minimum-spend requirements and applicable reward caps.'} />
+              <InlineTooltip text={catRate !== null ? `The card's published rate on ${CATEGORY_NAMES[sortCat!].toLowerCase()}, taken straight from its reward rules (not an estimate). The small line is the monthly cap on that category, if it has one.` : 'A generic estimate of how much an average UAE resident could potentially earn across all spending categories, after accounting for minimum-spend requirements and applicable reward caps.'} />
             )}
+          </div>
+          {catRate !== null && <div style={{ fontSize: 10.5, fontWeight: 600, color: '#5A6A85', textAlign: 'center', lineHeight: 1.25 }}>Overall effective rate: {(card.effective_reward_rate * 100).toFixed(1)}%</div>}
           </div>
           <div style={{ gridColumn: '1 / -1', minWidth: 0, paddingTop: 10, borderTop: '1px solid #EEF3FF' }}>
             <div style={{ fontSize: 10.5, fontWeight: 800, color: '#0E3785', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 5 }}>Card summary</div>
