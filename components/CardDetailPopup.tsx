@@ -55,6 +55,10 @@ function emphasise(text: string) {
 const panel = (background: string): React.CSSProperties => ({ background, borderRadius: 14, padding: '12px 14px' })
 const heading: React.CSSProperties = { margin: '0 0 8px', color: BLUE, fontSize: 11.5, fontWeight: 800, letterSpacing: '.09em', textTransform: 'uppercase' }
 const pill: React.CSSProperties = { padding: '3px 10px', borderRadius: 999, border: '1px solid rgba(255,255,255,.28)', background: 'rgba(255,255,255,.08)', fontSize: 11.5, fontWeight: 600 }
+// the golden boxes of the hero (monthly cap, minimum spend)
+const goldPill: React.CSSProperties = { ...pill, border: '1px solid #F5C451', background: 'linear-gradient(135deg,#FFE08A 0%,#F5B93A 100%)', color: '#4A3000', fontWeight: 800, boxShadow: '0 2px 8px rgba(245,185,58,.35)' }
+// the hero's minimum-spend box (violet, to tell it apart from the golden cap box)
+const minSpendPill: React.CSSProperties = { ...pill, border: '1px solid #B9A2FF', background: 'linear-gradient(135deg,#E6DCFF 0%,#B99CFF 100%)', color: '#241150', fontWeight: 800, boxShadow: '0 2px 8px rgba(185,156,255,.45)' }
 const NOTE_STYLE = { warn: { icon: '⚠️', color: '#B45309' }, low: { icon: '📉', color: '#5A6A85' }, bonus: { icon: '🎯', color: BLUE }, info: { icon: 'ℹ️', color: '#374151' } } as const
 
 const rewardBox: React.CSSProperties = { boxSizing: 'border-box', height: '100%', padding: '10px 14px', borderRadius: 12, background: 'rgba(255,255,255,.85)', border: '1px solid #D6E0F5' }
@@ -109,6 +113,10 @@ export default function CardDetailPopup({ cardId, onClose, mode }: { cardId: str
   const textCapAed = Number((parsed?.monthlyCap ?? '').match(/AED\s?([\d,]+)/)?.[1]?.replace(/,/g, ''))
   const capAed = cardCapAed && cardCapAed > 0 ? cardCapAed : (Number.isFinite(textCapAed) && textCapAed > 0 ? textCapAed : null)
   const cardCapLabel = capAed ? (inMiles && ratio ? `${formatNumber(capAed / ratio)} miles` : `AED ${formatNumber(capAed)}`) : parsed?.monthlyCap ?? null
+  // Card-level minimum monthly spend (fact_reward_rules; AED in every view): shown only when the card applies one.
+  const minSpendOn = card?.is_min_spend_applicable === true || String(card?.is_min_spend_applicable).toLowerCase() === 'true'
+  const minSpendAed = minSpendOn ? asFee(card?.min_monthly_spend_aed_on_card) : null
+  const minSpendLabel = minSpendAed && minSpendAed > 0 ? `AED ${formatNumber(minSpendAed)} / month` : null
   // Best-for lines: new line only at ';' or '|'
   const headlineParts = parsed?.headlineParts ?? []
 
@@ -130,9 +138,10 @@ export default function CardDetailPopup({ cardId, onClose, mode }: { cardId: str
             </div>}
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 14 }}>
               {fee?.lines.map(line => <span key={line} style={pill}>{line}</span>)}
-              {fee?.waiver && <span style={{ ...pill, fontWeight: 500 }}>{fee.waiver}</span>}
-              {cardCapLabel && <span style={{ ...pill, border: '1px solid #F5C451', background: 'linear-gradient(135deg,#FFE08A 0%,#F5B93A 100%)', color: '#4A3000', fontWeight: 800, boxShadow: '0 2px 8px rgba(245,185,58,.35)' }}>Monthly earn cap: {cardCapLabel}</span>}
+              <span style={goldPill}>{cardCapLabel ? `Monthly earn cap: ${cardCapLabel}` : 'No monthly cap'}</span>
+              <span style={minSpendPill}>{minSpendLabel ? `Min spend: ${minSpendLabel}` : 'No min spend'}</span>
             </div>
+            {fee?.waiver && <div style={{ display: 'flex', marginTop: 6 }}><span style={pill}>{fee.waiver.replace(/^\(|\)$/g, '').replace(/^Waived/, 'Fee waived')}</span></div>}
           </div>
         </div>
 
