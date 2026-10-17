@@ -109,8 +109,8 @@ export default function CardDetailPopup({ cardId, onClose, mode }: { cardId: str
   const textCapAed = Number((parsed?.monthlyCap ?? '').match(/AED\s?([\d,]+)/)?.[1]?.replace(/,/g, ''))
   const capAed = cardCapAed && cardCapAed > 0 ? cardCapAed : (Number.isFinite(textCapAed) && textCapAed > 0 ? textCapAed : null)
   const cardCapLabel = capAed ? (inMiles && ratio ? `${formatNumber(capAed / ratio)} miles` : `AED ${formatNumber(capAed)}`) : parsed?.monthlyCap ?? null
-  // Long "a (x), b (y), c" best-for text reads better as a short list (commas inside brackets are kept).
-  const headlineParts = (parsed?.headline ?? '').split(/,\s+(?![^(]*\))/).map(part => part.trim()).filter(Boolean)
+  // Best-for lines: new line only at ';' or '|'
+  const headlineParts = parsed?.headlineParts ?? []
 
   return <div style={{ position: 'fixed', inset: 0, zIndex: 1100, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={onClose}>
     <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,.6)' }} />

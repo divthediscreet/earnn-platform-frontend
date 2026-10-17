@@ -10,6 +10,7 @@ export type Note = { kind: 'warn' | 'low' | 'bonus' | 'info'; label: string; tex
 
 export type ParsedDetail = {
   headline: string
+  headlineParts: string[]
   monthlyCap: string | null
   earnRates: EarnRate[]
   highlights: { text: string; icon: string }[]
@@ -46,13 +47,17 @@ function parseEarnRate(part: string): EarnRate {
   return { big: '', label: part }
 }
 
+// New lines come from ';' or '|'. Key Highlights also break at the word "plus" and, in a long run-on sentence,
+// at the word "and" (outside brackets). Commas and full stops never split.
+const LINE_SPLIT = /[;|]/
+const splitLines = (text: string) => text.split(LINE_SPLIT).map(part => part.trim()).filter(part => part.length > 1)
+
 function splitHighlight(text: string): string[] {
-  const pieces = text
-    .split(/\s*[;|]\s*|\.\s+(?=[A-Z])|,?\s+plus\s+|\.$/i)
+  return splitLines(text)
+    .flatMap(piece => piece.split(/\s+plus\s+/i))
+    .flatMap(piece => piece.length <= 70 ? [piece] : piece.split(/\s+and\s+(?![^(]*\))/i))
     .map(part => part.trim().replace(/[.,]$/, ''))
     .filter(part => part.length > 1)
-  // Long run-on lists ("a, b and c") become separate chips; commas inside brackets are kept.
-  return pieces.flatMap(piece => piece.length <= 70 ? [piece] : piece.split(/,\s+(?:and\s+)?(?![^(]*\))|\s+and\s+(?![^(]*\))/).map(part => part.trim()).filter(part => part.length > 1))
 }
 
 function parseBenefit(raw: string, category: string | null = null, provider: string | null = null): Benefit {
@@ -64,7 +69,7 @@ function parseBenefit(raw: string, category: string | null = null, provider: str
 }
 
 export function parseDetail(bestFor: string[], benefits: string[], disclaimer: string[], benefitRows: BenefitRow[] = []): ParsedDetail {
-  const parsed: ParsedDetail = { headline: '', monthlyCap: null, earnRates: [], highlights: [], benefits: [], tierTitle: null, tiers: [], notes: [] }
+  const parsed: ParsedDetail = { headline: '', headlineParts: [], monthlyCap: null, earnRates: [], highlights: [], benefits: [], tierTitle: null, tiers: [], notes: [] }
 
   const extras: string[] = []
   for (const line of bestFor) {
@@ -73,12 +78,12 @@ export function parseDetail(bestFor: string[], benefits: string[], disclaimer: s
     const body = match?.[2] ?? String(line)
     if (label === 'top earn rates') parsed.earnRates.push(...splitPipes(body).map(parseEarnRate))
     else if (label === 'highlight' || label === 'highlights') parsed.highlights.push(...splitHighlight(body).map(text => ({ text, icon: iconFor(text) })))
-    else if (label === 'best for') parsed.headline = splitPipes(body).join(' · ')
+    else if (label === 'best for') { parsed.headlineParts = splitLines(body); parsed.headline = parsed.headlineParts.join(' · ') }
     else if (label === 'monthly earn cap') parsed.monthlyCap = body.trim()
     else extras.push(...splitPipes(String(line)))
   }
   // Unlabelled best_for text: still shown, never dropped.
-  if (!parsed.headline && extras.length) parsed.headline = extras.shift() as string
+  if (!parsed.headline && extras.length) { parsed.headline = extras.shift() as string; parsed.headlineParts = [parsed.headline] }
   extras.forEach(text => parsed.highlights.push({ text, icon: iconFor(text) }))
 
   // Prefer category-aware rows (so each benefit gets its own visual); fall back to plain strings.
