@@ -50,6 +50,9 @@ export default function Navbar() {
           <Link href="/bulk-spend-miles" style={navLinkStyle}>
             Big Spend Planner
           </Link>
+          <Link href="/my-benefits" style={navLinkStyle}>
+            My Benefits
+          </Link>
           <Link href="/all-uae-cards" style={navLinkStyle}>
             All UAE Cards
           </Link>
@@ -67,6 +70,7 @@ export default function Navbar() {
           <Link href="/trip-planner" onClick={() => setMenuOpen(false)}>Fly for Free ✈</Link>
           <Link href="/merchant-lookup" onClick={() => setMenuOpen(false)}>Match & Tap</Link>
           <Link href="/bulk-spend-miles" onClick={() => setMenuOpen(false)}>Big Spend Planner</Link>
+          <Link href="/my-benefits" onClick={() => setMenuOpen(false)}>My Benefits</Link>
           <Link href="/all-uae-cards" onClick={() => setMenuOpen(false)}>All UAE Cards</Link>
           <Link href="/chat" onClick={() => setMenuOpen(false)}>Ask Earnie</Link>
         </div>

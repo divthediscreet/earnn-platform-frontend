@@ -8,15 +8,18 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "test:life-moments": "node --no-warnings --experimental-strip-types --test lib/life-moments/format.test.ts",
     "generate:miles-map": "node scripts/build-miles-region-svg.mjs",
     "validate:miles-map": "node scripts/validate-miles-region-map.mjs"
   },
   "dependencies": {
     "@react-pdf/renderer": "^4.5.1",
+    "@reduxjs/toolkit": "^2.13.0",
     "next": "16.2.7",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "react-markdown": "^10.1.0",
+    "react-redux": "^9.3.0",
     "remark-gfm": "^4.0.1"
   },
   "devDependencies": {
@@ -25,9 +28,9 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "d3-geo": "^3.1.1",
     "eslint": "^9",
     "eslint-config-next": "16.2.7",
-    "d3-geo": "^3.1.1",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

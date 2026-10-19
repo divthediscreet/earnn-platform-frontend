@@ -1,0 +1,45 @@
+/* Earnn theme: white surfaces, #D6E0F5 borders, royal blue #0E3785, gold accent for the active state. */
+/* Category tiles */
+.tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px; margin-bottom: 18px; }
+.tile {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-areas: "icon name" "icon count";
+  align-items: center;
+  column-gap: 10px;
+  row-gap: 0;
+  padding: 8px 12px 8px 8px;
+  border: 1px solid #d6e0f5;
+  border-radius: 12px;
+  background: #fff;
+  color: #0d1828;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+.tile:hover { transform: translateY(-1px); border-color: #9db6e8; box-shadow: 0 6px 16px rgba(14, 55, 133, 0.12); }
+.tile:focus-visible { outline: 3px solid #ffd76a; outline-offset: 2px; }
+.tileIcon {
+  grid-area: icon;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: #eef3ff;
+  color: #0e3785;
+  font-size: 18px;
+}
+.tileName { grid-area: name; font-size: 13px; font-weight: 750; line-height: 1.25; }
+.tileCount { grid-area: count; font-size: 11.5px; font-weight: 600; color: #5a6a85; }
+.tileActive { border-color: #0e3785; background: #0e3785; color: #fff; box-shadow: 0 0 0 2px #ffd76a, 0 6px 16px rgba(14, 55, 133, 0.25); }
+.tileActive:hover { border-color: #0e3785; }
+.tileActive .tileIcon { background: #ffd76a; color: #092962; }
+.tileActive .tileCount { color: #c9dbff; }
+
+@media (max-width: 760px) {
+  .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+}
+@media (prefers-reduced-motion: reduce) { .tile { transition: none; } .tile:hover { transform: none; } }

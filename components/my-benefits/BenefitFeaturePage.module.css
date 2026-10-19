@@ -1,0 +1,119 @@
+.page {
+  min-height: 100vh;
+  background: #f8faff;
+  font-family: 'Plus Jakarta Sans', Inter, system-ui, sans-serif;
+  color: #0d1828;
+}
+
+.content {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 48px 24px 88px;
+}
+
+.introRow { display: flex; align-items: center; justify-content: space-between; gap: 16px 24px; flex-wrap: wrap; margin-bottom: 28px; }
+.intro { flex: 1 1 320px; min-width: 0; }
+.intro h1 {
+  margin: 0;
+  color: #0e3785;
+  font-size: clamp(32px, 5vw, 48px);
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  line-height: 1.08;
+}
+.intro p {
+  max-width: 560px;
+  margin: 12px 0 0;
+  font-size: clamp(15px, 2vw, 18px);
+  line-height: 1.5;
+  color: #5a6a85;
+}
+
+.status {
+  padding: 56px 24px;
+  text-align: center;
+  color: #0d1828;
+  background: #fff;
+  border: 1px solid #d6e0f5;
+  border-radius: 20px;
+}
+.status i { display: block; margin-bottom: 8px; font-size: 34px; color: #0e3785; }
+.status h2 { margin: 0 0 6px; }
+.status p { margin: 0; color: #5a6a85; }
+.status i:global(.ti-loader-2) { animation: spin 0.9s linear infinite; }
+
+.error {
+  margin: 16px 0 0;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: #fff1f2;
+  color: #c0392b;
+  font-weight: 600;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .status i:global(.ti-loader-2) { animation: none; } }
+
+@media (max-width: 700px) {
+  .content { padding: 32px 16px 64px; }
+}
+
+.back { display: inline-flex; align-items: center; gap: 6px; margin-bottom: 14px; color: #0e3785; font-size: 13px; font-weight: 700; text-decoration: none; }
+.back:hover { text-decoration: underline; }
+
+/* Friendlier empty state for the "no benefits on your cards" result */
+.empty { padding: 44px 24px 40px; border-radius: 22px; background: linear-gradient(180deg, #ffffff 0%, #f5f8ff 100%); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 14px 34px rgba(14, 55, 133, 0.08); }
+.emptyIcon { display: grid; place-items: center; width: 68px; height: 68px; margin: 0 auto 16px; border-radius: 50%; background: linear-gradient(145deg, #eef3ff, #dbe8ff); color: #0e3785; font-size: 32px; box-shadow: inset 0 0 0 1px #d6e0f5; }
+.empty .emptyIcon i { margin: 0; font-size: 32px; color: #0e3785; }
+.empty h2 { font-size: 20px; letter-spacing: -0.02em; color: #0e3785; }
+.empty p { max-width: 420px; margin: 6px auto 0; line-height: 1.55; }
+
+/* First-visit prompt that starts the bank-then-cards selection */
+.launcherButton { display: inline-flex; align-items: center; gap: 8px; margin-top: 20px; padding: 13px 26px; border: 0; border-radius: 12px; background: #ffd76a; color: #092962; font: inherit; font-size: 15px; font-weight: 800; cursor: pointer; transition: background 0.15s ease; }
+.launcherButton:hover { background: #ffcb45; }
+.launcherButton:focus-visible { outline: 3px solid #0e3785; outline-offset: 2px; }
+
+.launcherSkip { display: block; margin: 14px auto 0; padding: 6px 8px; border: 0; background: none; color: #0e3785; font: inherit; font-size: 14px; font-weight: 700; text-decoration: underline; cursor: pointer; }
+.launcherSkip:focus-visible { outline: 3px solid #ffd76a; outline-offset: 2px; }
+.addCardsButton { flex: none; display: inline-flex; align-items: center; gap: 8px; padding: 11px 20px; border: 1px solid #0e3785; border-radius: 999px; background: #fff; color: #0e3785; font: inherit; font-size: 14px; font-weight: 800; cursor: pointer; transition: background 0.15s ease, color 0.15s ease; }
+.addCardsButton:hover { background: #0e3785; color: #fff; }
+.addCardsButton:focus-visible { outline: 3px solid #ffd76a; outline-offset: 2px; }
+@media (max-width: 760px) { .addCardsButton { flex: 1 1 100%; justify-content: center; } }
+
+/* Hero: the benefit's picture spread across the top, with the content below overlapping it by about a fifth. */
+.hero { position: relative; overflow: hidden; width: min(1080px, calc(100% - 48px)); height: clamp(270px, 29vw, 330px); margin: 22px auto 0; border-radius: 24px; background: #0a2860; box-shadow: 0 14px 38px rgba(14, 55, 133, 0.22); }
+.heroImage { position: absolute; inset: 0; width: 100%; height: 100%; border-radius: 0; box-shadow: none; }
+.heroShade { position: absolute; inset: 0; background: linear-gradient(90deg, rgba(8, 20, 52, 0.8) 0%, rgba(8, 20, 52, 0.5) 46%, rgba(8, 20, 52, 0.06) 100%); }
+.heroInner { position: relative; z-index: 1; display: flex; flex-direction: column; justify-content: space-between; height: 100%; padding: 24px 32px 86px; }
+.heroRow { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px 24px; flex-wrap: wrap; }
+.hero .back { margin: 0; color: #dbe6ff; }
+.hero .intro { flex: 1 1 340px; min-width: 0; margin: 0; }
+.hero .intro h1 { color: #fff; text-shadow: 0 2px 18px rgba(0, 0, 0, 0.35); }
+.hero .intro p { color: #dbe6ff; }
+.content { position: relative; z-index: 2; margin-top: -64px; padding-top: 0; }
+
+/* First visit: ask for the cards. A single card that overlaps the picture above. */
+.welcome { display: block; }
+.welcomeText { max-width: none; }
+.welcome { overflow: hidden; border: 1px solid #d6e0f5; border-radius: 24px; background: #fff; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 22px 50px rgba(14, 55, 133, 0.18); }
+.welcomeText { padding: 36px 40px 34px; }
+@media (max-width: 760px) {
+  .hero { width: calc(100% - 28px); height: 300px; border-radius: 20px; }
+  .heroInner { padding: 16px 18px 66px; }
+  .heroShade { background: linear-gradient(180deg, rgba(8, 20, 52, 0.55) 0%, rgba(8, 20, 52, 0.82) 100%); }
+  .content { margin-top: -48px; }
+  .welcomeText { padding: 24px 20px; }
+  .welcomeActions .launcherButton { width: 100%; justify-content: center; }
+}
+
+/* Text inside the "add your cards" card */
+.welcomeKicker { font-size: 11px; font-weight: 800; letter-spacing: 0.16em; color: #b5841f; }
+.welcome h2 { margin: 10px 0 10px; font-size: clamp(24px, 3vw, 32px); font-weight: 800; letter-spacing: -0.035em; line-height: 1.12; color: #0d1828; }
+.welcome p { max-width: 560px; margin: 0; font-size: 15px; line-height: 1.6; color: #4b5d7c; }
+.covers { display: flex; flex-wrap: wrap; gap: 8px; margin: 18px 0 0; padding: 0; list-style: none; }
+.covers li { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px; background: #eef3ff; color: #0e3785; font-size: 12.5px; font-weight: 700; }
+.covers i { color: #00a67e; font-size: 15px; }
+.covers .coversMore { background: transparent; color: #5a6a85; }
+.welcomeActions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 18px; margin-top: 26px; }
+.welcomeActions .launcherButton { margin-top: 0; }
+.welcomeActions .launcherSkip { margin: 0; padding: 6px 2px; }
