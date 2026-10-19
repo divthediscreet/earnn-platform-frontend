@@ -1,0 +1,80 @@
+.overlay { position: fixed; inset: 0; z-index: 1400; display: grid; place-items: center; padding: 16px; background: rgba(8, 18, 45, 0.55); backdrop-filter: blur(4px); }
+.screen { display: flex; flex-direction: column; width: min(980px, 100%); height: min(680px, calc(100dvh - 32px)); border-radius: 20px; background: #fff; box-shadow: 0 24px 60px rgba(8, 18, 45, 0.4); overflow: hidden; font-family: 'Plus Jakarta Sans', Inter, system-ui, sans-serif; }
+
+.head { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; padding: 22px 26px 16px; border-bottom: 1px solid #e4eaf5; }
+.head h2 { margin: 0; font-size: 21px; font-weight: 800; letter-spacing: -0.025em; color: #0d1828; }
+.head p { margin: 4px 0 0; font-size: 13.5px; color: #5a6a85; }
+.close { flex: none; display: grid; place-items: center; width: 34px; height: 34px; border: 0; border-radius: 50%; background: #eef3ff; color: #0e3785; font-size: 17px; cursor: pointer; }
+.close:hover { background: #dbe6fb; }
+
+/* two panes, each with its own scroll */
+.body { flex: 1; min-height: 0; display: grid; grid-template-columns: 280px minmax(0, 1fr); }
+.banks { display: flex; flex-direction: column; gap: 4px; padding: 12px; overflow-y: auto; border-right: 1px solid #e4eaf5; background: #f7f9fe; }
+.banks button { display: flex; align-items: center; gap: 12px; width: 100%; padding: 9px 10px; border: 1px solid transparent; border-radius: 12px; background: transparent; color: #1c2b45; font: inherit; font-size: 13.5px; font-weight: 650; text-align: left; cursor: pointer; transition: background 0.12s ease, border-color 0.12s ease; }
+.banks button:hover { background: #eaf0fd; }
+.banks .bankOn { background: #fff; border-color: #0e3785; box-shadow: 0 0 0 1px #0e3785 inset, 0 4px 12px rgba(14, 55, 133, 0.12); color: #0e3785; }
+.banks span:last-child { flex: 1; min-width: 0; line-height: 1.25; }
+.bankMark { flex: none; display: grid; place-items: center; width: 36px; height: 36px; border-radius: 10px; background: #fff; border: 1px solid #e4eaf5; overflow: hidden; color: #8a97ae; font-size: 19px; }
+.bankMark img { width: 100%; height: 100%; object-fit: contain; }
+
+.cards { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+.cardsHead { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 20px; border-bottom: 1px solid #edf1f9; }
+.cardsTitle { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.cardsTitle strong { font-size: 16px; color: #0d1828; }
+.search { position: relative; display: flex; align-items: center; flex: 0 1 260px; }
+.search i { position: absolute; left: 12px; color: #6b7c99; font-size: 16px; }
+.search input { width: 100%; padding: 9px 12px 9px 36px; border: 1px solid #cdd9ed; border-radius: 10px; font: inherit; font-size: 13.5px; color: #0d1828; background: #fff; }
+.search input:focus-visible { outline: 2px solid rgba(14, 55, 133, 0.35); outline-offset: 1px; }
+.cardGrid { flex: 1; min-height: 0; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); align-content: start; gap: 12px; padding: 16px 20px 20px; }
+.card { position: relative; display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 14px 12px 12px; border: 1px solid #dfe7f5; border-radius: 14px; background: #fff; cursor: pointer; text-align: center; transition: border-color 0.12s ease, box-shadow 0.12s ease, transform 0.12s ease; }
+.card:hover { border-color: #aebfe0; transform: translateY(-1px); }
+.card input { position: absolute; opacity: 0; pointer-events: none; }
+.cardOn { border-color: #0e3785; background: #f4f8ff; box-shadow: 0 0 0 1px #0e3785 inset; }
+.card:focus-within { outline: 2px solid rgba(14, 55, 133, 0.45); outline-offset: 2px; }
+.tick { position: absolute; top: 8px; right: 8px; display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; border: 1.5px solid #c3d0e8; background: #fff; color: transparent; font-size: 13px; }
+.cardOn .tick { border-color: #0e3785; background: #0e3785; color: #fff; }
+.cardImage { display: grid; place-items: center; width: 132px; height: 82px; border-radius: 8px; background: #f1f4fa; overflow: hidden; color: #8a97ae; font-size: 26px; }
+.cardImage img { width: 100%; height: 100%; object-fit: cover; box-shadow: 0 3px 10px rgba(10, 40, 96, 0.2); }
+.cardName { font-size: 13px; font-weight: 700; line-height: 1.3; color: #0d1828; }
+.milesTag, .noMilesTag { padding: 2px 8px; border-radius: 999px; font-size: 11px; font-style: normal; font-weight: 800; }
+.milesTag { background: #dcf5ec; color: #00775a; }
+.noMilesTag { background: #eef1f6; color: #5a6a85; }
+
+.placeholder { flex: 1; display: grid; place-content: center; justify-items: center; gap: 6px; padding: 24px; text-align: center; color: #5a6a85; }
+.placeholder i { display: grid; place-items: center; width: 64px; height: 64px; margin-bottom: 6px; border-radius: 50%; background: #eef3ff; color: #0e3785; font-size: 30px; }
+.placeholder strong { color: #0e3785; font-size: 17px; }
+.hint { grid-column: 1 / -1; margin: 8px 0; text-align: center; font-size: 13.5px; color: #71809a; }
+.notice { display: flex; gap: 8px; align-items: flex-start; margin: 0; padding: 10px 26px; background: #fff7e0; color: #7a5a00; font-size: 13px; }
+
+.foot { display: flex; align-items: center; gap: 10px; padding: 14px 26px; border-top: 1px solid #e4eaf5; background: #fff; }
+.count { margin-right: auto; font-size: 13px; font-weight: 700; color: #5a6a85; }
+.skipBar { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 11px 16px; border: 0; background: #10b981; color: #022c22; font: inherit; font-size: 13px; font-weight: 800; line-height: 1.3; text-align: center; cursor: pointer; transition: background 0.12s ease; }
+.skipBar:hover { background: #34d399; }
+.skipBar i:first-child { color: #fff; font-size: 15px; }
+.skipBar i:last-child { font-size: 14px; }
+.skipBar:focus-visible { outline-offset: -4px; outline-color: #022c22; }
+.back { padding: 11px 18px; border: 1px solid #b9c9e3; border-radius: 10px; background: #fff; color: #31517f; font: inherit; font-size: 14px; font-weight: 800; cursor: pointer; }
+.back:hover { background: #eef3ff; }
+.primary { display: inline-flex; align-items: center; gap: 8px; padding: 11px 22px; border: 0; border-radius: 10px; background: #0e3785; color: #fff; font: inherit; font-size: 14px; font-weight: 800; cursor: pointer; box-shadow: 0 6px 16px rgba(14, 55, 133, 0.22); }
+.primary:disabled { background: #b9c4dc; box-shadow: none; cursor: not-allowed; }
+.banks button:focus-visible, .skipBar:focus-visible, .back:focus-visible, .primary:focus-visible, .close:focus-visible { outline: 3px solid #ffd76a; outline-offset: 2px; }
+
+@media (max-width: 760px) {
+  .screen { height: calc(100dvh - 16px); border-radius: 16px; }
+  .head { padding: 16px 16px 12px; }
+  .body { grid-template-columns: 1fr; grid-template-rows: auto minmax(0, 1fr); }
+  .banks { flex-direction: row; overflow-x: auto; overflow-y: hidden; gap: 6px; padding: 10px; border-right: 0; border-bottom: 1px solid #e4eaf5; scrollbar-width: none; }
+  .banks::-webkit-scrollbar { display: none; }
+  .banks button { flex: none; width: auto; padding: 6px 12px 6px 7px; border-color: #dbe4f3; background: #fff; white-space: nowrap; font-size: 13px; }
+  .bankMark { width: 30px; height: 30px; }
+  .banks span:last-child { flex: none; }
+  .cardsHead { flex-wrap: wrap; padding: 12px 14px; }
+  .search { flex: 1 1 100%; }
+  .cardGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; padding: 12px 14px 16px; }
+  .cardImage { width: 100%; max-width: 132px; }
+  .foot { flex-wrap: wrap; padding: 12px 16px; }
+  .count { flex: 1 0 100%; margin-right: 0; }
+  .back, .primary { flex: 1; justify-content: center; padding: 11px 12px; }
+  .skipBar { padding: 10px 14px; font-size: 12.5px; }
+}
+@media (prefers-reduced-motion: reduce) { .card, .banks button { transition: none; } .card:hover { transform: none; } }
