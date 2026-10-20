@@ -123,7 +123,7 @@ export function ResultSummary({ wallet, isPick, moreCardsNote, ids, monthlySpend
       </div>
 
       {/* one tile per card */}
-      <ul className={`mt-6 mb-4 grid gap-x-4 gap-y-9 ${'md:grid-cols-3'}`}>
+      <ul className="mt-6 mb-4 grid gap-x-4 gap-y-9 md:grid-cols-3">
         {[...wallet.per_card].sort((a, b) => slot(a.card_id) - slot(b.card_id)).map((pc, i) => {
           const groups = cardGroups(wallet, pc.card_id).slice(0, 2)
           const c = card(pc.card_id)
@@ -167,16 +167,15 @@ export function ResultSummary({ wallet, isPick, moreCardsNote, ids, monthlySpend
             </li>
           )
         })}
-        {Array.from({ length: Math.max(0, MAX_WALLET - n) }, (_, k) => (
-          <li key={`free-${k}`} className="relative flex min-h-[220px]">
+        {n < MAX_WALLET && (
+          <li className="flex flex-col items-start justify-end gap-1.5 translate-y-[43px] md:pl-2">
             <button type="button" onClick={() => onReplace(null, null)} aria-haspopup="dialog"
-              className="flex w-full cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-[#B9C9EA] bg-[#F5F8FF] p-6 text-center transition hover:border-ws-primary hover:bg-[#EEF3FF]">
-              <span aria-hidden className="grid size-14 place-items-center rounded-full bg-white text-[30px] leading-none font-light text-ws-primary shadow-ws-lift">+</span>
-              <span className="text-[16px] font-bold text-ws-fg">Add card {String(n + k + 1).padStart(2, '0')}</span>
-              <span className="max-w-[24ch] text-[13px] text-ws-muted">Pick one more card to earn on more of your spending</span>
+              className="inline-flex min-h-9 cursor-pointer items-center gap-1.5 rounded-full border border-dashed border-ws-primary bg-[#F5F8FF] px-4 text-[14px] font-semibold text-ws-primary transition hover:bg-[#EEF3FF]">
+              <span aria-hidden className="text-[18px] leading-none">+</span> Add a card
             </button>
+            <span className="text-[13px] text-ws-muted">You can add up to {MAX_WALLET - n} more {MAX_WALLET - n === 1 ? 'card' : 'cards'}</span>
           </li>
-        ))}
+        )}
       </ul>
 
       {/* how to use them */}
