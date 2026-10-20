@@ -114,6 +114,11 @@ function SmartWallet({ request, result }: { request: SimulatorRequest; result: R
     setIds(next)
   }, [displayWallet])
 
+  // choosing a way from "Other smart ways" brings the user back up to the result
+  const useStrategy = useCallback((next: string[]) => {
+    changeIds(next)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }, [changeIds])
   const removeCard = useCallback((id: string) => changeIds(ids.filter(c => c !== id)), [ids, changeIds])
   const reset = useCallback(() => changeIds(pick.cards), [changeIds, pick.cards])
   const retry = useCallback(() => setFailedKey(null), [])
@@ -142,14 +147,14 @@ function SmartWallet({ request, result }: { request: SimulatorRequest; result: R
       </div>
 
       <main>
-        <ResultSummary wallet={displayWallet} ids={ids} isPick={isPick} moreCardsNote={biggerWorthless} monthlySpend={result.spend.eligible_spend_aed} card={card}
+        <ResultSummary wallet={displayWallet} ids={ids} isPick={isPick} pick={pick} moreCardsNote={biggerWorthless} monthlySpend={result.spend.eligible_spend_aed} card={card}
           updating={status === 'updating'} onChange={() => setCustomizeOpen(true)} onDetails={setDetailCardId} onAllBenefits={() => setBenefitsOpen(true)}
           onReplace={(id, group) => setReplacing({ id, group })} onRemove={removeCard} onReset={reset}
           plan={<PlaybookBody wallet={displayWallet} groups={result.spend.groups} monthlySpend={result.spend.eligible_spend_aed}
             card={card} updating={status === 'updating'} onDetails={setDetailCardId} hideSummary />} />
         <CompareBand wallet={displayWallet} card={card} onCompare={() => setCompareOpen(true)} />
         <Alternatives strategies={strategies} alternatives={result.alternatives} topBySize={result.top_by_size} pick={pick} currentIds={ids} card={card}
-          onUse={changeIds} onDetails={setDetailCardId} />
+          onUse={useStrategy} onDetails={setDetailCardId} />
       </main>
 
       <p className="border-t border-ws-border px-5 py-3 text-center text-[11px] text-ws-muted sm:px-8">
@@ -162,6 +167,7 @@ function SmartWallet({ request, result }: { request: SimulatorRequest; result: R
         <PlaybookBody wallet={displayWallet} groups={result.spend.groups} monthlySpend={result.spend.eligible_spend_aed}
           card={card} updating={status === 'updating'} onDetails={setDetailCardId} />
       </WalletDock>
+
 
       {detailCardId && <CardDetailPopup cardId={detailCardId} onClose={() => setDetailCardId(null)} />}
       {replacing && (

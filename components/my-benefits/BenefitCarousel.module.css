@@ -63,3 +63,6 @@
   .name { font-size: 14px; }
 }
 @media (prefers-reduced-motion: reduce) { .art, .artImage, .arrows button { transition: none; } .tile:hover .art, .tile:hover .artImage { transform: none; } }
+
+/* inside the My Benefits landing page, which already supplies the page width */
+.wide { width: 100%; margin-top: 28px; }

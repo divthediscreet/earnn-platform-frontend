@@ -82,28 +82,22 @@ export function WalletDock({ ids, wallet, pick, isPick, status, card, onRemove, 
           : 'z-[900] border-[#E9C46A]/50 bg-gradient-to-b from-[#FFF9EA]/95 to-[#FBEFCF]/95'
       }`}>
       {open && <span aria-hidden className="mx-auto mt-2 block h-1.5 w-12 shrink-0 rounded-full bg-ws-border" />}
-      {/* pull-up tab on the dock's top edge */}
-      <button type="button" onClick={() => setOpen(!open)} aria-expanded={open}
-        className="absolute -top-4 left-1/2 z-10 flex min-h-8 -translate-x-1/2 items-center gap-1.5 rounded-full bg-ws-primary px-4 text-[12px] font-semibold text-white shadow-ws-plastic ring-2 ring-white transition-colors hover:bg-ws-ink">
-        <span aria-hidden className="text-[13px] leading-none">{open ? '↓' : '↑'}</span>
-        {open ? 'Close' : 'How to use this wallet'}
-      </button>
-      <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center gap-x-4 gap-y-2 px-5 pt-4 pb-3 sm:px-8">
+      <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center gap-x-4 gap-y-1.5 px-5 py-2 sm:px-8">
         <div className="flex items-start gap-2">
           {ids.map(id => (
-            <div key={id} className="flex w-[60px] flex-col items-center gap-1">
-              <CardChip card={card(id)} className="!h-[35px] !w-[56px]" />
+            <div key={id} className="flex w-[52px] flex-col items-center">
+              <CardChip card={card(id)} className="!h-[30px] !w-[48px]" />
               <button onClick={() => onRemove(id)} aria-label={`Remove ${cardName(card(id))} from your wallet`}
-                className="min-h-7 w-full rounded-md text-[10px] font-semibold text-ws-muted transition-colors hover:bg-ws-secondary hover:text-ws-fg">
+                className="min-h-5 w-full rounded-md text-[10px] font-semibold text-ws-muted transition-colors hover:bg-ws-secondary hover:text-ws-fg">
                 Remove
               </button>
             </div>
           ))}
           {Array.from({ length: MAX_WALLET - ids.length }).map((_, i) => (
             <button key={i} type="button" aria-label="Add a card" onClick={() => { setOpen(false); onAdd() }}
-              className="flex w-[60px] flex-col items-center gap-1 text-ws-muted">
-              <span className="grid h-[35px] w-[56px] place-items-center rounded-[6px] border border-dashed border-ws-border text-[16px]">+</span>
-              <span className="grid min-h-7 place-items-center text-[10px] font-semibold">Add</span>
+              className="flex w-[52px] flex-col items-center text-ws-muted">
+              <span className="grid h-[30px] w-[48px] place-items-center rounded-[6px] border border-dashed border-ws-border text-[16px]">+</span>
+              <span className="grid min-h-5 place-items-center text-[10px] font-semibold">Add</span>
             </button>
           ))}
         </div>
@@ -114,7 +108,7 @@ export function WalletDock({ ids, wallet, pick, isPick, status, card, onRemove, 
           <p className="text-[10px] font-semibold tracking-[0.16em] text-ws-muted uppercase">
             My wallet{status === 'updating' && <span className="ws-animate-pulse ml-2 normal-case tracking-normal">updating…</span>}
           </p>
-          <p className={`font-display text-[19px] leading-tight font-semibold tracking-tight text-ws-fg ${status !== 'ready' ? 'opacity-60' : ''}`}>
+          <p className={`font-display text-[17px] leading-tight font-semibold tracking-tight text-ws-fg ${status !== 'ready' ? 'opacity-60' : ''}`}>
             {isMiles ? <><RollingAed value={total} /> miles</> : <>AED <RollingAed value={total} /></>}
             <span className="ml-1 text-[12px] font-medium text-ws-muted">/month</span>
           </p>
@@ -135,8 +129,13 @@ export function WalletDock({ ids, wallet, pick, isPick, status, card, onRemove, 
               </button>
             )}
           </div>
+          <button type="button" onClick={() => setOpen(!open)} aria-expanded={open}
+            className="ml-auto inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-full border border-ws-primary bg-white px-3.5 text-[13px] font-semibold text-ws-primary transition-colors hover:bg-[#EEF3FF]">
+            <span aria-hidden className="text-[13px] leading-none">{open ? '↓' : '↑'}</span>
+            {open ? 'Close' : 'How to use this wallet'}
+          </button>
           <button type="button" onClick={() => { setOpen(false); onGetCards() }} disabled={ids.length === 0 || !wallet}
-            className="min-h-10 shrink-0 rounded-full bg-ws-ink px-4 py-2 text-[13px] font-semibold text-ws-ink-fg hover:bg-ws-primary disabled:cursor-not-allowed disabled:opacity-50">
+            className="min-h-9 shrink-0 rounded-full bg-ws-ink px-4 py-1.5 text-[13px] font-semibold text-ws-ink-fg hover:bg-ws-primary disabled:cursor-not-allowed disabled:opacity-50">
             Get these cards
           </button>
         </div>

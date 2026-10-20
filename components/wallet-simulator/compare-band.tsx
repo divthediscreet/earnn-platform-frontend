@@ -36,7 +36,7 @@ export function CompareBand({ wallet, card, onCompare }: { wallet: Wallet | null
           </p>
           <button type="button" onClick={onCompare} aria-haspopup="dialog"
             className="group mt-6 inline-flex min-h-12 cursor-pointer items-center gap-2 rounded-full border-0 bg-[#F7C948] px-7 py-3 text-[16px] font-bold text-[#0D1828] shadow-[0_6px_20px_rgba(247,201,72,0.25)] transition-transform hover:-translate-y-0.5">
-            Compare my cards <span aria-hidden className="transition-transform group-hover:translate-x-0.5">→</span>
+            Compare my cards
           </button>
         </div>
 

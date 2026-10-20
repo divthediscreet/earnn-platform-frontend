@@ -127,7 +127,7 @@ export function Hero({ pick, strategies, monthlySpend, card, onCustomize, onHowT
                 <div className="flex flex-nowrap justify-center gap-2">
                   <button onClick={onCustomize}
                     className="inline-flex min-h-10 items-center gap-1.5 whitespace-nowrap rounded-2xl border border-white/15 bg-[#2D8C6A] px-3.5 py-2 text-[12.5px] font-semibold text-white shadow-[0_2px_12px_rgba(45,140,106,0.35)] transition hover:brightness-110 active:scale-95">
-                    Customize my wallet <span aria-hidden>→</span>
+                    Customize my wallet
                   </button>
                   <button onClick={onHowTo} aria-haspopup="dialog"
                     className="inline-flex min-h-10 items-center whitespace-nowrap rounded-2xl border border-white/20 px-3.5 py-2 text-[12.5px] font-semibold text-white/90 transition hover:bg-white/10">
@@ -244,7 +244,7 @@ function StrategyBox({ strategy, lessBy, card, inUse, onUse, onDetails }: {
         <div className="shrink-0 pt-5">
           <button onClick={onUse} disabled={inUse}
             className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-full border border-ws-fg/25 bg-white px-4 py-2 text-[13px] font-semibold text-ws-fg transition-all hover:border-ws-fg/50 hover:bg-[#F7F9FC] disabled:cursor-default disabled:opacity-60">
-            {inUse ? 'In your wallet' : <>Try {ids.length === 1 ? 'this card' : 'these cards'} <span aria-hidden>→</span></>}
+            {inUse ? 'In your wallet' : <>Try {ids.length === 1 ? 'this card' : 'these cards'}</>}
           </button>
         </div>
       </div>
@@ -441,7 +441,7 @@ export function Ladder({ bestBySize, increments, pickSize, currentIds, card, onU
                         ? 'bg-white text-[#0D1828] hover:-translate-y-0.5'
                         : 'border border-ws-fg/25 bg-ws-card text-ws-fg hover:-translate-y-0.5 hover:border-ws-primary'
                     } disabled:translate-y-0 disabled:cursor-default disabled:opacity-60`}>
-                    {inUse ? 'In your wallet' : <>Try this wallet <span aria-hidden>→</span></>}
+                    {inUse ? 'In your wallet' : <>Try this wallet</>}
                   </button>
               </div>
             )

@@ -13,10 +13,11 @@ import { CardArt, RollingAed, type CardInfo } from './card-art'
 import { FeeMathDialog, NetOfFeesDialog } from './fee-math'
 import { CategoryGlyph } from './sections'
 
-export function ResultSummary({ wallet, isPick, moreCardsNote, ids, monthlySpend, card, updating, plan, onChange, onReplace, onRemove, onReset, onDetails, onAllBenefits }: {
+export function ResultSummary({ wallet, isPick, pick, moreCardsNote, ids, monthlySpend, card, updating, plan, onChange, onReplace, onRemove, onReset, onDetails, onAllBenefits }: {
   wallet: Wallet | null
   ids: string[]              // the user's card order: tiles keep their slot when a card is swapped
   isPick: boolean            // the recommended cards (not a customised wallet)
+  pick: Wallet               // Earnn's recommended wallet, to show how the current cards differ
   moreCardsNote: boolean     // a bigger wallet earns a bit more, but not enough to be worth the extra card(s)
   monthlySpend: number
   card: (id: string) => CardInfo
@@ -29,7 +30,7 @@ export function ResultSummary({ wallet, isPick, moreCardsNote, ids, monthlySpend
   onDetails: (id: string) => void
   onAllBenefits: () => void  // opens every benefit on the wallet's cards
 }) {
-  const { isMiles } = useRewardMode()
+  const { isMiles, rw } = useRewardMode()
   const [explain, setExplain] = useState<'net' | 'fees' | null>(null)
   if (!wallet) {
     return (
@@ -43,6 +44,13 @@ export function ResultSummary({ wallet, isPick, moreCardsNote, ids, monthlySpend
   }
 
   const n = wallet.cards.length
+  // how the current cards differ from Earnn's pick (same wording as the wallet bar)
+  const delta = wallet.monthly_reward_aed - pick.monthly_reward_aed
+  const fewer = pick.cards.length - n
+  const diff = Math.abs(delta) < 0.5 ? 'Same rewards as Earnn Pick'
+    : delta > 0 ? `${rw(delta)}/month more than Earnn Pick`
+    : fewer > 0 ? `You're giving up ${rw(-delta)}/month to carry ${fewer === 1 ? 'one less card' : `${fewer} fewer cards`}`
+    : `${rw(-delta)}/month less than Earnn Pick`
   const monthly = wallet.monthly_reward_aed
   const fees = wallet.total_fee_aed
   const net = isMiles ? monthly : wallet.net_annual_value_aed / 12
@@ -63,6 +71,7 @@ export function ResultSummary({ wallet, isPick, moreCardsNote, ids, monthlySpend
             className="inline-flex min-h-8 cursor-pointer items-center gap-1.5 rounded-full border border-[#E2B93B] bg-[#FFF6D6] px-3.5 py-1 text-[13px] font-semibold text-[#0D1828] transition hover:bg-[#FFE27A]">
             <span aria-hidden>↺</span> Back to Earnn Pick
           </button>
+          <span className={`ml-auto text-[14px] font-semibold sm:text-[15px] ${delta >= -0.5 ? 'text-ws-gain' : 'text-ws-loss'}`}>{diff}</span>
         </p>
       )}
       {isPick && (
@@ -117,7 +126,7 @@ export function ResultSummary({ wallet, isPick, moreCardsNote, ids, monthlySpend
         <div className="flex flex-col items-start gap-2.5 justify-self-start lg:items-end lg:justify-self-end">
         <button type="button" onClick={onAllBenefits} aria-haspopup="dialog"
           className="inline-flex min-h-9 cursor-pointer items-center gap-1.5 rounded-2xl border-0 bg-[#F7C948] px-4 py-2 text-[14px] font-bold text-[#0D1828] transition hover:bg-[#FFE27A]">
-          See all benefits <span aria-hidden>→</span>
+          See all benefits
         </button>
         </div>
       </div>
@@ -184,11 +193,14 @@ export function ResultSummary({ wallet, isPick, moreCardsNote, ids, monthlySpend
       {plan}
       </div>
       {updating && (
-        <div role="status" className="absolute inset-0 z-10 flex items-start justify-center pt-24">
-          <span className="flex flex-col items-center gap-3 rounded-3xl bg-white px-8 py-6 text-[15px] font-semibold text-ws-fg shadow-ws-lift">
-            <span aria-hidden className="size-14 animate-spin rounded-full border-[5px] border-[#DCE6FA] border-t-ws-primary" />
-            Calculating your rewards…
-          </span>
+        <div role="status" className="absolute inset-0 z-10">
+          {/* sticky: the spinner stays in the middle of the visible screen wherever the user has scrolled */}
+          <div className="sticky top-[38vh] flex justify-center">
+            <span className="flex flex-col items-center gap-3 rounded-3xl bg-white px-8 py-6 text-[15px] font-semibold text-ws-fg shadow-ws-lift">
+              <span aria-hidden className="size-14 animate-spin rounded-full border-[5px] border-[#DCE6FA] border-t-ws-primary" />
+              Calculating your rewards…
+            </span>
+          </div>
         </div>
       )}
       </div>

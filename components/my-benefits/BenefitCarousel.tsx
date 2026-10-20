@@ -17,7 +17,7 @@ function TileArt({ feature }: { feature: BenefitFeature }) {
 }
 
 // A heading with a horizontally scrolling row of tiles (about 4.5 visible) and prev/next arrows.
-export default function BenefitCarousel({ category, features }: { category: string; features: BenefitFeature[] }) {
+export default function BenefitCarousel({ category, features, wide = false }: { category: string; features: BenefitFeature[]; wide?: boolean }) {
   const track = useRef<HTMLUListElement>(null)
   const [canPrev, setCanPrev] = useState(false)
   const [canNext, setCanNext] = useState(false)
@@ -43,7 +43,7 @@ export default function BenefitCarousel({ category, features }: { category: stri
     if (el) el.scrollBy({ left: direction * el.clientWidth * 0.85, behavior: 'smooth' })
   }
 
-  return <section className={styles.section} aria-label={category}>
+  return <section className={`${styles.section} ${wide ? styles.wide : ''}`} aria-label={category}>
     <div className={styles.head}>
       <h2>{category}</h2>
       <div className={styles.arrows}>
