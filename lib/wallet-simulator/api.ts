@@ -121,6 +121,7 @@ export type RecommendResponse = {
   }
   alternatives: Wallet[]
   best_by_size: Record<string, BestOfSize>
+  top_by_size?: Record<string, Wallet[]> // best few wallets of each size (1-3 cards); absent on older backends/results
   discovery_blocks: DiscoveryBlock[]
   card_scores?: CardScore[] // absent in results saved before the customiser existed
   strategies?: Strategy[]   // absent in results saved before the strategies existed

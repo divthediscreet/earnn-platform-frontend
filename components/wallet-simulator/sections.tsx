@@ -146,12 +146,10 @@ export function Hero({ pick, strategies, monthlySpend, card, onCustomize, onHowT
 
 // real cards fanned over a soft circle
 const STRATEGY_FAN: Record<number, string[]> = {
-  1: ['left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 -rotate-12'],
-  2: ['left-0 top-1 -rotate-[14deg]', 'left-8 top-10 -rotate-[3deg]'],
-  3: ['left-0 top-0 -rotate-[16deg]', 'left-7 top-7 -rotate-[8deg]', 'left-14 top-14 -rotate-[2deg]'],
+  1: ['left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 -rotate-6'],
+  2: ['left-[14px] top-[14px] -rotate-[10deg]', 'left-[62px] top-[30px] rotate-[4deg]'],
+  3: ['left-[6px] top-[10px] -rotate-[12deg]', 'left-[48px] top-[26px] -rotate-[3deg]', 'left-[90px] top-[42px] rotate-[6deg]'],
 }
-
-const STRATEGY_TAGS = ['Recommended · Maximum Rewards', 'Best Balance · Low Effort', 'Keep It Simple · Minimum Effort']
 
 /** "2nd Best Single Card" with the "nd" / "rd" set small and raised. */
 function Ordinals({ text }: { text: string }) {
@@ -167,9 +165,8 @@ function Ordinals({ text }: { text: string }) {
 
 /** A secondary strategy (second / third best): a light header with the net value and the fanned cards,
  *  a white body with the numbers behind it, and a one-tap switch. */
-function StrategyBox({ strategy, tag, lessBy, card, inUse, onUse, onDetails }: {
+function StrategyBox({ strategy, lessBy, card, inUse, onUse, onDetails }: {
   strategy: Strategy
-  tag: string
   lessBy: number            // net value a month below the recommended strategy
   card: CardLookup
   inUse: boolean
@@ -182,36 +179,34 @@ function StrategyBox({ strategy, tag, lessBy, card, inUse, onUse, onDetails }: {
     <div className="flex flex-col overflow-hidden rounded-2xl border border-ws-border bg-white shadow-ws-lift">
       {/* header */}
       <div className="relative overflow-hidden border-b border-ws-border bg-gradient-to-br from-[#F7F9FC] to-[#EEF2F8] p-5 text-ws-fg">
-        <div aria-hidden className="pointer-events-none absolute -right-10 -bottom-16 size-52 rounded-full bg-ws-fg/[0.03]" />
-        <div className="relative flex flex-wrap items-start justify-between gap-x-3 gap-y-2">
-          <span className="rounded-full bg-white px-3 py-1 text-[10px] font-semibold tracking-[0.1em] whitespace-nowrap text-ws-muted uppercase ring-1 ring-ws-border">{tag}</span>
+        <p className={`${strategy.message ? 'min-h-[2.5em]' : ''} font-display text-[20px] leading-tight font-semibold text-balance`}><Ordinals text={strategy.title} /></p>
+        {strategy.message && <p className="mt-1.5 min-h-[2.8em] text-[13px] leading-snug text-ws-muted">{strategy.message}</p>}
+
+        {/* the cards, on their own band so they never sit over the text */}
+        <div aria-hidden className="relative mx-auto mt-3 h-[128px] w-[200px]">
+          <div className="absolute top-1/2 left-1/2 size-[118px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-ws-fg/[0.05]" />
+          <Sparkle className="absolute top-0 right-2 z-10 size-6" />
+          {ids.map((id, i) => (
+            <div key={id} className={`absolute w-[104px] ${STRATEGY_FAN[ids.length]?.[i] ?? ''}`} style={{ zIndex: i }}>
+              <CardArt card={card(id)} size="sm" />
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-3 flex items-end justify-between gap-3">
+          <div className="min-w-0">
+            <p className="font-display text-[34px] leading-none font-semibold tracking-tight whitespace-nowrap text-ws-fg">{isMiles ? rw(strategy.annual_reward_aed / 12) : rw(strategy.net_annual_value_aed / 12)}</p>
+            <p className="mt-1.5 text-[12px] text-ws-muted">{isMiles ? 'earned per month' : 'net per month, after fees'}</p>
+          </div>
           {Math.abs(lessBy) > 0.5 && (
             <span title={isMiles ? 'Miles a month compared with the recommended wallet' : 'Net value a month compared with the recommended wallet'}
-              className={`ml-auto shrink-0 rounded-xl px-3 py-1.5 text-right leading-tight tabular-nums ${lessBy > 0 ? 'bg-[#FFF1DB] text-[#B45309]' : 'bg-[#E3F6EC] text-ws-gain'}`}>
+              className={`shrink-0 rounded-xl px-3 py-1.5 text-right leading-tight tabular-nums ${lessBy > 0 ? 'bg-[#FFF1DB] text-[#B45309]' : 'bg-[#E3F6EC] text-ws-gain'}`}>
               <span className="block text-[13px] font-bold whitespace-nowrap">
                 {Math.round(Math.abs(lessBy)).toLocaleString('en-US')} {isMiles ? 'miles' : 'AED'}/mo {lessBy > 0 ? 'less' : 'more'}
               </span>
               <span className="block text-[11px] font-medium opacity-80">{lessBy > 0 ? 'from' : 'than'} best selection</span>
             </span>
           )}
-        </div>
-
-        <div className="relative mt-4 grid grid-cols-[1fr_auto] items-center gap-3">
-          <div className="min-w-0">
-            <p className="line-clamp-2 h-[2.75em] font-display text-[19px] leading-snug font-semibold"><Ordinals text={strategy.title} /></p>
-            <p className="mt-0.5 line-clamp-2 h-[2.75em] text-[12.5px] leading-snug text-ws-muted">{strategy.message ?? '\u00a0'}</p>
-            <p className="mt-3 font-display text-[34px] leading-none font-semibold tracking-tight whitespace-nowrap text-ws-fg">{isMiles ? rw(strategy.annual_reward_aed / 12) : rw(strategy.net_annual_value_aed / 12)}</p>
-            <p className="mt-1.5 text-[12px] text-ws-muted">{isMiles ? 'earned per month' : 'net per month, after fees'}</p>
-          </div>
-          <div aria-hidden className="relative h-[120px] w-[150px] shrink-0">
-            <div className="absolute top-1/2 left-1/2 size-[112px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-ws-fg/[0.05]" />
-            <Sparkle className="absolute -top-2 -right-1 z-10 size-6" />
-            {ids.map((id, i) => (
-              <div key={id} className={`absolute w-[96px] ${STRATEGY_FAN[ids.length]?.[i] ?? ''}`} style={{ zIndex: i }}>
-                <CardArt card={card(id)} size="sm" />
-              </div>
-            ))}
-          </div>
         </div>
       </div>
 
@@ -249,7 +244,7 @@ function StrategyBox({ strategy, tag, lessBy, card, inUse, onUse, onDetails }: {
         <div className="shrink-0 pt-5">
           <button onClick={onUse} disabled={inUse}
             className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-full border border-ws-fg/25 bg-white px-4 py-2 text-[13px] font-semibold text-ws-fg transition-all hover:border-ws-fg/50 hover:bg-[#F7F9FC] disabled:cursor-default disabled:opacity-60">
-            {inUse ? 'In your wallet' : <>Use this wallet <span aria-hidden>→</span></>}
+            {inUse ? 'In your wallet' : <>Try {ids.length === 1 ? 'this card' : 'these cards'} <span aria-hidden>→</span></>}
           </button>
         </div>
       </div>
@@ -468,6 +463,7 @@ type PlaybookProps = {
   monthlySpend: number
   card: CardLookup
   updating: boolean
+  hideSummary?: boolean // the page already shows the totals above
 }
 
 // Bold, coloured line icons per spending category (used on the wallet illustration chips).
@@ -657,7 +653,7 @@ function WalletIllustration({ ids, chips, card }: { ids: string[]; chips: Playbo
 }
 
 /** The playbook itself (summary strip + where to use each card). Also shown in the expanded wallet. */
-export function PlaybookBody({ wallet, groups, monthlySpend, card, updating, onDetails }: PlaybookProps) {
+export function PlaybookBody({ wallet, groups, monthlySpend, card, updating, onDetails, hideSummary = false }: PlaybookProps) {
   const { rw, isMiles } = useRewardMode()
   const [view, setView] = useState<'card' | 'category'>('card')
   const [explain, setExplain] = useState<'fees' | 'net' | null>(null)
@@ -673,13 +669,13 @@ export function PlaybookBody({ wallet, groups, monthlySpend, card, updating, onD
     )
   }
   return (
-    <div className={`mt-8 transition-opacity ${updating ? 'opacity-60' : ''}`}>
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+    <div className={`${hideSummary ? 'mt-2' : 'mt-8'} transition-opacity ${updating ? 'opacity-60' : ''}`}>
+      {!hideSummary && <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <SummaryTile label="Monthly spend" value={aed(monthlySpend)} />
         <SummaryTile label="Your rewards" value={`${rw(monthlyReward)} / mo`} tone="gain" />
         <SummaryTile label="Annual fees" value={aed(wallet?.total_fee_aed ?? 0)} tone="highlight" onInfo={() => setExplain('fees')} />
         {!isMiles && <SummaryTile label="After annual fees" value={`${rw((wallet?.net_annual_value_aed ?? 0) / 12)} / mo`} tone="emerald" onInfo={() => setExplain('net')} />}
-      </div>
+      </div>}
       {explain === 'fees' && wallet && (
         <FeeMathDialog title="This wallet" cards={wallet.per_card} nameOf={id => card(id).name} onClose={() => setExplain(null)} />
       )}
@@ -687,10 +683,7 @@ export function PlaybookBody({ wallet, groups, monthlySpend, card, updating, onD
         <NetOfFeesDialog title="This wallet" monthlyReward={monthlyReward} yearlyFee={wallet.total_fee_aed} onClose={() => setExplain(null)} />
       )}
 
-      <div className="mt-8 flex items-center justify-between gap-3">
-        <p className="text-[11px] font-semibold tracking-[0.16em] text-ws-muted uppercase">
-          {view === 'card' ? 'What each card is for' : 'Where to use each card'}
-        </p>
+      <div className={`${hideSummary ? 'mt-2' : 'mt-8'} flex items-center justify-end gap-3`}>
         <div role="tablist" aria-label="Playbook view" className="flex shrink-0 gap-0.5 rounded-[9px] bg-ws-secondary p-[3px]">
           {([['card', 'Card view'], ['category', 'Category view']] as const).map(([id, label]) => (
             <button key={id} type="button" role="tab" aria-selected={view === id} onClick={() => setView(id)}
@@ -972,8 +965,9 @@ function PlaybookEntryRow({ entry, label, info, bordered, onDetails }: { entry: 
 
 /** Three strategies side by side: the two alternatives (second and third strategy) and the first
  *  different mix the simulator found. All three are already calculated; nothing is computed here. */
-export function Alternatives({ strategies, alternatives, pick, currentIds, card, onUse, onDetails }: {
+export function Alternatives({ strategies, alternatives, topBySize, pick, currentIds, card, onUse, onDetails }: {
   strategies: Strategy[]
+  topBySize?: Record<string, Wallet[]>
   alternatives: Wallet[]
   pick: Wallet
   currentIds: string[]
@@ -982,14 +976,17 @@ export function Alternatives({ strategies, alternatives, pick, currentIds, card,
   onDetails: CardDetails
 }) {
   const { isMiles } = useRewardMode()
-  const tiles: { strategy: Strategy; tag: string }[] = strategies.slice(1, 3).map((st, i) => ({ strategy: st, tag: STRATEGY_TAGS[i + 1] }))
+  const [slide, setSlide] = useState(0)
+  // "N other ways": way k holds the k-th best 3-, 2- and 1-card wallet (needs the backend's top_by_size)
+  const ways = Array.from({ length: Math.max(0, ...Object.values(topBySize ?? {}).map(l => l.length)) }, (_, k) =>
+    [3, 2, 1].flatMap(size => { const w = topBySize?.[String(size)]?.[k]; return w ? [{ strategy: walletStrategy(w, k), size }] : [] }))
+  const tiles: { strategy: Strategy }[] = strategies.slice(1, 3).map(st => ({ strategy: st }))
   // the first different mix: a wallet not already shown, preferring the recommended wallet's size
   const shown = new Set([pick, ...tiles.map(t => t.strategy.wallet)].map(w => [...w.cards].sort().join('|')))
   const fresh = alternatives.filter(w => !shown.has([...w.cards].sort().join('|')))
   const mix = fresh.find(w => w.cards.length === pick.cards.length) ?? fresh[0]
   if (mix) {
     tiles.push({
-      tag: 'Different Mix · Other Cards',
       strategy: {
         key: 'third', title: `${mix.cards.length} Card${mix.cards.length === 1 ? '' : 's'}, a Different Mix`,
         message: 'Prefer different banks? Try another combination.', n_cards: mix.cards.length,
@@ -997,21 +994,72 @@ export function Alternatives({ strategies, alternatives, pick, currentIds, card,
       },
     })
   }
-  if (tiles.length === 0) return null
-  tiles.sort((a, b) => a.strategy.wallet.cards.length - b.strategy.wallet.cards.length)   // 1 card, then 2, then 3
+  if (ways.length === 0 && tiles.length === 0) return null
+  tiles.sort((a, b) => b.strategy.wallet.cards.length - a.strategy.wallet.cards.length)   // 3 cards, then 2, then 1
   const best = strategies[0]?.net_annual_value_aed ?? pick.net_annual_value_aed
   return (
     <section className="border-t border-ws-border">
       <div className="mx-auto max-w-6xl px-5 py-16 sm:px-8 sm:py-20">
         <h2 className="text-2xl font-semibold text-balance text-ws-fg sm:text-3xl">Other smart ways to build your wallet</h2>
+        {ways.length > 0 ? (() => {
+          const at = Math.min(slide, ways.length - 1)
+          const arrow = (dir: -1 | 1) => {
+            const to = at + dir
+            const off = to < 0 || to >= ways.length
+            return (
+              <button type="button" onClick={() => setSlide(to)} disabled={off} aria-label={dir < 0 ? 'Previous way' : 'Next way'}
+                className="grid size-12 shrink-0 cursor-pointer place-items-center rounded-full border-2 border-ws-primary bg-ws-primary text-[24px] leading-none font-bold text-white shadow-ws-lift transition hover:brightness-110 active:scale-95 disabled:cursor-default disabled:border-ws-border disabled:bg-white disabled:text-ws-muted/50 disabled:shadow-none">
+                <span aria-hidden>{dir < 0 ? '‹' : '›'}</span>
+              </button>
+            )
+          }
+          return (
+            <>
+              <div className="mt-5 flex items-center justify-between gap-3">
+                <p className="text-[14px] font-semibold text-ws-muted">Way {at + 1} of {ways.length} — the {at === 0 ? 'best' : Ordinal(at + 1) + ' best'} 3, 2 and 1 card wallets</p>
+                <div className="flex gap-2">{arrow(-1)}{arrow(1)}</div>
+              </div>
+              <div className="mt-4 grid gap-3 lg:grid-cols-3">
+                {ways[at].map(({ strategy }) => (
+                  <StrategyBox key={strategy.wallet.cards.join('|')} strategy={strategy} card={card}
+                    lessBy={isMiles ? ((strategies[0]?.annual_reward_aed ?? pick.annual_reward_aed) - strategy.annual_reward_aed) / 12 : (best - strategy.net_annual_value_aed) / 12}
+                    inUse={sameCards(strategy.wallet.cards, currentIds)} onUse={() => onUse(strategy.wallet.cards)} onDetails={onDetails} />
+                ))}
+              </div>
+              <div className="mt-5 flex justify-center gap-2" role="tablist" aria-label="Other ways">
+                {ways.map((_, i) => (
+                  <button key={i} type="button" role="tab" aria-selected={i === at} aria-label={`Way ${i + 1}`} onClick={() => setSlide(i)}
+                    className={`h-2.5 cursor-pointer rounded-full border-0 transition-all ${i === at ? 'w-7 bg-ws-primary' : 'w-2.5 bg-ws-border hover:bg-ws-muted/50'}`} />
+                ))}
+              </div>
+            </>
+          )
+        })() : (
         <div className="mt-8 grid gap-3 lg:grid-cols-3">
-          {tiles.map(({ strategy, tag }) => (
-            <StrategyBox key={strategy.wallet.cards.join('|')} strategy={strategy} tag={tag} card={card}
+          {tiles.map(({ strategy }) => (
+            <StrategyBox key={strategy.wallet.cards.join('|')} strategy={strategy} card={card}
               lessBy={isMiles ? ((strategies[0]?.annual_reward_aed ?? pick.annual_reward_aed) - strategy.annual_reward_aed) / 12 : (best - strategy.net_annual_value_aed) / 12}
               inUse={sameCards(strategy.wallet.cards, currentIds)} onUse={() => onUse(strategy.wallet.cards)} onDetails={onDetails} />
           ))}
         </div>
+        )}
       </div>
     </section>
   )
+}
+
+const ORDINAL_SUFFIX = ['th', 'st', 'nd', 'rd']
+function Ordinal(n: number) {
+  const v = n % 100
+  return `${n}${ORDINAL_SUFFIX[(v - 20) % 10] ?? ORDINAL_SUFFIX[v] ?? ORDINAL_SUFFIX[0]}`
+}
+
+/** A wallet from the top-by-size lists, as a tile ("Best 3 cards", "2nd best single card", ...). */
+function walletStrategy(w: Wallet, rank: number): Strategy {
+  const n = w.cards.length
+  const what = n === 1 ? 'Single Card' : `${n} Cards`
+  return {
+    key: 'third', title: rank === 0 ? `Best ${what}` : `${Ordinal(rank + 1)} Best ${what}`, message: null, n_cards: n,
+    annual_reward_aed: w.annual_reward_aed, total_fee_aed: w.total_fee_aed, net_annual_value_aed: w.net_annual_value_aed, wallet: w,
+  }
 }

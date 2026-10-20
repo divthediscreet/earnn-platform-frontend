@@ -257,3 +257,53 @@ export function WalletCustomizeDialog({ cardScores, groups, ids, wallet, status,
     </div>
   )
 }
+
+/** "Replace this card": just the card list (no totals), opened on the category the card was handling. */
+export function ReplaceCardDialog({ cardScores, groups, ids, replaceId, group, cardName, onReplace, onClose }: {
+  cardScores: CardScore[]
+  groups: SpendGroup[]
+  ids: string[]
+  replaceId: string | null   // null = add a card to a free slot
+  group: string | null   // the category the replaced card handles in the wallet: the list opens on it
+  cardName: string
+  onReplace: (ids: string[]) => void
+  onClose: () => void
+}) {
+  const scoredCards = useMemo(() => toScoredCards(cardScores), [cardScores])
+  const walletData = useMemo(() => ({
+    user_spend: Object.fromEntries(groups.map(g => [g.group, g.monthly_spend_aed])),
+    total_monthly: groups.reduce((sum, g) => sum + g.monthly_spend_aed, 0),
+    wallets: [],
+  }), [groups])
+  const categories = useMemo(() => groups.map(g => g.group), [groups])
+  const rest = useMemo(() => ids.filter(id => id !== replaceId), [ids, replaceId])
+  const adding = replaceId === null
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', onKey)
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => { window.removeEventListener('keydown', onKey); document.body.style.overflow = prev }
+  }, [onClose])
+
+  // The list adds a card to `rest`; that added card takes the replaced card's place.
+  const setWallet = (next: string[]) => {
+    const added = next.find(id => !rest.includes(id))
+    if (!added) return
+    onReplace(adding ? [...ids, added] : ids.map(id => (id === replaceId ? added : id)))
+    onClose()
+  }
+
+  return (
+    <div className="fixed inset-0 z-[1060] flex items-center justify-center overflow-y-auto bg-black/45 p-3 backdrop-blur-sm sm:p-3" onClick={onClose}>
+      <div role="dialog" aria-modal="true" aria-label={adding ? 'Add card' : 'Replace card'}
+        className="relative my-auto w-full max-w-3xl rounded-3xl bg-surface-2 p-4 shadow-elevated sm:p-6" onClick={e => e.stopPropagation()}>
+        <button type="button" onClick={onClose} aria-label="Close"
+          className="absolute top-3 right-3 z-10 grid size-9 place-items-center rounded-full bg-muted text-sm text-foreground hover:bg-muted/70">✕</button>
+        <BuildYourWallet scoredCards={scoredCards} walletData={walletData} wallet={rest} setWallet={setWallet}
+          onNext={onClose} embedded monthly maxCards={MAX_WALLET} categories={categories}
+          listOnly initialFilter={group} listTitle={adding ? 'Add a card to your wallet' : `Replace ${cardName}`} />
+      </div>
+    </div>
+  )
+}

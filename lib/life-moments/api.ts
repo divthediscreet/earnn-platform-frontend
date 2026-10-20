@@ -66,3 +66,9 @@ export const discoverCards = (momentId: string, body: { owned_card_ids: string[]
     `/api/life-moments/${encodeURIComponent(momentId)}/discover`,
     { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) },
   )
+
+/** Every benefit on the given cards, grouped like the My Benefits pages; anything without a group of its own is under "Others". */
+export const fetchAllBenefits = (cardIds: string[]) => request<LifeMomentResponse>(
+  '/api/life-moments/all',
+  { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ card_ids: cardIds }) },
+)

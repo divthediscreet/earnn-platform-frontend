@@ -113,7 +113,7 @@ export function SectionHeader({ eyebrow, title, subtitle }: { eyebrow: string; t
   )
 }
 
-export function BuildYourWallet({ scoredCards, walletData, wallet, setWallet, onBack, onNext, maxCards = 4, nextLabel = 'See my final plan', embedded = false, categories = SPEND_CATS, scoreSource, monthly = false }: {
+export function BuildYourWallet({ scoredCards, walletData, wallet, setWallet, onBack, onNext, maxCards = 4, nextLabel = 'See my final plan', embedded = false, categories = SPEND_CATS, scoreSource, monthly = false, listOnly = false, initialFilter = null, listTitle }: {
   scoredCards: ScoredCard[]; walletData: WalletResponse
   wallet: string[]; setWallet: (w: string[]) => void; onBack?: () => void; onNext: () => void
   maxCards?: number
@@ -126,6 +126,11 @@ export function BuildYourWallet({ scoredCards, walletData, wallet, setWallet, on
   scoreSource?: { score: CustomScore | null; loading: boolean; error: boolean; refresh: () => void }
   /** Show rewards and net value per month instead of per year (the Wallet Simulator). Fees stay annual. */
   monthly?: boolean
+  /** Just the card list (no wallet totals or spend split) — used to pick a replacement card. */
+  listOnly?: boolean
+  /** Category filter selected when the list opens (ignored if the user has no spend there). */
+  initialFilter?: string | null
+  listTitle?: string
 }) {
   const { isMiles } = useRewardMode()   // the Wallet Simulator's miles view (cashback everywhere else)
   const reward = (n: number) => (isMiles ? `${fmt(n)} miles` : `AED ${fmt(n)}`)   // a reward amount
@@ -133,7 +138,8 @@ export function BuildYourWallet({ scoredCards, walletData, wallet, setWallet, on
   const unit = monthly ? '/mo' : '/yr'
   const [q, setQ] = useState('')
   const [detailCardId, setDetailCardId] = useState<string | null>(null)
-  const [activeFilter, setActiveFilter] = useState<string | null>(null)
+  const [activeFilter, setActiveFilter] = useState<string | null>(
+    initialFilter && categories.includes(initialFilter) && (walletData.user_spend[initialFilter] ?? 0) > 0 ? initialFilter : null)
   const [ownScore, setPgScore] = useState<CustomScore | null>(null)
   const [ownLoading, setPgLoading] = useState(false)
   const [ownError, setPgError] = useState(false)
@@ -267,6 +273,12 @@ export function BuildYourWallet({ scoredCards, walletData, wallet, setWallet, on
 
   return (
     <section className="space-y-6">
+      {listOnly ? (
+        <div className="pr-10">
+          <h2 className="font-display text-[22px] font-bold text-foreground sm:text-[26px]">{listTitle ?? 'Choose a card'}</h2>
+          <p className="mt-1 text-sm text-muted-foreground">Pick the card you want instead. Cards are sorted by what they earn on the selected category.</p>
+        </div>
+      ) : (
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <SectionHeader
           eyebrow="Advanced"
@@ -277,9 +289,10 @@ export function BuildYourWallet({ scoredCards, walletData, wallet, setWallet, on
           {nextLabel} →
         </button>
       </div>
+      )}
 
       {/* Low-value card warning */}
-      {warningReady && pgScore && inWallet.length > 1 && (() => {
+      {!listOnly && warningReady && pgScore && inWallet.length > 1 && (() => {
         const cardRewards: Record<string, number> = {}
         for (const routes of Object.values(pgScore.category_routing)) {
           for (const r of routes) {
@@ -306,7 +319,7 @@ export function BuildYourWallet({ scoredCards, walletData, wallet, setWallet, on
         )
       })()}
 
-      <div className="grid gap-5 lg:grid-cols-[0.52fr_1fr]">
+      <div className={listOnly ? 'grid gap-5' : 'grid gap-5 lg:grid-cols-[0.52fr_1fr]'}>
         {/* Left: available cards */}
         <div className="rounded-3xl border border-border/60 bg-card p-4 shadow-soft flex flex-col">
           <div className="relative">
@@ -335,7 +348,7 @@ export function BuildYourWallet({ scoredCards, walletData, wallet, setWallet, on
           </div>
 
           {isMiles && <p className="mt-2 text-[10px] text-muted-foreground">mi = miles earned per AED 100 spent</p>}
-          <ul className="mt-4 grid flex-1 min-h-0 gap-2 overflow-y-auto pr-1">
+          <ul className={`mt-4 grid flex-1 min-h-0 gap-2 overflow-y-auto pr-1 ${listOnly ? 'max-h-[max(9rem,calc(100dvh-23rem))]' : ''}`}>
             {[...filtered].sort((a, b) => {
               const aIn = wallet.includes(a.earnn_card_id) ? 0 : 1
               const bIn = wallet.includes(b.earnn_card_id) ? 0 : 1
@@ -418,12 +431,12 @@ export function BuildYourWallet({ scoredCards, walletData, wallet, setWallet, on
           </ul>
           <button onClick={() => { setShowAllCards(true); setAllQ(''); setAllBankFilter(null) }}
             className="mt-3 w-full rounded-full border border-primary px-3 py-2 text-xs font-medium text-primary hover:bg-primary hover:text-primary-foreground transition">
-            + Add from All UAE Cards
+            + Add other cards Earnn did not recommend
           </button>
         </div>
 
         {/* Right: wallet */}
-        <div className="flex flex-col gap-4 self-start">
+        {!listOnly && <div className="flex flex-col gap-4 self-start">
             <div className="overflow-hidden rounded-3xl bg-primary p-6 text-primary-foreground shadow-card">
               <div className="flex items-center justify-between text-xs uppercase tracking-wider text-primary-foreground/70">
                 <span>💳 Your wallet</span>
@@ -662,7 +675,7 @@ export function BuildYourWallet({ scoredCards, walletData, wallet, setWallet, on
               })()}
             </div>
           </div>
-        </div>
+        </div>}
       </div>
 
       {!embedded && onBack && <NavRow onBack={onBack} onNext={onNext} nextLabel={nextLabel} />}
