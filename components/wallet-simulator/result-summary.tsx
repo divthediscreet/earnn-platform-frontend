@@ -8,6 +8,7 @@ import type { Wallet } from '@/lib/wallet-simulator/api'
 import { MAX_WALLET, aed, groupShort } from '@/lib/wallet-simulator/groups'
 import { cardGroups } from '@/lib/wallet-simulator/playbook'
 import { useRewardMode } from '@/lib/wallet-simulator/reward-mode'
+import CardNameLink from '@/components/CardNameLink'
 import { CardArt, RollingAed, type CardInfo } from './card-art'
 import { FeeMathDialog, NetOfFeesDialog } from './fee-math'
 import { CategoryGlyph } from './sections'
@@ -135,7 +136,7 @@ export function ResultSummary({ wallet, isPick, moreCardsNote, ids, monthlySpend
                 className="mx-auto block w-[62%] min-w-[150px] max-w-[250px] cursor-pointer border-0 bg-transparent p-0 transition-transform hover:-translate-y-0.5">
                 <CardArt card={c} size="md" eager />
               </button>
-              <p className="mt-4 line-clamp-2 min-h-[2.75em] text-[17px] leading-snug font-bold text-ws-fg sm:text-[19px]" title={c.name}>{c.name}</p>
+              <p className="mt-4 line-clamp-2 min-h-[2.75em] text-[17px] leading-snug font-bold text-ws-fg sm:text-[19px]" title={c.name}><CardNameLink cardId={pc.card_id} mode={isMiles ? 'miles' : 'cashback'}>{c.name}</CardNameLink></p>
               <p className="mt-1 font-display text-[22px] font-bold text-ws-gain tabular-nums sm:text-[24px]">
                 + {isMiles ? <>{Math.round(pc.monthly_reward_aed).toLocaleString('en-US')} <span className="text-[16px]">miles/mo</span></> : <>AED {Math.round(pc.monthly_reward_aed).toLocaleString('en-US')} <span className="text-[16px] font-semibold">/mo</span></>}
               </p>
