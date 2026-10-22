@@ -37,24 +37,24 @@ export default function Navbar() {
         {/* Desktop Nav */}
         <div style={{ alignItems: 'center', gap: 6 }} className={styles.desktopNav}>
           <Link href="/analyse" style={navLinkStyle}>
-            Best for Me
+            Best card for me
           </Link>
           {/* Analyze-old (/analyse-old) is hidden from the nav for now; the page still works by URL. To be deleted later. */}
-          <Link href="/trip-planner" style={navLinkStyle}>
-            Fly for Free ✈
-          </Link>
-          <Link href="/merchant-lookup" style={navLinkStyle}>
-            Match & Tap
-          </Link>
-          {/* Fly for Free (/miles) is hidden from the nav for now; the page itself still works. */}
           <Link href="/bulk-spend-miles" style={navLinkStyle}>
             Big Spend Planner
+          </Link>
+          <Link href="/merchant-lookup" style={navLinkStyle}>
+            Smart Checkout
+          </Link>
+          {/* Fly for Free (/miles) is hidden from the nav for now; the page itself still works. */}
+          <Link href="/trip-planner" style={navLinkStyle}>
+            Turn Spending into Flights
           </Link>
           <Link href="/my-benefits" style={navLinkStyle}>
             My Benefits
           </Link>
           <Link href="/all-uae-cards" style={navLinkStyle}>
-            All UAE Cards
+            Compare and Test Cards
           </Link>
           <Link href="/chat" style={navLinkStyle}>
             Ask Earnie
@@ -66,12 +66,12 @@ export default function Navbar() {
       </div>
       {menuOpen && (
         <div className={styles.mobileNavMenu}>
-          <Link href="/analyse" onClick={() => setMenuOpen(false)}>Best for Me</Link>
-          <Link href="/trip-planner" onClick={() => setMenuOpen(false)}>Fly for Free ✈</Link>
-          <Link href="/merchant-lookup" onClick={() => setMenuOpen(false)}>Match & Tap</Link>
+          <Link href="/analyse" onClick={() => setMenuOpen(false)}>Best card for me</Link>
           <Link href="/bulk-spend-miles" onClick={() => setMenuOpen(false)}>Big Spend Planner</Link>
+          <Link href="/merchant-lookup" onClick={() => setMenuOpen(false)}>Smart Checkout</Link>
+          <Link href="/trip-planner" onClick={() => setMenuOpen(false)}>Turn Spending into Flights</Link>
           <Link href="/my-benefits" onClick={() => setMenuOpen(false)}>My Benefits</Link>
-          <Link href="/all-uae-cards" onClick={() => setMenuOpen(false)}>All UAE Cards</Link>
+          <Link href="/all-uae-cards" onClick={() => setMenuOpen(false)}>Compare and Test Cards</Link>
           <Link href="/chat" onClick={() => setMenuOpen(false)}>Ask Earnie</Link>
         </div>
       )}
