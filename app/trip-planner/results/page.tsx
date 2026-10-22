@@ -4,7 +4,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { getBanks, planTrips, type BankOption, type TripItem, type TripPlannerRequest, type TripPlannerResponse } from '@/lib/trip-planner/api'
-import { readExistingOnly, readTripForm, readTripRequest, readTripResult, saveExistingOnly, saveExistingPicks, saveResultsScroll, saveSelectedTrip, saveTripResult, takeResultsScroll } from '@/lib/trip-planner/session'
+import { readExistingOnly, readFromWallet, readTripForm, readTripRequest, readTripResult, saveExistingOnly, saveExistingPicks, saveResultsScroll, saveSelectedTrip, saveTripResult, takeResultsScroll } from '@/lib/trip-planner/session'
 import ExistingCardsDialog from '@/components/trip-planner/ExistingCardsDialog'
 import TripShowcase, { CustomizeCta } from '@/components/trip-planner/TripShowcase'
 import TripCustomizeWizard from '@/components/trip-planner/TripCustomizeWizard'
@@ -26,7 +26,8 @@ export default function TripPlannerResultsPage() {
   const [allBanks, setAllBanks] = useState<BankOption[]>([])
   const [picks, setPicks] = useState<Record<string, string>>({})
 
-  const edit = () => router.push('/trip-planner')
+  const [fromWallet, setFromWallet] = useState(false) // opened through the Smart Wallet result
+  const edit = () => router.push('/trip-planner?edit=1')
 
   useEffect(() => {
     const saved = readTripRequest()
@@ -38,6 +39,7 @@ export default function TripPlannerResultsPage() {
     setRequest(saved)
     setPicks(readTripForm()?.existingPicks ?? {})
     setUseExisting(readExistingOnly())
+    setFromWallet(readFromWallet())
     /* eslint-enable react-hooks/set-state-in-effect */
   }, [router])
 
@@ -62,6 +64,17 @@ export default function TripPlannerResultsPage() {
     const y = takeResultsScroll()
     if (y > 0) requestAnimationFrame(() => window.scrollTo(0, y))
   }, [result])
+
+  // Arriving from a Miles Goal "New Search": show the bottom of the page, where "Customize My Trip" sits, behind the wizard.
+  // The page has `scroll-behavior: smooth`, which a still-loading page cuts short, so jump instantly and repeat while content settles.
+  const [fromNewSearch] = useState(() => typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('customize') === '1')
+  useEffect(() => {
+    if (!result || !fromNewSearch) return
+    const toBottom = () => window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'instant' })
+    toBottom()
+    const timers = [100, 300, 700, 1500].map(delay => window.setTimeout(toBottom, delay))
+    return () => timers.forEach(window.clearTimeout)
+  }, [result, fromNewSearch])
 
   const openTrip = (trip: TripItem) => {
     saveSelectedTrip(trip)
@@ -90,7 +103,7 @@ export default function TripPlannerResultsPage() {
   if (error) {
     return <div className={styles.page}><main className={pageStyles.errorWrap}>
       <p className={styles.error}><i className="ti ti-alert-circle" /> {error}</p>
-      <button type="button" className="btn-primary" onClick={edit}><i className="ti ti-arrow-left" /> Edit my plan</button>
+      <button type="button" className="btn-primary" onClick={edit}><i className="ti ti-arrow-left" /> Edit spending</button>
     </main></div>
   }
   if (!request || !result) {
@@ -106,8 +119,11 @@ export default function TripPlannerResultsPage() {
     <main className={show.discoverContent}>
       <section>
         <div className={show.discoverTop}>
-          <button type="button" className={show.backLink} onClick={edit}><i className="ti ti-arrow-left" /> Edit my plan</button>
-          {holdsBanks && <div>
+          <div className={show.topLeft}>
+            <button type="button" className={show.editSpend} onClick={edit}>Edit spending <i className="ti ti-pencil" aria-hidden="true" /></button>
+            {fromWallet && <button type="button" className={show.backLink} onClick={() => router.push('/analyse/result')}><i className="ti ti-arrow-left" /> Back to Smart wallet result</button>}
+          </div>
+          {holdsBanks && <div className={show.existingBox}>
             <label className={show.switch}><input type="checkbox" checked={useExisting} onChange={event => onToggle(event.target.checked)} /><i aria-hidden="true" /> Use only my existing cards</label>
             {useExisting && <button type="button" className={show.edit} onClick={() => setDialogOpen(true)}>Change cards</button>}
           </div>}

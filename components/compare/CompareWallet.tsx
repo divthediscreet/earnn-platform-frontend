@@ -14,7 +14,7 @@ import { sameCards, walletKey } from '@/lib/wallet-simulator/playbook'
 import type { CardInfo } from '@/components/wallet-simulator/card-art'
 import { WalletDock } from '@/components/wallet-simulator/dock'
 import { PlaybookBody } from '@/components/wallet-simulator/sections'
-import { GetCardsDialog } from '@/components/wallet-simulator/get-cards'
+import { CompareDialog } from '@/components/wallet-simulator/compare'
 import { RewardModeProvider } from '@/lib/wallet-simulator/reward-mode'
 import CardDetailPopup from '@/components/CardDetailPopup'
 
@@ -76,7 +76,7 @@ function WalletBar({ request, ids, onIdsChange, directory: pageDirectory, onAddM
   const [previous, setPrevious] = useState<Wallet | null>(null) // shown (dimmed) while an update runs
   const [walletOpen, setWalletOpen] = useState(false) // expanded wallet panel (playbook)
   const [detailCardId, setDetailCardId] = useState<string | null>(null) // card-information popup
-  const [getOpen, setGetOpen] = useState(false) // "Get these cards" (final plan) popup
+  const [compareOpen, setCompareOpen] = useState(false) // compare against the user's current cards
 
   const key = walletKey(ids)
   const current = ids.length ? evaluated[key] ?? null : null
@@ -132,15 +132,14 @@ function WalletBar({ request, ids, onIdsChange, directory: pageDirectory, onAddM
         body .earnn-feedback-panel { bottom: calc(var(--ws-dock-h, 96px) + 90px) !important; }
       `}</style>
       <WalletDock ids={ids} wallet={displayWallet} pick={pick} isPick={isPick} status={status} card={card}
-        onRemove={removeCard} onAdd={onAddMore} onGetCards={() => setGetOpen(true)} onReset={reset} onRetry={retry} open={walletOpen} onOpenChange={setWalletOpen}>
+        onRemove={removeCard} onAdd={onAddMore} onCompare={() => setCompareOpen(true)} onReset={reset} onRetry={retry} open={walletOpen} onOpenChange={setWalletOpen}>
         <PlaybookBody wallet={displayWallet} groups={result.spend.groups} monthlySpend={result.spend.eligible_spend_aed}
           card={card} updating={status === 'updating'} onDetails={setDetailCardId} />
       </WalletDock>
 
       {detailCardId && <CardDetailPopup cardId={detailCardId} mode={request.reward_mode} onClose={() => setDetailCardId(null)} />}
-      {getOpen && displayWallet && (
-        <GetCardsDialog wallet={displayWallet} groups={result.spend.groups} cardScores={result.card_scores ?? []} card={card}
-          onDetails={setDetailCardId} onClose={() => setGetOpen(false)} />
+      {compareOpen && (
+        <CompareDialog request={request} smart={current} groups={result.spend.groups} card={card} onClose={() => setCompareOpen(false)} />
       )}
     </div>
   )

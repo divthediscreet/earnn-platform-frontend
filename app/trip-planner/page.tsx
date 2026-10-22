@@ -12,7 +12,7 @@ import { SPLIT_KEYS, SimulatorStyles, SpendEntryFields, computeAmounts, splitFro
 import { getBanks, type BankOption } from '@/lib/trip-planner/api'
 import { AIRLINE_LOGO, bankLogo } from '@/lib/trip-planner/bank-logos'
 import { ensureProfileLoaded, patchProfile, readProfile } from '@/lib/profile/storage'
-import { readTripForm, saveTripSubmission, type BankMode, type TripFormState } from '@/lib/trip-planner/session'
+import { readTripForm, saveFromWallet, saveTripSubmission, type BankMode, type TripFormState } from '@/lib/trip-planner/session'
 import styles from '../bulk-spend-miles/page.module.css'
 import formStyles from '../bulk-spend-miles/compact-spend-form.module.css'
 import tp from './trip-planner.module.css'
@@ -57,8 +57,30 @@ export default function TripPlannerPage() {
 
   // Coming back from the results page ("Edit my plan"): restore what the user entered.
   const [profileReady, setProfileReady] = useState(false)
+  // Opened from the Smart Wallet result ("Turn your everyday spend into a flight ticket"): the spend and salary come from
+  // that result (saved to the profile just before), the user lands on step 2, and Back returns to the result.
+  const [fromResult, setFromResult] = useState(false)
   useEffect(() => {
-    const saved = readTripForm()
+    const query = new URLSearchParams(window.location.search)
+    const opened = query.get('from') === 'result'
+    // The results page remembers the wallet route; "Edit spending" (?edit=1) keeps it, any other way in clears it.
+    if (opened) saveFromWallet(true)
+    else if (query.get('edit') !== '1') saveFromWallet(false)
+    // A saved trip is only used when this page was not opened from the result.
+    const saved = opened ? null : readTripForm()
+    if (opened) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setFromResult(true)
+      setStep(1)
+      // Keep the answers from the last "Your Cards & Miles" step, if any; the spending always comes from the result.
+      const held = readTripForm()
+      if (held) {
+        setBankMode(held.bankMode)
+        setBanks(held.banks)
+        setSkywards(held.skywards)
+        setEtihad(held.etihad)
+      }
+    }
     if (!saved) {
       // No plan in this tab: fall back to the browser-local details shared by the planners.
       let alive = true
@@ -298,7 +320,9 @@ export default function TripPlannerPage() {
 
         {step > 0 && error && <p className={styles.error}><i className="ti ti-alert-circle" /> {error}</p>}
         {step > 0 && <footer className={formStyles.submitFooter}>
-          {step > 0 && <button type="button" className={tp.back} onClick={() => { setError(''); setStep(step - 1) }}><i className="ti ti-arrow-left" /> Back</button>}
+          {step > 0 && (fromResult && step === 1
+            ? <button type="button" className={tp.back} onClick={() => router.push('/analyse/result')}><i className="ti ti-arrow-left" /> Back to Smart wallet result</button>
+            : <button type="button" className={tp.back} onClick={() => { setError(''); setStep(step - 1) }}><i className="ti ti-arrow-left" /> Back</button>)}
           {step < STEPS.length - 1
             // Distinct keys: without them React reuses the one button node, so the click that opens step 3 flips it to type="submit" before the
             // browser finishes the click and the form is submitted at once (step 3 flashes by and the results load immediately).

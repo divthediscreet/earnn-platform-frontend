@@ -49,6 +49,20 @@ export function saveExistingPicks(picks: Record<string, string>) {
   if (request) write(REQUEST_KEY, { ...request, existing_card_ids: Object.values(picks).filter(Boolean) })
 }
 
+const FROM_WALLET_KEY = 'earnn_trip_from_wallet'
+
+/** Whether this Trip Planner session was opened from the Smart Wallet result (that result page is where "Back" returns to). */
+export function readFromWallet(): boolean {
+  try { return window.sessionStorage.getItem(FROM_WALLET_KEY) === '1' } catch { return false }
+}
+
+export function saveFromWallet(value: boolean) {
+  try {
+    if (value) window.sessionStorage.setItem(FROM_WALLET_KEY, '1')
+    else window.sessionStorage.removeItem(FROM_WALLET_KEY)
+  } catch { /* ignore */ }
+}
+
 /** The "only my existing cards" switch, carried from the results page into Customize and back. */
 export function readExistingOnly(): boolean {
   try { return window.sessionStorage.getItem(EXISTING_ONLY_KEY) === '1' } catch { return false }

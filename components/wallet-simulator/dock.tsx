@@ -9,7 +9,7 @@ import { CardChip, RollingAed, type CardInfo } from './card-art'
 type CardLookup = (id: string) => CardInfo
 const cardName = (c: CardInfo) => c.name
 
-export function WalletDock({ ids, wallet, pick, isPick, status, card, onRemove, onAdd, onGetCards, onReset, onRetry, open, onOpenChange, children }: {
+export function WalletDock({ ids, wallet, pick, isPick, status, card, onRemove, onAdd, onCompare, onReset, onRetry, open, onOpenChange, children }: {
   children?: React.ReactNode // shown when the dock is expanded (the wallet's playbook)
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -21,22 +21,21 @@ export function WalletDock({ ids, wallet, pick, isPick, status, card, onRemove, 
   card: CardLookup
   onRemove: (id: string) => void
   onAdd: () => void // opens the wallet customisation screen
-  onGetCards: () => void // opens the "get these cards" screen for the current wallet
+  onCompare?: () => void // opens "compare with the cards I already hold" for the current wallet (button hidden when omitted)
   onReset: () => void
   onRetry: () => void
 }) {
   const { rw, isMiles } = useRewardMode()
   const total = ids.length === 0 ? 0 : wallet?.monthly_reward_aed ?? 0
   const delta = total - pick.monthly_reward_aed
-  const fewer = pick.cards.length - ids.length
 
-  let headline = 'This is Earnn Pick'
+  // the difference against Earnn's recommended (best) set, per month
+  let headline = "These are Earnn's recommended cards"
   if (ids.length === 0) headline = 'Add a card to start building'
   else if (!isPick && wallet) {
-    if (Math.abs(delta) < 0.5) headline = 'Same rewards as Earnn Pick'
-    else if (delta > 0) headline = `${rw(delta)}/month more than Earnn Pick`
-    else if (fewer > 0) headline = `You're giving up ${rw(-delta)}/month to carry ${fewer === 1 ? 'one less card' : `${fewer} fewer cards`}`
-    else headline = `${rw(-delta)}/month less than Earnn Pick`
+    if (Math.abs(delta) < 0.5) headline = "Same rewards as Earnn's recommended cards"
+    else if (delta > 0) headline = `${rw(delta)}/mo more than Earnn's recommended cards`
+    else headline = `${rw(-delta)}/mo less than Earnn's recommended cards`
   }
   if (status === 'error') headline = "We couldn't update your wallet"
   const tone = status === 'error' ? 'text-ws-loss' : isPick || delta >= -0.5 || ids.length === 0 ? 'text-ws-gain' : 'text-ws-loss'
@@ -125,7 +124,7 @@ export function WalletDock({ ids, wallet, pick, isPick, status, card, onRemove, 
               // only shown once the user has moved away from Earnn Pick
               <button onClick={onReset}
                 className="rounded-full border border-ws-border bg-white/60 px-2.5 py-0.5 text-[10px] font-semibold text-ws-primary transition-colors hover:bg-ws-ink hover:text-ws-ink-fg">
-                Back to Earnn Pick
+                Show Earnn Suggested Cards
               </button>
             )}
           </div>
@@ -134,10 +133,12 @@ export function WalletDock({ ids, wallet, pick, isPick, status, card, onRemove, 
             <span aria-hidden className="text-[13px] leading-none">{open ? '↓' : '↑'}</span>
             {open ? 'Close' : 'How to use this wallet'}
           </button>
-          <button type="button" onClick={() => { setOpen(false); onGetCards() }} disabled={ids.length === 0 || !wallet}
-            className="min-h-9 shrink-0 rounded-full bg-ws-ink px-4 py-1.5 text-[13px] font-semibold text-ws-ink-fg hover:bg-ws-primary disabled:cursor-not-allowed disabled:opacity-50">
-            Get these cards
-          </button>
+          {onCompare && (
+            <button type="button" onClick={() => { setOpen(false); onCompare() }} disabled={ids.length === 0 || !wallet} aria-haspopup="dialog"
+              className="min-h-9 shrink-0 rounded-full bg-ws-ink px-4 py-1.5 text-[13px] font-semibold text-ws-ink-fg hover:bg-ws-primary disabled:cursor-not-allowed disabled:opacity-50">
+              Compare against my cards
+            </button>
+          )}
         </div>
       </div>
       {open && (

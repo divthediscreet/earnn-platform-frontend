@@ -17,9 +17,9 @@ import { ReplaceCardDialog, WalletCustomizeDialog } from '@/components/wallet-si
 import { Alternatives, PlaybookBody } from '@/components/wallet-simulator/sections'
 import { ResultSummary } from '@/components/wallet-simulator/result-summary'
 import { RewardModeProvider } from '@/lib/wallet-simulator/reward-mode'
-import { GetCardsDialog } from '@/components/wallet-simulator/get-cards'
 import { AllBenefitsDialog } from '@/components/wallet-simulator/all-benefits'
 import { CompareBand } from '@/components/wallet-simulator/compare-band'
+import { FlightBand } from '@/components/wallet-simulator/flight-band'
 
 export default function SimulatorResultPage() {
   const router = useRouter()
@@ -52,7 +52,6 @@ function SmartWallet({ request, result }: { request: SimulatorRequest; result: R
   const [detailCardId, setDetailCardId] = useState<string | null>(null) // card-information popup
   const [replacing, setReplacing] = useState<{ id: string | null; group: string | null } | null>(null) // "Replace this card" list
   const [benefitsOpen, setBenefitsOpen] = useState(false) // "See all benefits" popup
-  const [getOpen, setGetOpen] = useState(false) // "Get these cards" (final plan) popup
   const [customizeOpen, setCustomizeOpen] = useState(false) // "Open wallet customization" popup
   const [extraInfo, setExtraInfo] = useState<Record<string, CardInfo>>({})
 
@@ -153,6 +152,7 @@ function SmartWallet({ request, result }: { request: SimulatorRequest; result: R
           plan={<PlaybookBody wallet={displayWallet} groups={result.spend.groups} monthlySpend={result.spend.eligible_spend_aed}
             card={card} updating={status === 'updating'} onDetails={setDetailCardId} hideSummary />} />
         <CompareBand wallet={displayWallet} card={card} onCompare={() => setCompareOpen(true)} />
+        <FlightBand request={request} groups={result.spend.groups} />
         <Alternatives strategies={strategies} alternatives={result.alternatives} topBySize={result.top_by_size} pick={pick} currentIds={ids} card={card}
           onUse={useStrategy} onDetails={setDetailCardId} />
       </main>
@@ -163,7 +163,7 @@ function SmartWallet({ request, result }: { request: SimulatorRequest; result: R
       <div className="h-24" />
 
       <WalletDock ids={ids} wallet={displayWallet} pick={pick} isPick={isPick} status={status} card={card}
-        onRemove={removeCard} onAdd={() => setCustomizeOpen(true)} onGetCards={() => setGetOpen(true)} onReset={reset} onRetry={retry} open={walletOpen} onOpenChange={setWalletOpen}>
+        onRemove={removeCard} onAdd={() => setCustomizeOpen(true)} onCompare={() => setCompareOpen(true)} onReset={reset} onRetry={retry} open={walletOpen} onOpenChange={setWalletOpen}>
         <PlaybookBody wallet={displayWallet} groups={result.spend.groups} monthlySpend={result.spend.eligible_spend_aed}
           card={card} updating={status === 'updating'} onDetails={setDetailCardId} />
       </WalletDock>
@@ -180,10 +180,6 @@ function SmartWallet({ request, result }: { request: SimulatorRequest; result: R
           wallet={displayWallet} status={status} onChange={changeIds} onRetry={retry} onClose={() => setCustomizeOpen(false)} />
       )}
       {benefitsOpen && ids.length > 0 && <AllBenefitsDialog cardIds={ids} onClose={() => setBenefitsOpen(false)} />}
-      {getOpen && displayWallet && (
-        <GetCardsDialog wallet={displayWallet} groups={result.spend.groups} cardScores={result.card_scores ?? []} card={card}
-          onDetails={setDetailCardId} onClose={() => setGetOpen(false)} />
-      )}
       {compareOpen && (
         <CompareDialog request={request} smart={current} groups={result.spend.groups} card={card}
           onClose={closeCompare} />

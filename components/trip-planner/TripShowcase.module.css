@@ -123,6 +123,10 @@
 .discoverPage{min-height:100vh;background:#fff;color:#0d1828;padding-bottom:72px}
 .discoverContent{max-width:1180px;margin:0 auto;padding:18px 24px 0}
 .discoverTop{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}
+.editSpend{display:inline-flex;align-items:center;gap:6px;padding:4px 12px;border:1px solid #cbd8ec;border-radius:999px;background:#fff;color:#0e3785;font-size:12px;font-weight:700;line-height:1.4;cursor:pointer}
+.editSpend:hover{background:#eef3ff;border-color:#0e3785}
+.topLeft{display:flex;flex-direction:column;align-items:flex-start;gap:4px}
+.existingBox{display:flex;flex-direction:column;align-items:flex-end;gap:4px}
 .backLink{display:inline-flex;align-items:center;gap:8px;border:0;background:transparent;color:#0e3785;font-weight:800;font-size:14px;cursor:pointer;padding:6px 0}
 
 .intro{position:relative;display:grid;grid-template-columns:47% 53%;align-items:stretch;min-height:370px;padding:0 0 0 44px;border-radius:22px;color:#fff;overflow:hidden;

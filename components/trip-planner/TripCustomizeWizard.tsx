@@ -69,7 +69,7 @@ export default function TripCustomizeWizard({ request, bankCodes, onClose }: { r
   const [step, setStep] = useState(0)
   const [region, setRegion] = useState<MilesRegion | null>(null)
   const [previewRegionId, setPreviewRegionId] = useState<MilesRegionId | null>(null)
-  const [strategy, setStrategy] = useState<StrategyId>('dream')
+  const [strategy, setStrategy] = useState<StrategyId>('smartest') // the upgrade option is preselected
   const [travellers, setTravellers] = useState<Travellers>({ adults: 1, children: 0, infants: 0 })
   const [tripType, setTripType] = useState<'one_way' | 'return'>('return')
   const [airline, setAirline] = useState<Airline | 'any'>('any')

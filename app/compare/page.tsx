@@ -163,19 +163,19 @@ const summaryWithoutBrackets = (tag: string | null): string => (tag ?? '').repla
 
 const LIMIT_PILL: React.CSSProperties = { display: 'inline-flex', alignItems: 'center', padding: '1px 7px', borderRadius: 999, fontSize: 10, fontWeight: 800, whiteSpace: 'nowrap', lineHeight: 1.45 }
 const CAP_PILL: React.CSSProperties = { ...LIMIT_PILL, border: '1px solid #F5C451', background: 'linear-gradient(135deg,#FFE08A 0%,#F5B93A 100%)', color: '#4A3000', boxShadow: '0 1px 5px rgba(245,185,58,.35)' }
-const MIN_PILL: React.CSSProperties = { ...LIMIT_PILL, border: '1px solid #B9A2FF', background: 'linear-gradient(135deg,#E6DCFF 0%,#B99CFF 100%)', color: '#241150', boxShadow: '0 1px 5px rgba(185,156,255,.45)' }
+const MIN_PILL: React.CSSProperties = CAP_PILL
 
 /** Card-level monthly cap and minimum spend, straight from the tables (the same fields as the card-details popup);
  *  always shown: the value, or "No monthly cap" / "No min spend". */
-function CardLimits({ card, mode, stacked }: { card: ApiCard; mode: ViewMode; stacked?: boolean }) {
+function CardLimits({ card, mode, stacked, inline }: { card: ApiCard; mode: ViewMode; stacked?: boolean; inline?: boolean }) {
   const cap = typeof card.card_cap_aed === 'number' && card.card_cap_aed > 0 ? card.card_cap_aed : null
   const minOn = card.is_min_spend_applicable === true || String(card.is_min_spend_applicable).toLowerCase() === 'true'
   const min = minOn && typeof card.min_monthly_spend_aed_on_card === 'number' && card.min_monthly_spend_aed_on_card > 0 ? card.min_monthly_spend_aed_on_card : null
   const fmt = (n: number) => Math.round(n).toLocaleString('en-US')
   return (
-    <div style={stacked ? { display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4, flexShrink: 0 } : { display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 5 }}>
+    <div style={stacked ? { display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4, flexShrink: 0 } : { display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: inline ? 0 : 5, ...(inline ? { marginLeft: 'auto', justifyContent: 'flex-end' } : {}) }}>
       <span style={CAP_PILL}>{cap !== null ? `Monthly earn cap: ${mode === 'miles' ? `${fmt(cap)} miles` : `AED ${fmt(cap)}`}` : 'No monthly cap'}</span>
-      <span style={MIN_PILL}>{min !== null ? `Min spend: AED ${fmt(min)} / month` : 'No min spend'}</span>
+      <span style={MIN_PILL}>{min !== null ? `Min spend: AED ${fmt(min)} / mo` : 'No min spend'}</span>
     </div>
   )
 }
@@ -957,11 +957,11 @@ function WalletToggle({ inWallet, onToggle, compact }: { inWallet: boolean; onTo
   return (
     <button type="button" aria-pressed={inWallet} onClick={e => { e.stopPropagation(); onToggle() }}
       style={{ display: 'inline-flex', alignItems: 'center', gap: compact ? 4 : 6, padding: compact ? '5px 8px' : '5px 11px', borderRadius: 100, cursor: 'pointer', fontSize: compact ? 10.5 : 11.5, fontWeight: 800, whiteSpace: 'nowrap',
-        border: inWallet ? '1px solid #C9972B' : '1px solid #E9C46A', background: inWallet ? '#F7C948' : '#FFF6E0', color: inWallet ? '#4A3000' : '#8A6100' }}>
+        border: inWallet ? '1px solid #00A67E' : '1px solid #0E3785', background: inWallet ? '#00A67E' : '#0E3785', color: '#fff' }}>
       <svg aria-hidden viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M3 7a2 2 0 0 1 2-2h13v4" /><path d="M3 7v11a2 2 0 0 0 2 2h14a1 1 0 0 0 1-1v-9a1 1 0 0 0-1-1H5a2 2 0 0 1-2-2" /><circle cx="16" cy="14" r="1" fill="currentColor" />
       </svg>
-      {inWallet ? 'In wallet ✓' : 'Add to Wallet'}
+      {inWallet ? 'In wallet ✓' : 'Try in my wallet'}
     </button>
   )
 }
@@ -1023,9 +1023,11 @@ function MilesTileTop({ card, fee, topEarnRates, inCompare, compareFull, onToggl
         </div>
         <div style={{ fontSize: 11.5, color: '#5A6A85', marginTop: 3 }}>{card.bank_name} · {card.network}</div>
         <div style={{ marginTop: 8, padding: '8px 10px', borderRadius: 10, background: '#EEF3FF', border: '1px solid #DCE6F8' }}>
-        <div style={{ ...label, color: '#0E3785', marginBottom: 3 }}>Card summary</div>
+        <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '4px 8px', marginBottom: 3 }}>
+          <div style={{ ...label, color: '#0E3785' }}>Card summary</div>
+          <CardLimits card={card} mode="miles" inline />
+        </div>
         <div style={{ fontSize: 12, color: card.card_summary_tag ? '#0D1828' : '#94A3B8', lineHeight: 1.4 }}>{summaryWithoutBrackets(card.card_summary_tag) || 'No card summary available'}</div>
-        <CardLimits card={card} mode="miles" />
         </div>
         {topCategories.length > 0 && (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 9 }}>
@@ -1241,11 +1243,13 @@ function CardTile({ card, detail, detailLoading, inCompare, compareFull, onToggl
           {catRate !== null && <div style={{ fontSize: 10.5, fontWeight: 600, color: '#5A6A85', textAlign: 'center', lineHeight: 1.25 }}>Overall effective rate: {(card.effective_reward_rate * 100).toFixed(1)}%</div>}
           </div>
           <div style={{ gridColumn: '1 / -1', minWidth: 0, marginTop: 0, padding: '6px 10px', borderRadius: 10, background: '#EEF3FF', border: '1px solid #DCE6F8' }}>
-            <div style={{ fontSize: 10.5, fontWeight: 800, color: '#0E3785', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 5 }}>Card summary</div>
+            <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '4px 8px', marginBottom: 5 }}>
+              <div style={{ fontSize: 10.5, fontWeight: 800, color: '#0E3785', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Card summary</div>
+              <CardLimits card={card} mode={mode} inline />
+            </div>
             <div style={{ fontSize: 12, color: card.card_summary_tag ? '#0D1828' : '#94A3B8', lineHeight: 1.45 }}>
               {summaryWithoutBrackets(card.card_summary_tag) || 'No card summary available'}
             </div>
-            <CardLimits card={card} mode={mode} />
           </div>
         </div>
 

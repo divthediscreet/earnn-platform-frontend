@@ -1,8 +1,15 @@
-.desktopNav{display:flex}.mobileMenuButton,.mobileNavMenu{display:none}
+.desktopNav{display:flex}
+.tools{position:relative}
+.toolsButton{display:inline-flex;align-items:center;gap:6px;border:0;background:transparent;font-family:inherit;cursor:pointer}
+.toolsButton:hover{color:var(--earnn-blue)}
+.toolsMenu{position:absolute;top:calc(100% + 8px);right:0;z-index:110;display:grid;min-width:240px;padding:6px;border:1px solid var(--earnn-border);border-radius:12px;background:white;box-shadow:0 14px 30px rgba(14,55,133,.14)}
+.toolsMenu a{padding:11px 14px;border-radius:8px;color:var(--earnn-text);font-size:14px;font-weight:600;text-decoration:none;white-space:nowrap}
+.toolsMenu a:hover{background:#eef3ff;color:var(--earnn-blue)}.mobileMenuButton,.mobileNavMenu{display:none}
 @media(max-width:1000px){
   .desktopNav{display:none!important}
   .mobileMenuButton{display:grid;place-items:center;width:42px;height:42px;border-radius:10px;border:1px solid var(--earnn-border);background:white;color:var(--earnn-blue);font-size:22px;cursor:pointer}
   .mobileNavMenu{display:grid;gap:4px;padding:10px 20px 18px;border-top:1px solid var(--earnn-border);background:white;box-shadow:0 14px 28px rgba(14,55,133,.1)}
   .mobileNavMenu a{padding:11px 12px;border-radius:8px;color:var(--earnn-text);text-decoration:none;font-size:14px;font-weight:600}
+  .mobileNavMenu .mobileGroup{margin-top:6px;padding:8px 12px 2px;border-top:1px solid var(--earnn-border);color:var(--earnn-text-muted);font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase}
   .mobileNavMenu .mobileNavCta{margin-top:5px;background:var(--earnn-blue);color:white;text-align:center}
 }

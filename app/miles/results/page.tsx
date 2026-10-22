@@ -14,7 +14,7 @@ import { simulateMilesGoal } from '@/lib/miles-goal/api'
 import CustomizeExistingToggle from '@/components/trip-planner/CustomizeExistingToggle'
 import { simulateTripCustomize } from '@/lib/trip-planner/api'
 import type { TripPlannerRequest } from '@/lib/trip-planner/api'
-import { readExistingOnly, readTripRequest } from '@/lib/trip-planner/session'
+import { readExistingOnly, readFromWallet, readTripRequest } from '@/lib/trip-planner/session'
 import type {
   Airline, AirlineScope, MilesGoalSimulationResponse, PersonalizedProfile,
   StrategyId, ToggleState,
@@ -138,6 +138,10 @@ function ViewOneResultsContent() {
   const controllersRef = useRef<AbortController[]>([])
   const initializedRegionRef = useRef<string | null>(null)
   const tripMode = searchParams.get('source') === 'trip'
+  // Reached through Trip Planner, which itself was opened from the Smart Wallet result: offer the way back.
+  const [fromWallet, setFromWallet] = useState(false)
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { setFromWallet(tripMode && readFromWallet()) }, [tripMode])
   // Trip Planner's Customize pop-up already collected the trip: with ?direct=1 the result opens as soon as it is calculated.
   const preferredAirline = tripMode ? searchParams.get('airline') : null
   const tripAirlines = useMemo<Airline[]>(() => {
@@ -190,8 +194,9 @@ function ViewOneResultsContent() {
   useEffect(() => {
     if (!openNewViewWhenReady || !region || !profile) return
     setOpenNewViewWhenReady(false)
-    router.replace(`/miles/results?region=${encodeURIComponent(region.id)}&view=new`)
-  }, [openNewViewWhenReady, profile, region, router])
+    // Keep the Trip Planner source: the new view's "New Search" and wallet link depend on it.
+    router.replace(`/miles/results?region=${encodeURIComponent(region.id)}&view=new${wizardFlow ? '&source=trip&direct=1' : tripMode ? '&source=trip' : ''}`)
+  }, [openNewViewWhenReady, profile, region, router, wizardFlow, tripMode])
 
   const runSimulation = useCallback(async (nextProfile: PersonalizedProfile, requested: Airline[], replace: boolean, showResultsWhenReady = false, keepTargetScreenVisible = false) => {
     if (!region) return
@@ -337,7 +342,7 @@ function ViewOneResultsContent() {
         ? { adults: Math.max(1, count('adults')), children: count('children'), infants: count('infants') }
         : TRIP_PARTY_TRAVELLERS[searchParams.get('party') ?? ''] ?? DEFAULT_TRAVELLERS)
       setTripType(searchParams.get('trip') === 'return' ? 'return' : 'one_way')
-      setFocused(TRIP_CABIN_STRATEGY[searchParams.get('cabin') ?? ''] ?? 'dream')
+      setFocused(TRIP_CABIN_STRATEGY[searchParams.get('cabin') ?? ''] ?? 'smartest') // from Trip Planner the upgrade option is the default
       void runSimulation(tripProfile(tripRequest), tripAirlines, true, false, true)
       return
     }
@@ -452,7 +457,7 @@ function ViewOneResultsContent() {
     {Object.keys(errors).length > 0 && <section className={styles.partial} role="status"><i className="ti ti-alert-triangle" /><div><strong>{Object.keys(effectiveResponses).length ? 'Some airline results are unavailable' : 'We could not build the plan yet'}</strong>{supportedAirlines.filter(airline => errors[airline]).map(airline => <p key={airline}>{airlineLabel(airline)}: {errors[airline]} {profile && <button onClick={() => void runSimulation(profile, [airline], false)}>Retry</button>}</p>)}</div></section>}
 
     {(journeyStep !== 'results' || Object.keys(effectiveResponses).length > 0) && (journeyStep === 'results' ? <>
-      <div className={resultTopBar.bar}><button type="button" onClick={startOver}><i className="ti ti-search" /> New Search</button><Link href={`/miles/results?region=${encodeURIComponent(region.id)}&view=new${wizardFlow ? '&source=trip&direct=1' : ''}`}>View 2.0</Link></div>
+      <div className={resultTopBar.bar}><button type="button" onClick={startOver}><i className="ti ti-search" /> New Search</button>{fromWallet && <Link className={resultTopBar.walletBack} href="/analyse/result"><i className="ti ti-arrow-left" /> Back to Smart wallet result</Link>}<Link href={`/miles/results?region=${encodeURIComponent(region.id)}&view=new${wizardFlow ? '&source=trip&direct=1' : ''}`}>View 2.0</Link></div>
       <div className={`${styles.newResultHeading} ${love.resultsHeading}`}><div><span>FASTEST CARDS</span><h2>Here’s your fastest route.</h2></div><button type="button" className={filterButton.button} onClick={() => setFiltersOpen(true)}><i className="ti ti-adjustments-horizontal" /> All filters</button></div>
       {displayCards.length ? <section className={styles.summaryCards}>{displayCards.map(card => <MilesResultSummaryCard key={card.earnn_card_id} card={card} focused={focused} destinationLabel={region.label} monthlySpend={totalSpend} responses={effectiveResponses} toggles={toggles} onToggleChange={changeToggle} onCardNameClick={setDetailCardId} />)}</section> : <section className={styles.empty}><i className="ti ti-plane-off" /><h2>No route reaches this goal within 36 months</h2><p>Try another strategy, airline, or update your spending profile.</p></section>}
     </> : journeyStep === 'personalize' ? <section className={journey.shell} aria-label="Personalize your miles plan">
