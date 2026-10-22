@@ -63,7 +63,7 @@ export function ResultSummary({ wallet, groups, isPick, pick, moreCardsNote, ids
   return (
     <section className="mx-auto max-w-6xl px-5 pt-8 pb-8 sm:px-8 sm:pt-12">
       <h1 className="font-display text-[28px] leading-tight font-bold tracking-tight text-ws-fg sm:text-5xl">
-        You spend <span className="text-ws-primary">{aed(monthlySpend)}</span>{' '}a month. Here&apos;s how we&apos;d make it more rewarding.
+        You spend <span className="text-ws-primary">{aed(monthlySpend)}</span>{' '}a month. Here&apos;s how Earnn would make it more rewarding.
       </h1>
 
       {isPick && (
