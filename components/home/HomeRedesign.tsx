@@ -3,9 +3,11 @@ import Link from 'next/link'
 import { Caveat, Fraunces } from 'next/font/google'
 import HomeTrustStrip from './HomeTrustStrip'
 import CardSetPicker from './CardSetPicker'
-import citiPremier from '@/assets/home-cards/citi-premier.webp'
-import shukranAdcb from '@/assets/home-cards/shukran-adcb.webp'
-import fabGems from '@/assets/home-cards/fab-gems-world.webp'
+import sibCashback from '@/assets/home-cards/sib-cashback-titanium.webp'
+import adcbTalabat from '@/assets/home-cards/adcb-talabat.webp'
+import dibShams from '@/assets/home-cards/dib-shams-signature.webp'
+import adcb365 from '@/assets/home-cards/adcb-365.webp'
+import enbdLuluPlatinum from '@/assets/home-cards/enbd-lulu-platinum.webp'
 import styles from './HomeRedesign.module.css'
 
 const hand = Caveat({ subsets: ['latin'], weight: ['500'], display: 'swap', variable: '--font-hand' })
@@ -127,9 +129,9 @@ export default function HomeRedesign() {
           </div>
           <div className={styles.heroVisual} aria-hidden>
             <div className={styles.heroPlate} />
-            <div className={`${styles.hCard} ${styles.hCardC}`}><Image src={fabGems} alt="" width={240} height={150} /><span>Card C · Big spends</span></div>
-            <div className={`${styles.hCard} ${styles.hCardB}`}><Image src={shukranAdcb} alt="" width={240} height={150} /><span>Card B · Dining</span></div>
-            <div className={`${styles.hCard} ${styles.hCardA}`}><Image src={citiPremier} alt="" width={240} height={150} priority /><span>Card A · Groceries</span></div>
+            <div className={`${styles.hCard} ${styles.hCardC}`}><Image src={dibShams} alt="" width={240} height={150} /><span>Card C · Big spends</span></div>
+            <div className={`${styles.hCard} ${styles.hCardB}`}><Image src={adcb365} alt="" width={240} height={150} /><span>Card B · Dining</span></div>
+            <div className={`${styles.hCard} ${styles.hCardA}`}><Image src={enbdLuluPlatinum} alt="" width={240} height={150} priority /><span>Card A · Groceries</span></div>
             <div className={styles.hPanel}>
               <p>This month <small>(example)</small></p>
               <ul>
@@ -207,8 +209,8 @@ export default function HomeRedesign() {
                 <span className={`${styles.vsChip} ${styles.chipB}`}><i className="ti ti-plane" /> Travel bookings</span>
                 <span className={`${styles.vsChip} ${styles.chipC}`}><i className="ti ti-tools-kitchen-2" /> Dining &amp; food</span>
                 <div className={styles.vsCards}>
-                  <Image className={styles.vsCardBack} src={fabGems} alt="" width={240} height={150} />
-                  <Image className={styles.vsCardFront} src={citiPremier} alt="" width={240} height={150} />
+                  <Image className={styles.vsCardBack} src={adcbTalabat} alt="" width={240} height={150} />
+                  <Image className={styles.vsCardFront} src={sibCashback} alt="" width={240} height={150} />
                 </div>
                 <div className={styles.vsOutcomes}>
                   <span><i className="ti ti-coins" style={{ color: '#E0A412' }} />Cashback</span>
