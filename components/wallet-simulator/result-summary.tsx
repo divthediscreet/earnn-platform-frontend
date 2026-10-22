@@ -34,7 +34,7 @@ export function ResultSummary({ wallet, groups, isPick, pick, moreCardsNote, ids
 }) {
   const { isMiles, rw } = useRewardMode()
   const [explain, setExplain] = useState<'net' | 'fees' | null>(null)
-  const [setView, setSetView] = useState<'tiles' | 'list'>('tiles') // view 1: card tiles side by side; view 2: card by card, top to bottom
+  const [setView, setSetView] = useState<'tiles' | 'list'>('list') // view 1: card by card, top to bottom; view 2: card tiles side by side
   if (!wallet) {
     return (
       <section className="mx-auto max-w-6xl px-5 pt-8 pb-6 sm:px-8">
@@ -146,7 +146,7 @@ export function ResultSummary({ wallet, groups, isPick, pick, moreCardsNote, ids
       {/* switch between the two views of the set (outside the frame) */}
       <div className="mt-6 flex justify-end">
         <div role="tablist" aria-label="How to show the set of cards" className="flex gap-0.5 rounded-[9px] bg-ws-secondary p-[3px]">
-          {([['tiles', 'View 1'], ['list', 'View 2']] as const).map(([id, label]) => (
+          {([['list', 'View 1'], ['tiles', 'View 2']] as const).map(([id, label]) => (
             <button key={id} type="button" role="tab" aria-selected={setView === id} onClick={() => setSetView(id)}
               className={`cursor-pointer rounded-md border-0 px-4 py-1.5 text-[12px] font-bold transition-colors ${setView === id ? 'bg-white text-ws-primary shadow-[0_1px_3px_rgba(14,55,133,0.12)]' : 'bg-transparent text-ws-muted hover:text-ws-fg'}`}>
               {label}

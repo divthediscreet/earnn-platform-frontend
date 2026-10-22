@@ -725,7 +725,7 @@ function PlaybookSnapshot({ rows: playbookRows, card, onDetails }: { rows: Playb
   const topUp = (e: PlaybookEntry) => e.threshold && (
     <p className="mt-1.5 inline-flex max-w-full items-start gap-1.5 rounded-lg border border-[#B9A2FF] bg-[#EFE9FF] px-2 py-0.5 text-[11px] leading-snug font-medium text-[#3B2380]">
       <span aria-hidden>⚑</span>
-      <span>Earns less here, but needed to meet the {aed(e.threshold.minSpend)}/mo minimum spend. Rewards in other categories make up for it.</span>
+      <span>Earns less here, but needed to meet the {aed(e.threshold.minSpend)}/mo minimum spend. The higher rewards in {groupShort(e.threshold.unlockGroup)} make up for it.</span>
     </p>
   )
   const cardBlock = (e: PlaybookEntry) => {
@@ -914,7 +914,7 @@ export function PlaybookByCard({ wallet, rows, card, onDetails, embedded = false
                         {e.threshold && (
                           <p className="mt-1.5 inline-flex max-w-full items-start gap-1.5 rounded-lg border border-[#B9A2FF] bg-[#EFE9FF] px-2 py-0.5 text-[11px] leading-snug font-medium text-[#3B2380]">
                             <span aria-hidden>⚑</span>
-                            <span>Earns less here, but needed to meet the {aed(e.threshold.minSpend)}/mo minimum spend. Rewards in other categories make up for it.</span>
+                            <span>Earns less here, but needed to meet the {aed(e.threshold.minSpend)}/mo minimum spend. The higher rewards in {groupShort(e.threshold.unlockGroup)} make up for it.</span>
                           </p>
                         )}
                       </div>
