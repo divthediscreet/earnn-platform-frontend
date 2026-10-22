@@ -29,7 +29,7 @@ export function SalaryPrompt({ salary, setSalary, onConfirm, onClose }: {
         <div aria-hidden style={{ fontSize: 36, marginBottom: 12 }}>🎯</div>
         <div id="salary-prompt-title" style={{ fontSize: 18, fontWeight: 800, color: '#0D1828', marginBottom: 8 }}>One quick thing</div>
         <div style={{ fontSize: 14, color: '#5A6A85', lineHeight: 1.6, marginBottom: 20 }}>
-          Before we move forward, help us know your estimated monthly salary. It helps us check which cards you are eligible for.
+          To find you cards for which you are eligible, can you please help us to know your estimated salary?
         </div>
         <input type="number" inputMode="numeric" min="0" step="100" placeholder="Monthly salary (AED), e.g. 15,000"
           value={salary} onChange={e => setSalary(e.target.value)}
@@ -38,7 +38,7 @@ export function SalaryPrompt({ salary, setSalary, onConfirm, onClose }: {
           style={{ width: '100%', padding: '12px 16px', border: '2px solid #0E3785', borderRadius: 10, fontSize: 16, outline: 'none', color: '#0D1828', marginBottom: 16, boxSizing: 'border-box', textAlign: 'center' }} />
         <button type="button" onClick={go} disabled={!ready}
           style={{ width: '100%', padding: 13, background: ready ? '#0E3785' : '#D6E0F5', color: ready ? 'white' : '#9DAEC8', border: 'none', borderRadius: 10, fontSize: 15, fontWeight: 700, cursor: ready ? 'pointer' : 'not-allowed' }}>
-          Analyze my expenses →
+          Find My Best Cards →
         </button>
       </div>
     </div>

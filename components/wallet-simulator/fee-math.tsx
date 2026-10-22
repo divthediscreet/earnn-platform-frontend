@@ -106,9 +106,11 @@ export function FeeMathDialog({ title, cards, nameOf, onClose }: {
 }
 
 /** Popup showing monthly rewards less the monthly share of the yearly fee (cashback view, all in AED). */
-export function NetOfFeesDialog({ title, monthlyReward, yearlyFee, onClose }: {
+export function NetOfFeesDialog({ title, monthlyReward, yearlyFee, cards, onClose }: {
   title: string
   monthlyReward: number
+  /** Each card's monthly reward; when given, they are listed and added up to the monthly total. */
+  cards?: { name: string; monthly: number }[]
   yearlyFee: number
   onClose: () => void
 }) {
@@ -123,7 +125,14 @@ export function NetOfFeesDialog({ title, monthlyReward, yearlyFee, onClose }: {
     <Shell heading="How rewards after fees are worked out" sub={title} onClose={onClose}>
       <div className="rounded-xl border border-ws-border p-4">
         <dl className="space-y-1.5 text-[13px]">
-          {line('Your rewards each month', aed(monthlyReward))}
+          {cards && cards.length > 0 && (
+            <>
+              {cards.map(c => line(c.name, `${aed(c.monthly)} / mo`))}
+              <div className="border-t border-ws-border pt-1.5">{line('Total rewards each month', aed(monthlyReward), true)}</div>
+              <div className="h-2" />
+            </>
+          )}
+          {!(cards && cards.length > 0) && line('Your rewards each month', aed(monthlyReward))}
           {line('Estimated annual fees', aed(yearlyFee))}
           {line('Fees each month', `${aed(yearlyFee)} ÷ 12 = ${aed(monthlyFee)}`)}
           <div className="border-t border-ws-border pt-1.5">

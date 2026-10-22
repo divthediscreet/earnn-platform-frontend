@@ -1,6 +1,6 @@
 'use client'
 
-// The "Are your credit cards giving you the best rewards?" band: opens the compare-with-your-cards popup.
+// The "how much more could you earn?" band: opens the popup that shows what this set of cards adds on top of the user's current cards.
 
 import type { Wallet } from '@/lib/wallet-simulator/api'
 import { CardArt, type CardInfo } from './card-art'
@@ -28,22 +28,22 @@ export function CompareBand({ wallet, card, onCompare }: { wallet: Wallet | null
       <div className="mx-auto grid max-w-6xl items-center gap-8 px-5 py-10 sm:px-8 md:grid-cols-[1.05fr_1fr] md:gap-10 md:py-14">
         <div>
           <h2 className="font-display text-[28px] leading-[1.12] font-bold text-balance sm:text-[40px]">
-            Are your credit cards giving you the <span className="text-[#F7C948]">best rewards?</span>
+            See how much <span className="text-[#F7C948]">more</span> you could earn
           </h2>
-          <p className="mt-4 max-w-[46ch] text-[15px] leading-relaxed text-white/75 sm:text-[17px]">
+          <p className="mt-4 max-w-[48ch] text-[15px] leading-relaxed text-white/75 sm:text-[17px]">
             Select the cards you already have.<br />
-            We&apos;ll show you if other cards could earn you more.
+            We&apos;ll show the extra rewards this set of cards adds on top of what you earn today.
           </p>
           <button type="button" onClick={onCompare} aria-haspopup="dialog"
             className="group mt-6 inline-flex min-h-12 cursor-pointer items-center gap-2 rounded-full border-0 bg-[#F7C948] px-7 py-3 text-[16px] font-bold text-[#0D1828] shadow-[0_6px_20px_rgba(247,201,72,0.25)] transition-transform hover:-translate-y-0.5">
-            Compare my cards
+            See my extra rewards
           </button>
         </div>
 
-        {/* your cards  vs  recommended cards */}
+        {/* your cards today  +  the extra this set adds */}
         <div aria-hidden className="mx-auto grid w-full max-w-[520px] grid-cols-[1fr_auto_1fr] items-center gap-2 sm:gap-3">
           <div className="flex flex-col items-center gap-3">
-            <span className="rounded-full bg-white/10 px-4 py-1.5 text-[13px] font-semibold ring-1 ring-white/15">Your cards</span>
+            <span className="rounded-full bg-white/10 px-4 py-1.5 text-[13px] font-semibold ring-1 ring-white/15">Your cards today</span>
             <div className="relative h-[150px] w-full max-w-[190px] sm:h-[180px]">
               <div className="absolute inset-0 rounded-full bg-white/[0.04] ring-1 ring-white/10" />
               <PlainCard className="top-[16%] left-[6%] h-[48%] w-[66%] -rotate-[8deg]" from="#4C8DFF" to="#1D4ED8" />
@@ -51,10 +51,10 @@ export function CompareBand({ wallet, card, onCompare }: { wallet: Wallet | null
             </div>
           </div>
 
-          <span className="grid size-11 place-items-center rounded-full bg-[#0A2A66] text-[14px] font-bold ring-1 ring-white/20 sm:size-12">VS</span>
+          <span className="grid size-11 place-items-center rounded-full bg-[#F7C948] text-[24px] leading-none font-bold text-[#0D1828] sm:size-12">+</span>
 
           <div className="flex flex-col items-center gap-3">
-            <span className="rounded-full bg-white/10 px-4 py-1.5 text-[13px] font-semibold ring-1 ring-white/15">Recommended cards</span>
+            <span className="rounded-full bg-white/10 px-4 py-1.5 text-[13px] font-semibold ring-1 ring-white/15">With this set</span>
             <div className="relative h-[150px] w-full max-w-[190px] sm:h-[180px]">
               <div className="absolute inset-0 rounded-full bg-white/[0.04] ring-1 ring-white/10" />
               {ids.map((id, i) => (

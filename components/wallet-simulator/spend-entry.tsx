@@ -52,6 +52,8 @@ interface SpendEntryProps {
   cta: ReactNode
   /** Optional control shown on the summary card's top row, right side (the Analyse page puts its Cashback / Miles switch here). */
   summaryAction?: ReactNode
+  /** Summary panel shows only the total (no category bars or count). */
+  hideBreakdown?: boolean
   error?: string
   /** Optional wording for another page that reuses this form (Analyse keeps the defaults; Trip Planner supplies its own). */
   copy?: Partial<SpendEntryCopy>
@@ -72,7 +74,7 @@ const DEFAULT_COPY: SpendEntryCopy = {
   categoryCount: count => `${count} categor${count === 1 ? 'y' : 'ies'} added`,
 }
 
-export function SpendEntryFields({ spend, setSpend, splits, setSplits, cta, summaryAction, error, copy }: SpendEntryProps) {
+export function SpendEntryFields({ spend, setSpend, splits, setSplits, cta, summaryAction, hideBreakdown, error, copy }: SpendEntryProps) {
   const text = { ...DEFAULT_COPY, ...copy }
   const amounts = computeAmounts(spend, splits)
   const totalMonthly = Object.values(amounts).reduce((a, b) => a + b, 0)
@@ -160,7 +162,7 @@ export function SpendEntryFields({ spend, setSpend, splits, setSplits, cta, summ
           <aside className="sim-summary">
             <div className="sim-summary-top"><div className="sim-eyebrow">{text.summaryTitle}</div>{summaryAction}</div>
             <div className="sim-total-row"><div className="sim-total">{aed(totalMonthly)}</div><div className="sim-month">/ month</div></div>
-            {profileItems.length > 0 ? (
+            {hideBreakdown ? <div className="sim-gap" /> : profileItems.length > 0 ? (
               <div className="sim-bars">
                 {profileItems.slice(0, 6).map(g => (
                   <div key={g.key}>
@@ -172,7 +174,7 @@ export function SpendEntryFields({ spend, setSpend, splits, setSplits, cta, summ
             ) : (
               <p className="sim-empty">Your spending mix will appear here as you add amounts.</p>
             )}
-            <div className="sim-count">{text.categoryCount(profileItems.length)}</div>
+            {!hideBreakdown && <div className="sim-count">{text.categoryCount(profileItems.length)}</div>}
             {error && <div className="sim-error" role="alert">⚠ {error}</div>}
             {cta}
           </aside>
@@ -251,6 +253,26 @@ export function SimulatorStyles() {
         .sim-summary .sim-mode { background:rgba(255,255,255,.1); border-color:rgba(255,255,255,.22); padding:2px; }
         .sim-summary .sim-mode button { color:#DCE6FA; font-size:11.5px; padding:4px 10px; }
         .sim-summary .sim-mode button.on { background:#FFD76A; color:#092962; }
+        .sim-summary .sim-mode.sim-mode-cta { margin-top:14px; padding:0; background:transparent; border:0; justify-content:center; gap:14px; }
+        .sim-summary .sim-mode.sim-mode-cta > span { color:#AFC7F6; font-size:15px; font-weight:600; padding:0; }
+        .sim-summary .sim-mode.sim-mode-cta button { display:inline-flex; align-items:center; gap:8px; background:transparent; color:#DCE6FA; font-size:16px; font-weight:600; padding:2px 0; border-radius:0; }
+        .sim-summary .sim-mode.sim-mode-cta button::before { content:''; width:17px; height:17px; border-radius:50%; border:2px solid #AFC7F6; box-sizing:border-box; }
+        .sim-summary .sim-mode.sim-mode-cta button.on { background:transparent; color:#fff; font-weight:800; }
+        .sim-summary .sim-mode.sim-mode-cta button.on::before { border-color:#00D4A0; background:#00D4A0; box-shadow:inset 0 0 0 2px #0B2E78; }
+        .sim-summary:has(.sim-mode-cta) .sim-summary-top { justify-content:center; }
+        .sim-summary:has(.sim-mode-cta) .sim-eyebrow { font-size:15px; font-weight:900; letter-spacing:.08em; text-align:center; color:#fff; }
+        .sim-summary:has(.sim-mode-cta) { padding:32px 22px 28px; min-height:440px; display:flex; flex-direction:column; }
+        .sim-summary:has(.sim-mode-cta) .sim-total-row { justify-content:center; flex-wrap:nowrap; white-space:nowrap; margin-top:30px; }
+        .sim-summary:has(.sim-mode-cta) .sim-total { font-size:34px; }
+        .sim-summary:has(.sim-mode-cta) .sim-month { font-size:13px; }
+        .sim-summary:has(.sim-mode-cta) .sim-gap { flex:1; min-height:28px; }
+        .sim-summary:has(.sim-mode-cta) .sim-summary-salary { margin-top:0; padding-top:22px; }
+        .sim-summary:has(.sim-mode-cta) .sim-summary-salary > span { font-size:16px; font-weight:700; color:#fff; margin-bottom:10px; }
+        .sim-summary-salary > span small { display:block; margin-top:2px; font-size:11px; font-weight:500; color:#9FB4DD; }
+        .sim-summary:has(.sim-mode-cta) .sim-summary-salary > div { padding:0 14px; }
+        .sim-summary:has(.sim-mode-cta) .sim-summary-salary input { font-size:17px; padding:13px 0; }
+        .sim-summary:has(.sim-mode-cta) .sim-mode-cta { margin-top:22px; }
+        .sim-summary:has(.sim-mode-cta) .sim-cta { margin-top:24px; }
         .sim-total { font-size:28px; font-weight:850; letter-spacing:-.045em; margin-top:8px; }
         .sim-total-row { display:flex; align-items:baseline; flex-wrap:wrap; gap:0 6px; margin-top:8px; }
         .sim-total-row .sim-total { margin-top:0; }
@@ -260,6 +282,13 @@ export function SimulatorStyles() {
         .sim-bars b { color:#FFD76A; }
         .sim-bars > div > span { display:block; height:5px; background:rgba(255,255,255,.17); border-radius:99px; overflow:hidden; }
         .sim-bars i { display:block; height:100%; border-radius:inherit; background:#55D5B7; transition:width .38s cubic-bezier(.2,.8,.2,1); }
+        .sim-gap { height:8px; }
+        .sim-summary-salary { display:block; margin-top:16px; border-top:1px solid rgba(255,255,255,.16); padding-top:14px; }
+        .sim-summary-salary > span { display:block; color:#C9D7F2; font-size:12px; font-weight:600; margin-bottom:7px; }
+        .sim-summary-salary > div { display:flex; align-items:center; gap:8px; background:rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.28); border-radius:9px; padding:0 12px; }
+        .sim-summary-salary b { color:#FFD76A; font-size:12px; }
+        .sim-summary-salary input { flex:1; min-width:0; background:transparent; border:0; outline:0; color:#fff; font-size:15px; font-weight:700; padding:10px 0; }
+        .sim-summary-salary input::placeholder { color:#9FB4DD; font-weight:500; }
         .sim-empty { color:#B9C9E7; font-size:12px; line-height:1.5; min-height:108px; margin:20px 0; }
         .sim-count { border-top:1px solid rgba(255,255,255,.16); padding-top:12px; color:#C9D7F2; font-size:11px; }
         .sim-error { margin-top:10px; background:rgba(255,219,214,.14); border:1px solid rgba(255,219,214,.35); border-radius:8px; padding:8px; color:#FFE3DF; font-size:11px; line-height:1.45; }

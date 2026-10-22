@@ -115,9 +115,9 @@ function SpendForm({ initial }: { initial?: SimulatorRequest }) {
   return (
     <div className="sim-page">
       <PageHero tone="light" tall image="/images/heroes/Analyze-new.webp" width={1112}
-        kicker="BEST FOR ME" kickerColor="#5a6a85"
-        title={<>Find the cards<br />that pay you <span style={{ color: '#C9972B' }}>most.</span></>}
-        subtitle="Tell us how you spend. Earnn finds the cards that earn you the most — and tells you which card to use where." />
+        kicker="BEST CARDS FOR ME" kickerColor="#5a6a85"
+        title={<>Find your best set of <span style={{ color: '#C9972B' }}>credit cards.</span></>}
+        subtitle="Tell us how you spend. Earnn finds the best set of 1, 2, or 3 cards which gives you the most rewards, and also tells you where to use each card." />
 
       <div className="sim-content">
         <div className="sim-trust">
@@ -150,31 +150,28 @@ function SpendForm({ initial }: { initial?: SimulatorRequest }) {
           <button type="button" className="sim-reset" onClick={() => { setSpend({}); setSplits(splitFromAmounts(undefined)); setError('') }}>Reset amounts</button>
         </div>
 
-        <section className="sim-setup sim-setup-trip">
-          <div className="sim-setup-heading">
-            <div className="sim-eyebrow">YOUR INCOME</div>
-            <p>This helps us find cards that fit your income.</p>
-          </div>
-          <label className="sim-salary">
-            <span>Monthly salary</span>
-            <div>
-              <b>AED</b>
-              <input type="number" inputMode="numeric" min="0" step="100" placeholder="e.g. 15,000"
-                value={salary} onChange={e => setSalary(e.target.value)} aria-label="Monthly salary in AED" />
-            </div>
-          </label>
-        </section>
-
         <SpendEntryFields spend={spend} setSpend={setSpend} splits={splits} setSplits={setSplits} error={error}
-          summaryAction={<div className="sim-mode" role="radiogroup" aria-label="Which rewards do you want?">
-            {(['cashback', 'miles'] as const).map(m => (
-              <button key={m} type="button" role="radio" aria-checked={rewardMode === m} className={rewardMode === m ? 'on' : ''}
-                onClick={() => setRewardMode(m)}>{m === 'cashback' ? 'Cashback' : 'Miles'}</button>
-            ))}
-          </div>} cta={
-          <button type="button" className="sim-cta" onClick={() => submit()} disabled={totalMonthly <= 0 || loading}>
-            {loading ? 'Building your smart wallet…' : 'Build My Smart Wallet →'}
-          </button>} />
+          hideBreakdown copy={{ summaryTitle: 'YOUR MONTHLY SPENDING' }}
+          cta={<>
+            <label className="sim-summary-salary">
+              <span>Monthly salary<small>To check which cards you qualify for</small></span>
+              <div>
+                <b>AED</b>
+                <input type="number" inputMode="numeric" min="0" step="100" placeholder="e.g. 15,000"
+                  value={salary} onChange={e => setSalary(e.target.value)} aria-label="Monthly salary in AED" />
+              </div>
+            </label>
+            <div className="sim-mode sim-mode-cta" role="radiogroup" aria-label="Which rewards do you want?">
+              <span>I want</span>
+              {(['cashback', 'miles'] as const).map(m => (
+                <button key={m} type="button" role="radio" aria-checked={rewardMode === m} className={rewardMode === m ? 'on' : ''}
+                  onClick={() => setRewardMode(m)}>{m === 'cashback' ? 'Cashback' : 'Miles'}</button>
+              ))}
+            </div>
+            <button type="button" className="sim-cta" onClick={() => submit()} disabled={totalMonthly <= 0 || loading}>
+              {loading ? 'Building your smart wallet…' : 'Find My Best Cards →'}
+            </button>
+          </>} />
           {askSalary && (
             <SalaryPrompt salary={salary} setSalary={setSalary} onClose={() => setAskSalary(false)}
               onConfirm={value => { setAskSalary(false); submit(value) }} />

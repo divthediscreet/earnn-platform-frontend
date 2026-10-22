@@ -10,7 +10,6 @@ import {
 } from '@/lib/wallet-simulator/api'
 import { sameCards, walletKey } from '@/lib/wallet-simulator/playbook'
 import type { CardInfo } from '@/components/wallet-simulator/card-art'
-import { WalletDock } from '@/components/wallet-simulator/dock'
 import { CompareDialog } from '@/components/wallet-simulator/compare'
 import CardDetailPopup from '@/components/CardDetailPopup'
 import { ReplaceCardDialog, WalletCustomizeDialog } from '@/components/wallet-simulator/customize'
@@ -19,7 +18,6 @@ import { ResultSummary } from '@/components/wallet-simulator/result-summary'
 import { RewardModeProvider } from '@/lib/wallet-simulator/reward-mode'
 import { AllBenefitsDialog } from '@/components/wallet-simulator/all-benefits'
 import { CompareBand } from '@/components/wallet-simulator/compare-band'
-import { FlightBand } from '@/components/wallet-simulator/flight-band'
 
 export default function SimulatorResultPage() {
   const router = useRouter()
@@ -47,7 +45,6 @@ function SmartWallet({ request, result }: { request: SimulatorRequest; result: R
       .reverse().map(w => [walletKey(w.cards), w])))
   const [failedKey, setFailedKey] = useState<string | null>(null)
   const [previous, setPrevious] = useState<Wallet | null>(pick) // shown (dimmed) while an update runs
-  const [walletOpen, setWalletOpen] = useState(false) // expanded wallet panel (playbook)
   const [compareOpen, setCompareOpen] = useState(false) // compare against the user's current cards
   const [detailCardId, setDetailCardId] = useState<string | null>(null) // card-information popup
   const [replacing, setReplacing] = useState<{ id: string | null; group: string | null } | null>(null) // "Replace this card" list
@@ -132,12 +129,6 @@ function SmartWallet({ request, result }: { request: SimulatorRequest; result: R
 
   return (
     <div className="ws-root min-h-screen bg-ws-bg font-sans text-ws-fg">
-      {/* keep Earnn's floating feedback button clear of the wallet dock on this page */}
-      <style>{`
-        body .earnn-feedback-trigger { bottom: calc(var(--ws-dock-h, 96px) + 14px) !important; }
-        body .earnn-feedback-panel { bottom: calc(var(--ws-dock-h, 96px) + 90px) !important; }
-      `}</style>
-
       <div className="mx-auto flex max-w-6xl items-center justify-between px-5 pt-5 sm:px-8">
         {/* Statement runs have no manual form to edit (pre-filling it is switched off for now) */}
         {request.spend_summary
@@ -146,13 +137,16 @@ function SmartWallet({ request, result }: { request: SimulatorRequest; result: R
       </div>
 
       <main>
-        <ResultSummary wallet={displayWallet} ids={ids} isPick={isPick} pick={pick} moreCardsNote={biggerWorthless} monthlySpend={result.spend.eligible_spend_aed} card={card}
+        <ResultSummary wallet={displayWallet} groups={result.spend.groups} ids={ids} isPick={isPick} pick={pick} moreCardsNote={biggerWorthless} monthlySpend={result.spend.eligible_spend_aed} card={card}
           updating={status === 'updating'} onChange={() => setCustomizeOpen(true)} onDetails={setDetailCardId} onAllBenefits={() => setBenefitsOpen(true)}
           onReplace={(id, group) => setReplacing({ id, group })} onRemove={removeCard} onReset={reset}
           plan={<PlaybookBody wallet={displayWallet} groups={result.spend.groups} monthlySpend={result.spend.eligible_spend_aed}
-            card={card} updating={status === 'updating'} onDetails={setDetailCardId} hideSummary />} />
+            card={card} updating={status === 'updating'} onDetails={setDetailCardId} hideSummary
+            heading={<div>
+              <h2 className="font-display text-[22px] font-bold text-ws-fg sm:text-[28px]">How to use these cards</h2>
+              <p className="mt-1 text-[14px] text-ws-muted sm:text-[15px]">Which card to swipe for each kind of spending, and how much it earns you.</p>
+            </div>} />} />
         <CompareBand wallet={displayWallet} card={card} onCompare={() => setCompareOpen(true)} />
-        <FlightBand request={request} groups={result.spend.groups} />
         <Alternatives strategies={strategies} alternatives={result.alternatives} topBySize={result.top_by_size} pick={pick} currentIds={ids} card={card}
           onUse={useStrategy} onDetails={setDetailCardId} />
       </main>
@@ -160,13 +154,8 @@ function SmartWallet({ request, result }: { request: SimulatorRequest; result: R
       <p className="border-t border-ws-border px-5 py-3 text-center text-[11px] text-ws-muted sm:px-8">
         Earnn recommends. You decide. Estimates only — always check the bank&apos;s terms.
       </p>
-      <div className="h-24" />
+      <div className="h-10" />
 
-      <WalletDock ids={ids} wallet={displayWallet} pick={pick} isPick={isPick} status={status} card={card}
-        onRemove={removeCard} onAdd={() => setCustomizeOpen(true)} onCompare={() => setCompareOpen(true)} onReset={reset} onRetry={retry} open={walletOpen} onOpenChange={setWalletOpen}>
-        <PlaybookBody wallet={displayWallet} groups={result.spend.groups} monthlySpend={result.spend.eligible_spend_aed}
-          card={card} updating={status === 'updating'} onDetails={setDetailCardId} />
-      </WalletDock>
 
 
       {detailCardId && <CardDetailPopup cardId={detailCardId} onClose={() => setDetailCardId(null)} />}

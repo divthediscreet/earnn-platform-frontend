@@ -454,7 +454,6 @@ export function Ladder({ bestBySize, increments, pickSize, currentIds, card, onU
 
 /* ---------------- Section 3: playbook ---------------- */
 
-const FULL_ROWS = 4 // most rewarding categories get a full card; the rest are listed compactly
 
 type PlaybookProps = {
   onDetails: CardDetails
@@ -464,6 +463,7 @@ type PlaybookProps = {
   card: CardLookup
   updating: boolean
   hideSummary?: boolean // the page already shows the totals above
+  heading?: React.ReactNode // shown on the left of the view switch, on the same line
 }
 
 // Bold, coloured line icons per spending category (used on the wallet illustration chips).
@@ -653,19 +653,20 @@ function WalletIllustration({ ids, chips, card }: { ids: string[]; chips: Playbo
 }
 
 /** The playbook itself (summary strip + where to use each card). Also shown in the expanded wallet. */
-export function PlaybookBody({ wallet, groups, monthlySpend, card, updating, onDetails, hideSummary = false }: PlaybookProps) {
+export function PlaybookBody({ wallet, groups, monthlySpend, card, updating, onDetails, hideSummary = false, heading }: PlaybookProps) {
   const { rw, isMiles } = useRewardMode()
-  const [view, setView] = useState<'card' | 'category'>('card')
+  const [view, setView] = useState<'card' | 'category'>('category')
   const [explain, setExplain] = useState<'fees' | 'net' | null>(null)
   const rows = buildPlaybook(wallet, groups)
-  const full = rows.filter((r, i) => i < FULL_ROWS || r.kind !== 'single' || r.entries.some(e => e.threshold))
-  const compact = rows.filter(r => !full.includes(r))
   const monthlyReward = wallet?.monthly_reward_aed ?? 0
   if (rows.length === 0) {
     return (
-      <p className="mt-10 rounded-2xl border border-dashed border-ws-border p-8 text-center text-[14px] text-ws-muted">
-        Add a card to your wallet to see your playbook.
-      </p>
+      <>
+        {heading && <div className="mt-10">{heading}</div>}
+        <p className="mt-4 rounded-2xl border border-dashed border-ws-border p-8 text-center text-[14px] text-ws-muted">
+          Add a card to your wallet to see your playbook.
+        </p>
+      </>
     )
   }
   return (
@@ -683,9 +684,10 @@ export function PlaybookBody({ wallet, groups, monthlySpend, card, updating, onD
         <NetOfFeesDialog title="This wallet" monthlyReward={monthlyReward} yearlyFee={wallet.total_fee_aed} onClose={() => setExplain(null)} />
       )}
 
-      <div className={`${hideSummary ? 'mt-2' : 'mt-8'} flex items-center justify-end gap-3`}>
-        <div role="tablist" aria-label="Playbook view" className="flex shrink-0 gap-0.5 rounded-[9px] bg-ws-secondary p-[3px]">
-          {([['card', 'Card view'], ['category', 'Category view']] as const).map(([id, label]) => (
+      <div className={`${heading ? 'mt-10' : hideSummary ? 'mt-2' : 'mt-8'} flex flex-wrap items-start gap-3 ${heading ? 'justify-between' : 'justify-end'}`}>
+        {heading}
+        <div role="tablist" aria-label="Playbook view" className={`flex shrink-0 gap-0.5 rounded-[9px] bg-ws-secondary p-[3px] ${heading ? 'sm:mt-0.5' : ''}`}>
+          {([['category', 'Category view'], ['card', 'Card view']] as const).map(([id, label]) => (
             <button key={id} type="button" role="tab" aria-selected={view === id} onClick={() => setView(id)}
               className={`rounded-md px-3 py-1.5 text-[11px] font-bold transition-colors ${view === id ? 'bg-white text-ws-primary shadow-[0_1px_3px_rgba(14,55,133,0.12)]' : 'text-ws-muted hover:text-ws-fg'}`}>
               {label}
@@ -697,111 +699,241 @@ export function PlaybookBody({ wallet, groups, monthlySpend, card, updating, onD
       {view === 'card' ? (
         <PlaybookByCard wallet={wallet} rows={rows} card={card} onDetails={onDetails} />
       ) : (
-        <>
-          <div className="mt-3 grid items-start gap-3 md:grid-cols-2">
-            {full.map(row => <PlaybookCard key={row.group} row={row} card={card} onDetails={onDetails} />)}
-          </div>
-
-          {compact.length > 0 && (
-            <div className="mt-3 rounded-2xl border border-ws-border bg-ws-card p-4 shadow-ws-lift">
-              <p className="font-display text-[14px] font-semibold text-ws-fg">Your other categories</p>
-              <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                {compact.map(row => (
-                  <div key={row.group} className="flex items-center gap-3 rounded-xl border border-ws-border px-3 py-2.5">
-                    <span className="text-[16px]">{groupIcon(row.group)}</span>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-[13px] font-semibold text-ws-fg">
-                        {groupShort(row.group)} <span className="font-normal text-ws-muted">· {aed(row.monthlySpend)}/mo</span>
-                      </p>
-                      <p className="truncate text-[12px] text-ws-muted">Use {cardName(card(row.entries[0].cardId))}</p>
-                    </div>
-                    <span className="shrink-0 text-[13px] font-semibold text-ws-gain tabular-nums">{rw(row.monthlyReward)}/mo</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </>
+        <PlaybookSnapshot rows={rows} card={card} onDetails={onDetails} />
       )}
     </div>
   )
 }
 
-/** Card view: one block per card (photo, name, what it earns a month, the categories it alone pays for).
- *  A category paid by two or more cards is never folded into a card — it gets its own block below. */
-function PlaybookByCard({ wallet, rows, card, onDetails }: { wallet: Wallet | null; rows: PlaybookRow[]; card: CardLookup; onDetails: CardDetails }) {
-  const { rw, rate } = useRewardMode()
-  const cards = [...(wallet?.per_card ?? [])].sort((a, b) => b.monthly_reward_aed - a.monthly_reward_aed)
-  const shared = rows.filter(r => r.kind !== 'single')
+/** A total figure in a green box, so totals stand apart from the per-card amounts. */
+function TotalBox({ children, className = '' }: { children: React.ReactNode; className?: string }) {
   return (
-    <>
-      <div className="mt-3 grid items-start gap-3 md:grid-cols-2">
-        {cards.map(pc => {
-          const info = card(pc.card_id)
-          const own = rows.filter(r => r.kind === 'single' && r.entries[0].cardId === pc.card_id)
-          const sharedHere = shared.filter(r => r.entries.some(e => e.cardId === pc.card_id))
+    <span className={`inline-block rounded-lg border border-[#9ED8B6] bg-[#DDF3E6] px-3 py-1 font-display text-[17px] leading-tight font-bold text-[#1E7A4E] tabular-nums ${className}`}>{children}</span>
+  )
+}
+
+/** Category view as a quick snapshot, read top to bottom: one line per category with the card to swipe and what it earns.
+ *  A category that moves to a second card shows both steps in order with the switch point; spend that only helps a card
+ *  reach its monthly minimum is flagged on its own line. Every figure comes from the playbook rows (no maths here). */
+function PlaybookSnapshot({ rows: playbookRows, card, onDetails }: { rows: PlaybookRow[]; card: CardLookup; onDetails: CardDetails }) {
+  const { rw } = useRewardMode()
+  // categories that switch cards come first (they need the most attention); "Everything else" closes the list unless it
+  // is one of those. Within each part the order stays most rewarding first (Array.sort is stable).
+  const place = (r: PlaybookRow) => r.entries.length > 1 ? 0 : r.group === 'miscellaneous' ? 2 : 1
+  const rows = [...playbookRows].sort((a, b) => place(a) - place(b))
+  const total = rows.reduce((sum, r) => sum + r.monthlyReward, 0)
+  const topUp = (e: PlaybookEntry) => e.threshold && (
+    <p className="mt-1.5 inline-flex max-w-full items-start gap-1.5 rounded-lg border border-[#B9A2FF] bg-[#EFE9FF] px-2 py-0.5 text-[11px] leading-snug font-medium text-[#3B2380]">
+      <span aria-hidden>⚑</span>
+      <span>Earns less here, but needed to meet the {aed(e.threshold.minSpend)}/mo minimum spend. Rewards in other categories make up for it.</span>
+    </p>
+  )
+  const cardBlock = (e: PlaybookEntry) => {
+    const info = card(e.cardId)
+    return (
+      <div className="flex min-w-0 items-start gap-3">
+        <CardChip card={info} className="!h-[33px] !w-[52px] shrink-0" />
+        <div className="min-w-0">
+          <p className="line-clamp-2 text-[14px] leading-snug font-semibold text-ws-fg">
+            <CardLink id={e.cardId} onDetails={onDetails} className="hover:text-ws-primary">{cardName(info)}</CardLink>
+          </p>
+          <RewardConditionLabel paymentCondition={e.paymentCondition} merchantList={e.merchantList} cardName={cardName(info)} />
+          {topUp(e)}
+        </div>
+      </div>
+    )
+  }
+  const amount = (value: number) => (
+    <p className="font-display text-[17px] leading-tight font-semibold text-ws-gain tabular-nums md:text-right">
+      {rw(value)}<span className="text-[11px] font-medium text-ws-muted"> /mo</span>
+    </p>
+  )
+  return (
+    <div className="mt-3">
+      <div className="overflow-hidden rounded-2xl border border-ws-border bg-ws-card shadow-ws-lift">
+        {rows.map((row, idx) => {
+          const split = row.entries.length > 1
           return (
-            <div key={pc.card_id} className="overflow-hidden rounded-2xl border border-ws-border bg-ws-card shadow-ws-lift">
-              <div className="flex items-center gap-4 border-b border-ws-border px-4 py-4">
-                <CardLink id={pc.card_id} onDetails={onDetails} className="w-[104px] shrink-0 !no-underline"><CardArt card={info} size="sm" /></CardLink>
-                <div className="min-w-0 flex-1">
+            <section key={row.group} className={`px-4 py-4 sm:px-5 ${idx > 0 ? 'border-t border-ws-border' : ''} ${split ? 'bg-[#FFFBEF]' : ''}`}>
+              <div className={`grid gap-x-4 gap-y-3 md:items-start ${split ? 'md:grid-cols-[1fr_auto]' : 'md:grid-cols-[220px_1fr_110px]'}`}>
+                <div className="flex items-center gap-3">
+                  <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-ws-secondary text-[19px]">{groupIcon(row.group)}</span>
+                  <div className="min-w-0">
+                    <p className="font-display text-[15px] leading-tight font-semibold text-ws-fg">{groupShort(row.group)}</p>
+                    <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1">
+                      <p className="text-[12px] whitespace-nowrap text-ws-muted tabular-nums">{aed(row.monthlySpend)} / month</p>
+                      {split && <span className="rounded-full bg-[#FFE27A] px-2 py-0.5 text-[10.5px] font-bold whitespace-nowrap text-[#0D1828]">Uses {row.entries.length} cards</span>}
+                    </div>
+                  </div>
+                </div>
+
+                {!split ? (
+                  <>
+                    <div>
+                      {cardBlock(row.entries[0])}
+                      {row.entries[0].limitReached && !row.entries[0].threshold && (
+                        <p className="mt-1.5 text-[11.5px] text-ws-muted">Part of this spend is past the bonus limit and earns the standard rate.</p>
+                      )}
+                    </div>
+                    <div className="md:pt-1">{amount(row.entries[0].monthlyReward)}</div>
+                  </>
+                ) : (
+                  <>
+                    <div className="md:text-right">
+                      <p className="mb-1 text-[10px] font-semibold tracking-[0.12em] text-ws-muted uppercase">Category total</p>
+                      <TotalBox>{rw(row.monthlyReward)}<span className="text-[11px] font-medium text-[#4C8F6C]"> /mo</span></TotalBox>
+                    </div>
+                    <div className="flex flex-col gap-2 md:col-span-2 md:flex-row md:items-stretch md:gap-0">
+                      {row.entries.map((e, i) => {
+                        const last = i === row.entries.length - 1
+                        const lead = i === 0 ? 'First' : last ? 'Remaining' : 'Next'
+                        return (
+                          <Fragment key={e.cardId}>
+                            {i > 0 && (
+                              <div aria-hidden className="flex shrink-0 flex-row items-center justify-center gap-2 text-ws-accent-fg md:w-[130px] md:flex-col md:gap-1.5 md:px-2">
+                                <span className="grid size-7 place-items-center rounded-full bg-ws-primary text-[15px] text-white"><span className="md:hidden">↓</span><span className="hidden md:inline">→</span></span>
+                                <span className="rounded-md border border-ws-accent/60 bg-ws-accent/15 px-1.5 py-0.5 text-center text-[9.5px] leading-tight font-bold tracking-wide uppercase">Bonus limit reached, switch card</span>
+                              </div>
+                            )}
+                            <div className="min-w-0 flex-1 rounded-xl border border-ws-border bg-white px-3 py-2.5">
+                              <div className="mb-1.5 flex items-center gap-2">
+                                <span className="grid size-5 place-items-center rounded-full bg-ws-primary text-[11px] font-bold text-white">{i + 1}</span>
+                                <p className="text-[11px] font-bold tracking-wide text-ws-primary uppercase">
+                                  {lead} <span className="rounded bg-[#FFE27A] px-1.5 py-0.5 text-[#0D1828] tabular-nums">{aed(e.amount)}/mo</span>
+                                </p>
+                              </div>
+                              {cardBlock(e)}
+                              <p className="mt-2.5 text-[14px] font-medium text-[#4B5A73] tabular-nums">
+                                This card earns {rw(e.monthlyReward)}/mo
+                              </p>
+                            </div>
+                          </Fragment>
+                        )
+                      })}
+                    </div>
+                  </>
+                )}
+              </div>
+            </section>
+          )
+        })}
+        <div className="flex items-center justify-between gap-3 border-t border-ws-border bg-ws-gain/10 px-4 py-3 sm:px-5">
+          <p className="text-[13px] font-semibold text-ws-fg">Total rewards across all categories</p>
+          <TotalBox className="!text-[18px]">{rw(total)}<span className="text-[12px] font-medium text-[#4C8F6C]"> / month</span></TotalBox>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/** Card view, read top to bottom: one block per card (best earner first) with that card's categories listed under it.
+ *  A category shared with another card appears under each card it uses, tagged with its share of the spend and where it
+ *  switches. Same look as the category snapshot; every figure comes from the playbook rows (no maths here). */
+export function PlaybookByCard({ wallet, rows, card, onDetails, embedded = false, order, actions }: {
+  wallet: Wallet | null; rows: PlaybookRow[]; card: CardLookup; onDetails: CardDetails
+  /** Inside the result page's card-set frame: each card is its own tile, joined by + signs, with the wallet actions. */
+  embedded?: boolean
+  order?: string[]                                   // card order to keep (the wallet's own slots); default: best earner first
+  actions?: { onReplace: (cardId: string | null, group: string | null) => void; onRemove: (cardId: string) => void; canAdd: boolean }
+}) {
+  const { rw } = useRewardMode()
+  const slot = (id: string) => { const i = order?.indexOf(id) ?? -1; return i < 0 ? 99 : i }
+  const cards = [...(wallet?.per_card ?? [])].sort((a, b) => order ? slot(a.card_id) - slot(b.card_id) : b.monthly_reward_aed - a.monthly_reward_aed)
+  const total = rows.reduce((sum, r) => sum + r.monthlyReward, 0)
+  return (
+    <div className={embedded ? 'space-y-14' : 'mt-3 overflow-hidden rounded-2xl border border-ws-border bg-ws-card shadow-ws-lift'}>
+      {cards.map((pc, idx) => {
+        const info = card(pc.card_id)
+        // this card's lines: whole categories first, shared ones (switch cases) after, each most rewarding first
+        const lines = rows.flatMap(row => {
+          const at = row.entries.findIndex(e => e.cardId === pc.card_id)
+          return at < 0 ? [] : [{ row, e: row.entries[at], at, split: row.entries.length > 1 }]
+        }).sort((a, b) => Number(b.split) - Number(a.split) || b.e.monthlyReward - a.e.monthlyReward)
+        return (
+          <section key={pc.card_id} className={embedded
+            ? 'relative rounded-2xl border border-ws-border bg-white px-4 py-5 shadow-ws-lift sm:px-5'
+            : `px-4 py-5 sm:px-5 ${idx > 0 ? 'border-t border-ws-border' : ''}`}>
+            {actions && (
+              <div className="absolute inset-x-0 bottom-0 z-10 flex translate-y-1/2 items-center justify-center gap-10">
+                <button type="button" onClick={() => actions.onReplace(pc.card_id, lines[0]?.row.group ?? null)} aria-haspopup="dialog"
+                  className="inline-flex min-h-8 cursor-pointer items-center gap-1.5 rounded-full border border-[#8FC8F0] bg-[#B4DBF7] px-4 text-[12px] font-semibold text-[#0E3785] shadow-ws-lift transition hover:bg-[#A3D2F4]">
+                  <span aria-hidden>⇄</span> Replace this card
+                </button>
+                <button type="button" onClick={() => actions.onRemove(pc.card_id)}
+                  className="inline-flex min-h-8 cursor-pointer items-center gap-1.5 rounded-full border border-[#C0392B] bg-[#D9453A] px-4 text-[12px] font-semibold text-white shadow-ws-lift transition hover:bg-[#C0392B]">
+                  <span aria-hidden>✕</span> Remove this card
+                </button>
+              </div>
+            )}
+            {embedded && idx < cards.length - 1 && (
+              <span aria-hidden className="absolute -bottom-[52px] left-1/2 z-20 grid size-8 -translate-x-1/2 place-items-center rounded-full border border-[#C9D8F5] bg-white text-[20px] leading-none font-semibold text-ws-primary shadow-ws-lift">+</span>
+            )}
+            <div className="grid gap-x-5 gap-y-3 md:grid-cols-[220px_1fr]">
+              <div className="flex flex-col items-start gap-3 text-left md:self-center">
+                <CardLink id={pc.card_id} onDetails={onDetails} className="block w-[150px] shrink-0 !no-underline"><CardArt card={info} size="sm" /></CardLink>
+                <div className="min-w-0">
                   <p className="font-display text-[15px] leading-snug font-semibold text-ws-fg">
                     <CardLink id={pc.card_id} onDetails={onDetails} className="hover:text-ws-primary">{cardName(info)}</CardLink>
                   </p>
-                  {info.bank && <p className="truncate text-[12px] text-ws-muted">{info.bank}</p>}
-                  <p className="mt-1.5 text-[10px] font-semibold tracking-[0.12em] text-ws-muted uppercase">You could earn</p>
-                  <p className="font-display text-[20px] leading-tight font-semibold text-ws-gain tabular-nums">
-                    {rw(pc.monthly_reward_aed)} <span className="text-[12px] font-medium text-ws-muted">/ month</span>
-                  </p>
+                  <p className="mt-1.5 text-[11px] font-semibold tracking-[0.12em] text-ws-muted uppercase">Card total</p>
+                  <TotalBox className="mt-1">{rw(pc.monthly_reward_aed)}<span className="text-[11px] font-medium text-[#4C8F6C]"> /mo</span></TotalBox>
                 </div>
               </div>
-              <div className="px-4 py-1">
-                {own.map((row, i) => {
-                  const e = row.entries[0]
+
+              <div className="min-w-0 divide-y divide-dashed divide-ws-border rounded-xl border border-ws-border bg-white">
+                {lines.length === 0 && <p className="px-3 py-3 text-[12.5px] text-ws-muted">This card is a backup. It does not take any category on its own.</p>}
+                {lines.map(({ row, e, at, split }) => {
+                  const next = row.entries[at + 1]
+                  const prev = row.entries[at - 1]
+                  const last = at === row.entries.length - 1
+                  const lead = at === 0 ? 'First' : last ? 'Remaining' : 'Next'
                   return (
-                    <div key={row.group} className={`py-2.5 ${i > 0 ? 'border-t border-dashed border-ws-border' : ''}`}>
-                      <div className="flex items-center gap-3">
+                    <div key={row.group} className={`grid items-start gap-x-3 gap-y-1 px-3 py-3 sm:grid-cols-[170px_1fr_auto] ${split ? 'bg-[#FFFBEF]' : ''}`}>
+                      <div className="flex items-center gap-2.5">
                         <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-ws-secondary text-[17px]">{groupIcon(row.group)}</span>
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-[14px] font-semibold text-ws-fg">{groupShort(row.group)}</p>
-                          <p className="text-[12px] text-ws-muted">{aed(row.monthlySpend)} / month · {rate(e.rate)}</p>
-                          <RewardConditionLabel paymentCondition={e.paymentCondition} merchantList={e.merchantList} cardName={cardName(info)} emphasis="highlight" />
+                        <div className="min-w-0">
+                          <p className="text-[14px] leading-tight font-semibold text-ws-fg">{groupShort(row.group)}</p>
+                          <p className="text-[12px] text-ws-muted tabular-nums">{aed(row.monthlySpend)} / month</p>
                         </div>
-                        <p className="shrink-0 text-[14px] font-semibold text-ws-gain tabular-nums">{rw(row.monthlyReward)}<span className="text-[10px] font-normal text-ws-muted"> /mo</span></p>
                       </div>
-                      {e.threshold && (
-                        <p className="mt-1.5 rounded-md bg-ws-secondary px-2 py-1 text-[10px] leading-tight text-ws-primary/80">
-                          <span aria-hidden>ⓘ </span>Earns little here, but helps this card reach its {aed(e.threshold.minSpend)}/month
-                          minimum, which unlocks its higher rate on {groupShort(e.threshold.unlockGroup).toLowerCase()}.
-                        </p>
-                      )}
+                      <div className="min-w-0">
+                        {split ? (
+                          <>
+                            <p className="text-[11px] font-bold tracking-wide text-ws-primary uppercase">
+                              {lead} <span className="rounded bg-[#FFE27A] px-1.5 py-0.5 text-[#0D1828] tabular-nums">{aed(e.amount)}/mo</span> on this card
+                            </p>
+                            <p className="mt-1 text-[12px] text-ws-muted">
+                              {prev ? `Use it after ${cardName(card(prev.cardId))} reaches its bonus limit.` : ''}
+                              {next ? `When its bonus limit is reached, switch to ${cardName(card(next.cardId))}.` : ''}
+                            </p>
+                          </>
+                        ) : (
+                          <p className="text-[12.5px] text-ws-muted">Use this card for all of it.</p>
+                        )}
+                        <RewardConditionLabel paymentCondition={e.paymentCondition} merchantList={e.merchantList} cardName={cardName(info)} />
+                        {e.threshold && (
+                          <p className="mt-1.5 inline-flex max-w-full items-start gap-1.5 rounded-lg border border-[#B9A2FF] bg-[#EFE9FF] px-2 py-0.5 text-[11px] leading-snug font-medium text-[#3B2380]">
+                            <span aria-hidden>⚑</span>
+                            <span>Earns less here, but needed to meet the {aed(e.threshold.minSpend)}/mo minimum spend. Rewards in other categories make up for it.</span>
+                          </p>
+                        )}
+                      </div>
+                      <p className="font-display text-[16px] leading-tight font-semibold text-ws-gain tabular-nums sm:text-right">
+                        {rw(e.monthlyReward)}<span className="text-[11px] font-medium text-ws-muted"> /mo</span>
+                      </p>
                     </div>
                   )
                 })}
-                {own.length === 0 && (
-                  <p className="py-3 text-[12px] text-ws-muted">This card works together with your other cards — see the shared categories below.</p>
-                )}
               </div>
-              {sharedHere.length > 0 && own.length > 0 && (
-                <p className="border-t border-ws-border bg-ws-secondary/60 px-4 py-2 text-[11px] text-ws-muted">
-                  Also used for {sharedHere.map(r => groupShort(r.group).toLowerCase()).join(', ')} — shared with another card (below).
-                </p>
-              )}
             </div>
-          )
-        })}
-      </div>
-
-      {shared.length > 0 && (
-        <>
-          <p className="mt-8 text-[11px] font-semibold tracking-[0.16em] text-ws-muted uppercase">Paid across more than one card</p>
-          <p className="mt-1 text-[12px] text-ws-muted">These categories move from one card to the next. Start with the first card, then switch.</p>
-          <div className="mt-3 grid items-start gap-3">
-            {shared.map(row => <PlaybookCard key={row.group} row={row} card={card} onDetails={onDetails} />)}
-          </div>
-        </>
-      )}
-    </>
+          </section>
+        )
+      })}
+      {!embedded && <div className="flex items-center justify-between gap-3 border-t border-ws-border bg-ws-gain/10 px-4 py-3 sm:px-5">
+        <p className="text-[13px] font-semibold text-ws-fg">Total rewards across all cards</p>
+        <TotalBox className="!text-[18px]">{rw(total)}<span className="text-[12px] font-medium text-[#4C8F6C]"> / month</span></TotalBox>
+      </div>}
+    </div>
   )
 }
 
@@ -841,122 +973,6 @@ function SummaryTile({ label, value, tone, className = '', onInfo }: { label: st
       )}
       <p className={`pr-10 text-[10px] font-semibold tracking-[0.14em] uppercase ${emerald ? 'text-white/85' : 'text-ws-muted'}`}>{label}</p>
       <p className={`mt-1 font-display text-[18px] font-semibold tabular-nums sm:text-[20px] ${emerald ? 'text-white' : tone === 'gain' ? 'text-ws-gain' : 'text-ws-fg'}`}>{value}</p>
-    </div>
-  )
-}
-
-function PlaybookCard({ row, card, onDetails }: { row: PlaybookRow; card: CardLookup; onDetails: CardDetails }) {
-  const { rw } = useRewardMode()
-  const multi = row.entries.length > 1
-  return (
-    <div className={`overflow-hidden rounded-2xl border border-ws-border bg-ws-card shadow-ws-lift ${multi ? 'md:col-span-2' : ''}`}>
-      <div className="flex items-center justify-between gap-3 border-b border-ws-border px-4 py-3">
-        <div className="flex min-w-0 items-center gap-3">
-          <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-ws-secondary text-[17px]">{groupIcon(row.group)}</span>
-          <p className="truncate font-display text-[15px] font-semibold text-ws-fg">{groupShort(row.group)}</p>
-        </div>
-        <div className="shrink-0 text-right">
-          <p className="text-[10px] font-semibold tracking-[0.12em] text-ws-muted uppercase">You spend</p>
-          <p className="text-[13px] font-semibold text-ws-fg tabular-nums">{aed(row.monthlySpend)} / month</p>
-        </div>
-      </div>
-
-      {multi ? (
-        // spillover: first card on the left, the card it spills to on the right, joined by the switch arrow
-        <div className="flex flex-col gap-1 px-4 py-3 md:flex-row md:items-stretch md:gap-0">
-          {row.entries.map((e, i) => {
-            const label = i === 0 ? `First ${aed(e.amount)} / month`
-              : i === row.entries.length - 1 ? `Remaining ${aed(e.amount)} / month` : `Next ${aed(e.amount)} / month`
-            const info = card(e.cardId)
-            return (
-              <Fragment key={e.cardId}>
-                {i > 0 && (
-                  <div className="flex shrink-0 items-center justify-center gap-1.5 py-1 md:w-[112px] md:flex-col md:px-2 md:py-0" aria-hidden>
-                    <span className="rounded-md border border-ws-accent/60 bg-ws-accent/15 px-2 py-1 text-center text-[9px] leading-tight font-bold tracking-[0.06em] text-ws-accent-fg uppercase">
-                      Bonus limit reached
-                    </span>
-                    <span className="grid size-8 place-items-center rounded-full bg-ws-primary text-[16px] text-white">
-                      <span className="md:hidden">↓</span><span className="hidden md:inline">→</span>
-                    </span>
-                    <span className="text-center text-[10px] leading-tight font-semibold text-ws-primary">Then switch to</span>
-                  </div>
-                )}
-                <div className="min-w-0 flex-1 rounded-xl border border-ws-border bg-ws-bg p-3">
-                  <p className="mb-2 text-[10px] font-semibold tracking-[0.12em] text-ws-muted uppercase">{label}</p>
-                  <div className="flex items-center gap-2.5">
-                    <CardChip card={info} className="!h-[33px] !w-[52px]" />
-                    <div className="min-w-0 flex-1">
-                      <p className="line-clamp-2 text-[13px] leading-snug font-semibold text-ws-fg">
-                        <CardLink id={e.cardId} onDetails={onDetails} className="hover:text-ws-primary">{cardName(info)}</CardLink>
-                      </p>
-                      {info.bank && <p className="truncate text-[11px] text-ws-muted">{info.bank}</p>}
-                      <RewardConditionLabel paymentCondition={e.paymentCondition} merchantList={e.merchantList} cardName={cardName(info)} emphasis="highlight" />
-                    </div>
-                  </div>
-                  <div className="mt-2.5 border-t border-ws-border pt-2">
-                    <p className="text-[9px] font-semibold tracking-[0.12em] text-ws-muted uppercase">You could earn</p>
-                    <p className="font-display text-[16px] leading-tight font-semibold text-ws-gain tabular-nums">
-                      {rw(e.monthlyReward)} <span className="text-[10px] font-normal text-ws-muted">/ month</span>
-                    </p>
-                  </div>
-                  {e.threshold && (
-                    <p className="mt-1.5 rounded-md bg-ws-secondary px-2 py-1 text-[10px] leading-tight text-ws-primary/80">
-                      <span aria-hidden>ⓘ </span>Helps this card reach its {aed(e.threshold.minSpend)}/month minimum, which unlocks its higher
-                      rate on {groupShort(e.threshold.unlockGroup).toLowerCase()}.
-                    </p>
-                  )}
-                </div>
-              </Fragment>
-            )
-          })}
-        </div>
-      ) : (
-        <div className="px-4 py-1">
-          {row.entries.map(e => (
-            <PlaybookEntryRow key={e.cardId} entry={e} label={null} info={card(e.cardId)} bordered={false} onDetails={onDetails} />
-          ))}
-        </div>
-      )}
-
-      {multi && (
-        <div className="flex items-center justify-between gap-3 border-t border-ws-border bg-ws-gain/10 px-4 py-2.5">
-          <p className="text-[12px] font-semibold text-ws-fg">Total {groupShort(row.group).toLowerCase()} rewards</p>
-          <p className="font-display text-[15px] font-semibold text-ws-gain tabular-nums">{rw(row.monthlyReward)} / month</p>
-        </div>
-      )}
-    </div>
-  )
-}
-
-function PlaybookEntryRow({ entry, label, info, bordered, onDetails }: { entry: PlaybookEntry; label: string | null; info: CardInfo; bordered: boolean; onDetails: CardDetails }) {
-  const { rw } = useRewardMode()
-  return (
-    <div className={`py-2.5 ${bordered ? 'border-t border-dashed border-ws-border' : ''}`}>
-      {label && <p className="mb-1.5 text-[10px] font-semibold tracking-[0.12em] text-ws-muted uppercase">{label}</p>}
-      <div className="flex items-center gap-3">
-        <CardChip card={info} className="!h-[33px] !w-[52px]" />
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-[13px] font-semibold text-ws-fg">
-            <CardLink id={entry.cardId} onDetails={onDetails} className="hover:text-ws-primary">{cardName(info)}</CardLink>
-          </p>
-          {info.bank && <p className="truncate text-[11px] text-ws-muted">{info.bank}</p>}
-          <RewardConditionLabel paymentCondition={entry.paymentCondition} merchantList={entry.merchantList} cardName={cardName(info)} emphasis="highlight" />
-        </div>
-        <div className="shrink-0 border-l border-ws-border pl-3 text-right">
-          <p className="text-[9px] font-semibold tracking-[0.12em] text-ws-muted uppercase">You could earn</p>
-          <p className="font-display text-[16px] leading-tight font-semibold text-ws-gain tabular-nums">{rw(entry.monthlyReward)}</p>
-          <p className="text-[10px] text-ws-muted">/ month</p>
-        </div>
-      </div>
-      {entry.threshold && (
-        <p className="mt-1.5 rounded-md bg-ws-secondary px-2 py-1 text-[10px] leading-tight text-ws-primary/80">
-          <span aria-hidden>ⓘ </span>Earns little here, but helps this card reach its {aed(entry.threshold.minSpend)}/month
-          minimum, which unlocks its higher rate on {groupShort(entry.threshold.unlockGroup).toLowerCase()}.
-        </p>
-      )}
-      {!entry.threshold && entry.limitReached && (
-        <p className="mt-1.5 text-[11px] text-ws-muted">Part of this spend is past the card&apos;s bonus limit and earns its standard rate.</p>
-      )}
     </div>
   )
 }
