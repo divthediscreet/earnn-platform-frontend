@@ -1,0 +1,38 @@
+/* Trip Planner landing: text left, compact steps right, no hero image */
+.landing{min-height:calc(100vh - 68px);display:flex;align-items:center;background:linear-gradient(135deg,#f5f8ff,#eef3ff 55%,#fffaf0);color:#0d1828}
+.hero{display:grid;grid-template-columns:1.1fr 1fr;gap:64px;align-items:center;width:min(1120px,calc(100% - 48px));margin:0 auto;padding:24px 0}
+.kicker{display:block;color:#a8801f;font-size:12px;font-weight:800;letter-spacing:.2em}
+.hero h1{margin:14px 0 16px;font-family:'Plus Jakarta Sans',sans-serif;font-size:clamp(34px,4.4vw,58px);line-height:1.06;letter-spacing:-.05em;color:#0d1828}
+.hero h1 em{font-style:normal;color:#0e3785}
+.hero p{margin:0 0 28px;max-width:480px;color:#34476b;font-size:17px;line-height:1.6}
+.cta{display:inline-flex;align-items:center;gap:10px;padding:15px 26px;border-radius:12px;background:#0e3785;color:#fff;font-size:16px;font-weight:700;text-decoration:none;box-shadow:0 10px 24px rgba(14,55,133,.28);transition:transform .15s,box-shadow .15s,background .15s}
+.cta:hover{background:#0b2d6f;transform:translateY(-1px);box-shadow:0 14px 28px rgba(14,55,133,.34)}
+.cta:focus-visible{outline:3px solid #c9a84c;outline-offset:3px}
+.note{display:block;margin-top:12px;color:#71809a;font-size:13px}
+.journey{position:relative;display:grid;gap:clamp(10px,2vh,16px);margin:0;padding:0 0 6px;list-style:none}
+.trail{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible}
+.trail path{fill:none;stroke:#0e3785;stroke-opacity:.35;stroke-width:2;stroke-dasharray:3 8;stroke-linecap:round}
+.plane{position:absolute;right:-6px;top:-22px;z-index:3;font-size:34px;color:#0e3785;transform:rotate(18deg);filter:drop-shadow(0 6px 8px rgba(14,55,133,.25));animation:glide 5s ease-in-out infinite}
+@keyframes glide{50%{transform:translate(-8px,6px) rotate(14deg)}}
+.stop{position:relative;z-index:1;width:70%;overflow:hidden;border:1px solid #d6e0f5;border-radius:18px;background:#fff;box-shadow:0 14px 34px rgba(14,55,133,.14);transition:transform .25s}
+.stop:hover{transform:translateY(-4px) rotate(0deg)}
+.stopA{transform:rotate(-1.5deg)}
+.stopB{justify-self:end;transform:rotate(1.2deg)}
+.stopC{transform:rotate(-.8deg)}
+.photo{position:relative;height:clamp(70px,12vh,96px);overflow:hidden;background:#dfe8fa}
+.photo>img{width:100%;height:100%;object-fit:cover}
+.stopA .photo>img{object-position:50% 62%}
+.chip{position:absolute;display:inline-flex;align-items:center;gap:5px;padding:5px 10px;border-radius:999px;background:rgba(255,255,255,.92);color:#0e3785;font-size:12px;font-weight:700;box-shadow:0 4px 10px rgba(13,24,40,.18)}
+.collage{display:grid;grid-template-columns:1.3fr 1fr 1fr;gap:3px}
+.collage figure{position:relative;margin:0;overflow:hidden}
+.collage img{width:100%;height:100%;object-fit:cover}
+.collage figcaption{position:absolute;left:6px;bottom:6px;padding:2px 8px;border-radius:999px;background:rgba(13,24,40,.62);color:#fff;font-size:11px;font-weight:700}
+.gold{position:absolute;right:10px;bottom:10px;display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:999px;background:linear-gradient(135deg,#f0d27a,#c9a02e);color:#3b2a00;font-size:12px;font-weight:800;box-shadow:0 6px 14px rgba(0,0,0,.3)}
+.body{display:flex;align-items:center;gap:10px;padding:9px 14px 11px}
+.num{flex:none;display:grid;place-items:center;width:26px;height:26px;border-radius:50%;background:#0e3785;color:#fff;font-size:14px;font-weight:800}
+.body h2{margin:0 0 1px;font-family:"Plus Jakarta Sans",sans-serif;font-size:15px;letter-spacing:-.01em;color:#0d1828}
+.body p{margin:0;color:#566782;font-size:12.5px;line-height:1.4}
+@media(prefers-reduced-motion:reduce){.plane{animation:none}.stop{transition:none}}
+@media(max-width:900px){.hero{grid-template-columns:1fr;gap:40px;padding:56px 0 64px}.stop{width:86%}}
+@media(max-width:520px){.hero{width:calc(100% - 32px);padding:40px 0 48px}.cta{width:100%;justify-content:center;padding:15px 18px;font-size:15px}}
+.formWrap{scroll-margin-top:84px;margin-top:0!important;padding-top:32px}

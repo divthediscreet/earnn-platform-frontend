@@ -6,7 +6,8 @@ import { useRouter } from 'next/navigation'
 import { getBanks, planTrips, type BankOption, type TripItem, type TripPlannerRequest, type TripPlannerResponse } from '@/lib/trip-planner/api'
 import { readExistingOnly, readFromWallet, readTripForm, readTripRequest, readTripResult, saveExistingOnly, saveExistingPicks, saveResultsScroll, saveSelectedTrip, saveTripResult, takeResultsScroll } from '@/lib/trip-planner/session'
 import ExistingCardsDialog from '@/components/trip-planner/ExistingCardsDialog'
-import TripShowcase, { CustomizeCta } from '@/components/trip-planner/TripShowcase'
+import { CustomizeCta } from '@/components/trip-planner/TripShowcase'
+import TripResults from '@/components/trip-planner/TripResults'
 import TripCustomizeWizard from '@/components/trip-planner/TripCustomizeWizard'
 import MilesLoadingState from '@/components/miles-goal/MilesLoadingState'
 import styles from '../../bulk-spend-miles/page.module.css'
@@ -115,30 +116,31 @@ export default function TripPlannerResultsPage() {
   const waitingForPicks = useExisting && !result.existing_cards
   const ignored = result.ignored_non_miles_cards
 
+  const bar = <div className={show.discoverTop}>
+    <div className={show.topLeft}>
+      <button type="button" className={show.editSpend} onClick={edit}>Edit spending <i className="ti ti-pencil" aria-hidden="true" /></button>
+      {fromWallet && <button type="button" className={show.backLink} onClick={() => router.push('/analyse/result')}><i className="ti ti-arrow-left" /> Back to Smart wallet result</button>}
+    </div>
+    {holdsBanks && <div className={show.existingBox}>
+      <label className={show.switch}><input type="checkbox" checked={useExisting} onChange={event => onToggle(event.target.checked)} /><i aria-hidden="true" /> Use only my existing cards</label>
+      {useExisting && <button type="button" className={show.edit} onClick={() => setDialogOpen(true)}>Change cards</button>}
+    </div>}
+  </div>
+  const notice = useExisting && ignored.length > 0 && <p className={show.notice} role="status"><i className="ti ti-info-circle" /> {ignored.map(card => card.card_name).join(', ')} {ignored.length === 1 ? 'doesn’t' : 'don’t'} earn miles, so {ignored.length === 1 ? 'it' : 'they'} won’t be counted.</p>
+  const hasTrips = !waitingForPicks && !!view && view.trips.length > 0
+
   return <div className={show.discoverPage}>
     <main className={show.discoverContent}>
-      <section>
-        <div className={show.discoverTop}>
-          <div className={show.topLeft}>
-            <button type="button" className={show.editSpend} onClick={edit}>Edit spending <i className="ti ti-pencil" aria-hidden="true" /></button>
-            {fromWallet && <button type="button" className={show.backLink} onClick={() => router.push('/analyse/result')}><i className="ti ti-arrow-left" /> Back to Smart wallet result</button>}
-          </div>
-          {holdsBanks && <div className={show.existingBox}>
-            <label className={show.switch}><input type="checkbox" checked={useExisting} onChange={event => onToggle(event.target.checked)} /><i aria-hidden="true" /> Use only my existing cards</label>
-            {useExisting && <button type="button" className={show.edit} onClick={() => setDialogOpen(true)}>Change cards</button>}
-          </div>}
-        </div>
-
-        {useExisting && ignored.length > 0 && <p className={show.notice} role="status"><i className="ti ti-info-circle" /> {ignored.map(card => card.card_name).join(', ')} {ignored.length === 1 ? 'doesn’t' : 'don’t'} earn miles, so {ignored.length === 1 ? 'it' : 'they'} won’t be counted.</p>}
-
-        {waitingForPicks
-          ? <div className={show.empty}><i className="ti ti-credit-card" /><h3>Choose the cards you already hold</h3><p>{holdsBanks ? 'Pick your card at each bank to see what only those cards could unlock.' : 'Add the banks where you hold a card in step 3 first.'}</p>{holdsBanks && <button type="button" className="btn-primary" onClick={() => setDialogOpen(true)}>Choose my cards</button>}</div>
-          : view && view.trips.length > 0
-            ? <TripShowcase trips={view.trips} onOpen={openTrip} />
+      {hasTrips
+        ? <TripResults trips={view.trips} onOpen={openTrip} onCustomize={() => setCustomizeOpen(true)} toolbar={<>{bar}{notice}</>} />
+        : <section>
+          {bar}
+          {notice}
+          {waitingForPicks
+            ? <div className={show.empty}><i className="ti ti-credit-card" /><h3>Choose the cards you already hold</h3><p>{holdsBanks ? 'Pick your card at each bank to see what only those cards could unlock.' : 'Add the banks where you hold a card in step 3 first.'}</p>{holdsBanks && <button type="button" className="btn-primary" onClick={() => setDialogOpen(true)}>Choose my cards</button>}</div>
             : <div className={show.empty}><i className="ti ti-plane-off" /><h3>No trip unlocked yet</h3><p>{view?.empty_reason ?? 'We could not find a trip for this spending.'}</p>{useExisting && <button type="button" className="btn-primary" onClick={() => setUseExisting(false)}>Show all cards instead</button>}</div>}
-
-        <CustomizeCta onClick={() => setCustomizeOpen(true)} />
-      </section>
+          <CustomizeCta onClick={() => setCustomizeOpen(true)} />
+        </section>}
     </main>
     {customizeOpen && <TripCustomizeWizard request={request} bankCodes={request.banks_held ?? []} onClose={() => setCustomizeOpen(false)} />}
     {dialogOpen && <ExistingCardsDialog banks={heldBanks} picks={picks} onConfirm={confirmPicks} onCancel={() => { setDialogOpen(false); if (!Object.keys(picks).length) setUseExisting(false) }} />}

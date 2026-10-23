@@ -16,6 +16,7 @@ import { readTripForm, saveFromWallet, saveTripSubmission, type BankMode, type T
 import styles from '../bulk-spend-miles/page.module.css'
 import formStyles from '../bulk-spend-miles/compact-spend-form.module.css'
 import tp from './trip-planner.module.css'
+import lp from './landing.module.css'
 
 const MONTHS = [
   ['Jan', 1], ['Feb', 2], ['Mar', 3], ['Apr', 4], ['May', 5], ['Jun', 6],
@@ -64,6 +65,7 @@ export default function TripPlannerPage() {
     const query = new URLSearchParams(window.location.search)
     const opened = query.get('from') === 'result'
     // The results page remembers the wallet route; "Edit spending" (?edit=1) keeps it, any other way in clears it.
+    if (opened || query.get('edit') === '1') setTimeout(() => document.getElementById('plan')?.scrollIntoView(), 0)
     if (opened) saveFromWallet(true)
     else if (query.get('edit') !== '1') saveFromWallet(false)
     // A saved trip is only used when this page was not opened from the result.
@@ -217,49 +219,82 @@ export default function TripPlannerPage() {
   }
 
   return <div className={styles.page}>
-    <section className={`${styles.hero} ${tp.heroBanner}`}>
-      <div><span className={styles.kicker}>FLY FOR FREE</span><h1>Turn everyday spending<br />into <em>travel possibilities.</em></h1><p>Tell us how you spend. We’ll show you where it could take you.</p>
-        <ul className={tp.heroCues}>
-          <li><span className={`${tp.cueIcon} ${tp.cueBlue}`}><i className="ti ti-plane-departure" /></span><div><b>See real destinations</b><small>Find out where your spending could take you.</small></div></li>
-          <li><span className={`${tp.cueIcon} ${tp.cueGreen}`}><i className="ti ti-credit-card" /></span><div><b>Personalized to you</b><small>Based on your spending and lifestyle.</small></div></li>
-          <li><span className={`${tp.cueIcon} ${tp.cueGold}`}><i className="ti ti-diamond" /></span><div><b>World of Luxury</b><small>We help you to fly Business class.</small></div></li>
-        </ul></div>
+    <section className={lp.landing}>
+      <div className={lp.hero}>
+        <div className={lp.heroText}>
+          <span className={lp.kicker}>FLY BETTER WITH EARNN</span>
+          <h1>Business Class Is Closer <em>Than You Think.</em></h1>
+          <p>Your everyday spending could unlock extraordinary journeys. Discover what’s possible with the right credit cards.</p>
+          <a href="#plan" className={lp.cta} onClick={event => { event.preventDefault(); document.getElementById('plan')?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }}>Explore My Travel Possibilities <i className="ti ti-arrow-down" aria-hidden="true" /></a>
+          <small className={lp.note}>Takes about two minutes. Estimates are fine.</small>
+        </div>
+
+        <ol className={lp.journey} aria-label="How it works">
+          <svg className={lp.trail} viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+            <path d="M 72 14 C 100 24, 100 34, 62 42 S 6 58, 36 70 S 96 82, 62 92" vectorEffect="non-scaling-stroke" />
+          </svg>
+          <i className={`ti ti-plane ${lp.plane}`} aria-hidden="true" />
+
+          <li className={`${lp.stop} ${lp.stopA}`}>
+            <div className={lp.photo}>
+              <img src="/images/home/journey-spend-324.webp" alt="" loading="lazy" />
+              <span className={lp.chip} style={{ left: 12, top: 12 }}><i className="ti ti-coffee" /> Dining</span>
+              <span className={lp.chip} style={{ right: 12, top: 40 }}><i className="ti ti-shopping-cart" /> Groceries</span>
+              <span className={lp.chip} style={{ left: 28, bottom: 12 }}><i className="ti ti-gas-station" /> Fuel</span>
+            </div>
+            <div className={lp.body}><span className={lp.num}>1</span><div><h2>Tell Us Your Spending</h2><p>Share how much you spend each month.</p></div></div>
+          </li>
+
+          <li className={`${lp.stop} ${lp.stopB}`}>
+            <div className={`${lp.photo} ${lp.collage}`}>
+              <figure><img src="/trip-planner/destinations/business-class/maldives.webp" alt="" loading="lazy" /><figcaption>Maldives</figcaption></figure>
+              <figure><img src="/trip-planner/destinations/business-class/london.webp" alt="" loading="lazy" /><figcaption>London</figcaption></figure>
+              <figure><img src="/trip-planner/destinations/business-class/japan.webp" alt="" loading="lazy" /><figcaption>Tokyo</figcaption></figure>
+            </div>
+            <div className={lp.body}><span className={lp.num}>2</span><div><h2>Discover Your Destinations</h2><p>See where your spending could take you.</p></div></div>
+          </li>
+
+          <li className={`${lp.stop} ${lp.stopC}`}>
+            <div className={lp.photo}>
+              <img src="/images/home/outcome-flight-cabin.webp" alt="" loading="lazy" />
+              <span className={lp.gold}><i className="ti ti-diamond" /> Business Class</span>
+            </div>
+            <div className={lp.body}><span className={lp.num}>3</span><div><h2>Unlock Your Dream Flight</h2><p>Find your path to miles, upgrades and Business Class.</p></div></div>
+          </li>
+        </ol>
+      </div>
     </section>
 
-    <main className={styles.content}>
+    <main className={`${styles.content} ${lp.formWrap}`} id="plan">
       <form className={styles.formCard} onSubmit={submit}>
         <ol className={tp.stepper} aria-label="Steps">{STEPS.map((label, index) => <li key={label} className={index === step ? tp.stepOn : index < step ? tp.stepDone : ''}><button type="button" onClick={() => index <= step && setStep(index)}><b>{index + 1}</b>{label}</button></li>)}</ol>
 
         {step === 0 && <section className={`sim-page ${tp.stepPanel}`}>
           <div className="sim-intro">
             <div>
-              <span className={tp.kicker}>FIRST, YOUR SPENDING…</span>
-              <h2>What do you usually spend each month?</h2>
-              <p>Add your usual monthly spending. Estimates are fine.</p>
+              <div className="sim-eyebrow">BUILD YOUR SPENDING PROFILE</div>
+              <h2>Tell us how you spend each month</h2>
+              <p>Enter only what applies to you. Leave the rest blank.</p>
             </div>
             <button type="button" className="sim-reset" onClick={() => { setSpend({}); setSplits(splitFromAmounts(undefined)); setError('') }}>Reset amounts</button>
           </div>
-          <section className="sim-setup">
-            <div className="sim-setup-heading">
-              <div className="sim-eyebrow">YOUR INCOME</div>
-              <p>This helps us find cards that fit your income.</p>
-            </div>
-            <label className="sim-salary">
-              <span>Monthly salary</span>
-              <div>
-                <b>AED</b>
-                <input type="number" inputMode="numeric" min="0" step="100" placeholder="e.g. 15,000"
-                  value={salary} onChange={event => setSalary(event.target.value)} aria-label="Monthly salary in AED" />
-              </div>
-            </label>
-          </section>
           <SpendEntryFields spend={spend} setSpend={setSpend} splits={splits} setSplits={setSplits} error={error}
-            copy={{ spendHeading: null, spendSubtext: 'Add what you typically spend each month.', summaryTitle: 'YOUR MONTHLY SPEND', categoryCount: count => `Across ${count} categor${count === 1 ? 'y' : 'ies'}` }}
-            cta={<button type="button" className="sim-cta" onClick={next} disabled={monthlyTotal <= 0}>Next: Upcoming Expenses →</button>} />
+            hideBreakdown copy={{ summaryTitle: 'YOUR MONTHLY SPENDING' }}
+            cta={<>
+              <label className="sim-summary-salary">
+                <span>Monthly salary<small>To check which cards you qualify for</small></span>
+                <div>
+                  <b>AED</b>
+                  <input type="number" inputMode="numeric" min="0" step="100" placeholder="e.g. 15,000"
+                    value={salary} onChange={event => setSalary(event.target.value)} aria-label="Monthly salary in AED" />
+                </div>
+              </label>
+              <button type="button" className="sim-cta" onClick={next} disabled={monthlyTotal <= 0}>Go for step 2:<br />Upcoming Expenses →</button>
+            </>} />
         </section>}
 
         {step === 1 && <section className={tp.stepPanel}>
-          <div className={styles.formHeading}><div><span className={tp.kicker}>NEXT, WHAT’S COMING UP…</span><h2>Anything extra coming up in the next 12 months?</h2><p className={formStyles.formIntro}>Add any planned expenses — we’ll show you how much further they could take you.</p></div></div>
+          <div className={styles.formHeading}><div><span className={tp.kicker}>NEXT, WHAT’S COMING UP…</span><h2>Sometimes we don’t realise how big our occasional expenses are.</h2><p className={formStyles.formIntro}>Big, irregular expenses are a large part of what we spend. Add any upcoming big expenses — this will help you fly faster.</p></div></div>
           <section className={formStyles.expensesPanel}>
             {topicsError && <p className={styles.error} role="alert"><i className="ti ti-alert-circle" /> {topicsError} <button type="button" className={tp.back} onClick={() => void loadTopics()} disabled={topicsLoading}>Retry</button></p>}
             <div className={formStyles.schedules}>{payments.map((payment, index) => <div className={formStyles.expenseRow} key={`${index}-${payment.topic_code}`}>
@@ -326,7 +361,7 @@ export default function TripPlannerPage() {
           {step < STEPS.length - 1
             // Distinct keys: without them React reuses the one button node, so the click that opens step 3 flips it to type="submit" before the
             // browser finishes the click and the form is submitted at once (step 3 flashes by and the results load immediately).
-            ? <button key="continue" className="btn-primary" type="button" onClick={next}>{step === 0 ? 'Next: Upcoming Expenses' : 'Next: Your Cards & Miles'} <i className="ti ti-arrow-right" /></button>
+            ? <button key="continue" className="btn-primary" type="button" onClick={next}>{step === 0 ? 'Next: Upcoming Expenses' : <>Go for step 3:<br />Add Existing Miles</>} <i className="ti ti-arrow-right" /></button>
             : <>
               <button type="button" className={tp.skipLink} onClick={skipStep}>Skip this step</button>
               <button key="submit" className="btn-primary" type="submit">Show my trips <i className="ti ti-arrow-right" /></button>

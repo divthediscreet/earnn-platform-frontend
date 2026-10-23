@@ -1,7 +1,6 @@
 'use client'
 
-// Trip results as a discovery page: an intro hero with postcards of the user's own selected trips, a clean grid of destination
-// cards, an optional "Worth the wait" strip and the Customize call to action; plus the trip detail pop-up.
+// Trip results as a simple discovery page: four destination cards and the Customize call to action; plus the trip detail pop-up.
 // The first view never shows the airline, a card, or how the miles are earned (spec v4 §4.B).
 // Presentation only: every trip, label and time comes from the Trip Planner response, in the order the server sent it.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -11,7 +10,7 @@ import type { TripItem, TripPlannerRequest, TripPlanResponse } from '@/lib/trip-
 import { Opportunities, milesPlan, topicName } from '@/components/bulk-spend-miles/BulkResultView'
 import plan from '@/components/bulk-spend-miles/BulkResultView.module.css'
 import { TripWhyThisCard, summariseSpend } from './TripPlanSections'
-import { AIRLINE_LABEL, cabinImage, CABIN_LABEL, formatMiles, monthsPhrase, PARTY_ICON, PARTY_LABEL, shortPlace, shortTime, tripArt } from '@/lib/trip-planner/format'
+import { AIRLINE_LABEL, cabinImage, CABIN_LABEL, formatMiles, monthsPhrase, PARTY_ICON, tripArt } from '@/lib/trip-planner/format'
 import styles from './TripShowcase.module.css'
 import CardNameLink from '@/components/CardNameLink'
 
@@ -22,56 +21,17 @@ function Photo({ trip }: { trip: TripItem }) {
   return art ? <img src={art.image} alt="" loading="lazy" /> : null
 }
 
-/** Up to three different destinations from the selected trips (the Top Pick first), for the postcard collage. */
-function postcardTrips(trips: TripItem[]): TripItem[] {
-  const seen = new Set<string>()
-  const picks: TripItem[] = []
-  for (const trip of [...trips.filter(item => item.slot !== 'stretch'), ...trips.filter(item => item.slot === 'stretch')]) {
-    const key = tripArt(trip.destination_names)?.key
-    if (!key || seen.has(key)) continue
-    seen.add(key)
-    picks.push(trip)
-    if (picks.length === 3) break
-  }
-  return picks
-}
-
-function IntroHero({ trips }: { trips: TripItem[] }) {
-  const cards = postcardTrips(trips)
-  return <section className={styles.intro}>
-    <div className={styles.introCopy}>
-      <span className={styles.introKicker}>YOUR SPENDING CAN TAKE YOU PLACES</span>
-      <h2>Turn your everyday<br />spend into <em>extraordinary</em><br /><em>getaways</em></h2>
-      <p>Based on your spending and the miles you can earn.</p>
-      <ul className={styles.cues}>
-        <li><i className="ti ti-map-pin" aria-hidden="true" /><div><strong>Real destinations</strong><small>You can actually reach</small></div></li>
-        <li><i className="ti ti-calendar-time" aria-hidden="true" /><div><strong>Personalized timeline</strong><small>Based on your spending</small></div></li>
-        <li><i className="ti ti-armchair" aria-hidden="true" /><div><strong>Business, upgrades &amp; more</strong><small>Luxury experiences</small></div></li>
-      </ul>
-    </div>
-    <div className={styles.postcards} aria-hidden="true">
-      <span className={styles.cloud} />
-      <svg className={styles.flightPath} viewBox="0 0 300 90" fill="none"><path d="M4 84 C 70 80, 150 18, 262 28" stroke="#dbe8ff" strokeWidth="1.6" strokeDasharray="3 5" strokeLinecap="round" /></svg>
-      <i className={`ti ti-plane ${styles.flightPlane}`} />
-      {cards.map((trip, index) => <figure key={trip.trip_id} className={`${styles.postcard} ${styles[`postcard${index}`]}`}><Photo trip={trip} /></figure>)}
-      {cards.map((trip, index) => <span key={`pill${trip.trip_id}`} className={`${styles.pill} ${styles[`pill${index}`]}`}>
-        <i className="ti ti-map-pin-filled" /><span><b>{shortPlace(trip.destination_names[0])}</b><small>{shortTime(trip)}</small></span>
-      </span>)}
-    </div>
-  </section>
-}
-
 function DestinationCard({ trip, onOpen }: { trip: TripItem, onOpen: (trip: TripItem) => void }) {
   return <button type="button" className={styles.destCard} onClick={() => onOpen(trip)} aria-label={`Open: ${trip.hook}`}>
     <span className={styles.destPhoto}><Photo trip={trip} />{trip.is_hero && <span className={styles.topPick}><i className="ti ti-star-filled" /> TOP PICK</span>}</span>
     <span className={styles.destBody}>
       <strong>{trip.hook}</strong>
-      <small>{CABIN_LABEL[trip.cabin]}</small>
-      <span className={styles.destMeta}>
-        <span><i className="ti ti-clock" /> {shortTime(trip)}</span>
-        <span><i className={`ti ${PARTY_ICON[trip.party]}`} /> {PARTY_LABEL[trip.party]}</span>
-        <i className={`ti ti-arrow-right ${styles.destGo}`} aria-hidden="true" />
+      <span className={styles.destFacts}>
+        <span><i className="ti ti-armchair" aria-hidden="true" /><span><small>Cabin</small><b>{CABIN_LABEL[trip.cabin]}</b></span></span>
+        <span><i className="ti ti-clock" aria-hidden="true" /><span><small>You could fly in</small><b>{trip.ready_now ? 'Right now' : `About ${trip.months} month${trip.months === 1 ? '' : 's'}`}</b></span></span>
+        <span><i className={`ti ${PARTY_ICON[trip.party]}`} aria-hidden="true" /><span><small>Travelling</small><b>{trip.party === 'family4' ? 'Family of 4' : `${trip.travellers} ${trip.travellers === 1 ? 'person' : 'people'}`}</b></span></span>
       </span>
+      <i className={`ti ti-arrow-right ${styles.destGo}`} aria-hidden="true" />
     </span>
   </button>
 }
@@ -103,24 +63,13 @@ function DestinationRow({ trips, onOpen }: { trips: TripItem[], onOpen: (trip: T
 export default function TripShowcase({ trips, onOpen }: { trips: TripItem[], onOpen: (trip: TripItem) => void }) {
   if (!trips.length) return null
   // The server decides the order: the Top Pick first, the other normal trips by score, "Worth the wait" trips last.
-  const normal = trips.filter(trip => trip.slot !== 'stretch')
-  const waiting = trips.filter(trip => trip.slot === 'stretch')
-  return <>
-    <IntroHero trips={trips} />
-    {normal.length > 0 && <section className={styles.discover}>
-      <h3>More places your spending could take you</h3>
-      <p>Personalized possibilities based on your spending.</p>
-      <DestinationRow trips={normal} onOpen={onOpen} />
-    </section>}
-    {waiting.length > 0 && <section className={styles.waitStrip}>
-      <span className={styles.waitKicker}>WORTH THE WAIT</span>
-      <div className={styles.waitList}>{waiting.map(trip => <button type="button" key={trip.trip_id} className={styles.waitItem} onClick={() => onOpen(trip)} aria-label={`Open: ${trip.hook}`}>
-        <span className={styles.waitThumb}><Photo trip={trip} /></span>
-        <span className={styles.waitText}><strong>{trip.hook}</strong><small>{shortTime(trip)}</small></span>
-        <i className="ti ti-arrow-right" aria-hidden="true" />
-      </button>)}</div>
-    </section>}
-  </>
+  // Kept simple: only the first four, then the Customize message.
+  const picks = [...trips.filter(trip => trip.slot !== 'stretch'), ...trips.filter(trip => trip.slot === 'stretch')].slice(0, 4)
+  return <section className={styles.discover}>
+    <h3>Trips your spending could unlock</h3>
+    <p className={styles.discoverSub}>Here is how soon you could fly, based on what you spend each month.</p>
+    <DestinationRow trips={picks} onOpen={onOpen} />
+  </section>
 }
 
 /** "Want a trip of your own?": the road into Customize My Trip. */
@@ -132,7 +81,7 @@ export function CustomizeCta({ onClick }: { onClick: () => void }) {
     </svg>
     <i className={`ti ti-plane-tilt ${styles.ctaPlane}`} aria-hidden="true" />
     <i className={`ti ti-luggage ${styles.ctaBag}`} aria-hidden="true" />
-    <div className={styles.ctaCopy}><h3>Want a trip of your own?</h3><p>Choose a destination, cabin and travellers, and see exactly which card gets you there and how fast.</p></div>
+    <div className={styles.ctaCopy}><h3>In fact, you can customize it for your dream destination.</h3><p>Choose a destination, cabin and travellers, and see exactly which card gets you there and how fast.</p></div>
     <button type="button" className={styles.ctaButton} onClick={onClick}>Customize My Trip <i className="ti ti-arrow-right" /></button>
   </section>
 }

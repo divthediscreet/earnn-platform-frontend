@@ -63,20 +63,20 @@ export default function Navbar() {
             <button type="button" className={styles.toolsButton} style={navLinkStyle} onClick={() => setToolsOpen(v => !v)} aria-haspopup="menu" aria-expanded={toolsOpen}>
               Explore Earnn <i className={`ti ${toolsOpen ? 'ti-chevron-up' : 'ti-chevron-down'}`} aria-hidden="true" />
             </button>
-            {toolsOpen && (
-              <div className={styles.toolsMenu} role="menu">
-                <p className={styles.exploreHead}>What Earnn offers</p>
-                <div className={styles.exploreGrid}>
-                  {EXPLORE_TOOLS.map(tool => (
-                    <Link key={tool.href} href={tool.href} role="menuitem" className={styles.exploreItem} onClick={() => setToolsOpen(false)}>
-                      <Image src={tool.img} alt="" width={96} height={60} sizes="96px" />
-                      <span><b>{tool.name}</b><small>{tool.text}</small></span>
-                    </Link>
-                  ))}
-                </div>
-                <Link href="/chat" role="menuitem" className={styles.exploreFoot} onClick={() => setToolsOpen(false)}>Have a question? <b>Ask Earnie</b> <i className="ti ti-arrow-right" aria-hidden="true" /></Link>
+            {/* Always mounted (hidden until opened) so the thumbnails are fetched at page load, not on first click. */}
+            <div className={styles.toolsMenu} role="menu" hidden={!toolsOpen}>
+              <p className={styles.exploreHead}>What Earnn offers</p>
+              <div className={styles.exploreGrid}>
+                {EXPLORE_TOOLS.map(tool => (
+                  <Link key={tool.href} href={tool.href} role="menuitem" className={styles.exploreItem} onClick={() => setToolsOpen(false)}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={tool.img.replace(/\/tile-([a-z]+)-\d+\.webp$/, '/nav-$1.webp')} alt="" width={96} height={60} loading="eager" decoding="async" />
+                    <span><b>{tool.name}</b><small>{tool.text}</small></span>
+                  </Link>
+                ))}
               </div>
-            )}
+              <Link href="/chat" role="menuitem" className={styles.exploreFoot} onClick={() => setToolsOpen(false)}>Have a question? <b>Ask Earnie</b> <i className="ti ti-arrow-right" aria-hidden="true" /></Link>
+            </div>
           </div>
         </div>
         <button className={styles.mobileMenuButton} onClick={() => setMenuOpen(v => !v)} aria-label="Toggle navigation" aria-expanded={menuOpen}>
