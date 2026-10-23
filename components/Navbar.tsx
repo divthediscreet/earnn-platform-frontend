@@ -2,13 +2,14 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { useEffect, useRef, useState } from 'react'
+import { EXPLORE_TOOLS } from './home/exploreTools'
 import styles from './Navbar.module.css'
 
 export default function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false)
   const [toolsOpen, setToolsOpen] = useState(false)
   const toolsRef = useRef<HTMLDivElement>(null)
-  // The "Other Useful Tools" menu closes on an outside click or Escape.
+  // The "Explore Earnn" menu closes on an outside click or Escape.
   useEffect(() => {
     if (!toolsOpen) return
     const onClick = (event: MouseEvent) => { if (!toolsRef.current?.contains(event.target as Node)) setToolsOpen(false) }
@@ -50,28 +51,30 @@ export default function Navbar() {
           <Link href="/analyse" style={navLinkStyle}>
             Best card for me
           </Link>
-          {/* Analyze-old (/analyse-old) is hidden from the nav for now; the page still works by URL. To be deleted later. */}
-          <Link href="/bulk-spend-miles" style={navLinkStyle}>
-            Big Spend Planner
+          <Link href="/all-uae-cards" style={navLinkStyle}>
+            Simulate and Compare Cards
           </Link>
+          {/* Analyze-old (/analyse-old) is hidden from the nav for now; the page still works by URL. To be deleted later. */}
           <Link href="/merchant-lookup" style={navLinkStyle}>
-            Smart Checkout
+            Check Before You Pay
           </Link>
           {/* Fly for Free (/miles) is hidden from the nav for now; the page itself still works. */}
-          <Link href="/my-benefits" style={navLinkStyle}>
-            My Benefits
-          </Link>
-          <Link href="/all-uae-cards" style={navLinkStyle}>
-            Compare and Test Cards
-          </Link>
           <div ref={toolsRef} className={styles.tools}>
             <button type="button" className={styles.toolsButton} style={navLinkStyle} onClick={() => setToolsOpen(v => !v)} aria-haspopup="menu" aria-expanded={toolsOpen}>
-              Other Useful Tools <i className={`ti ${toolsOpen ? 'ti-chevron-up' : 'ti-chevron-down'}`} aria-hidden="true" />
+              Explore Earnn <i className={`ti ${toolsOpen ? 'ti-chevron-up' : 'ti-chevron-down'}`} aria-hidden="true" />
             </button>
             {toolsOpen && (
               <div className={styles.toolsMenu} role="menu">
-                <Link href="/trip-planner" role="menuitem" onClick={() => setToolsOpen(false)}>Turn Spending into Flights</Link>
-                <Link href="/chat" role="menuitem" onClick={() => setToolsOpen(false)}>Ask Earnie</Link>
+                <p className={styles.exploreHead}>What Earnn offers</p>
+                <div className={styles.exploreGrid}>
+                  {EXPLORE_TOOLS.map(tool => (
+                    <Link key={tool.href} href={tool.href} role="menuitem" className={styles.exploreItem} onClick={() => setToolsOpen(false)}>
+                      <Image src={tool.img} alt="" width={96} height={60} sizes="96px" />
+                      <span><b>{tool.name}</b><small>{tool.text}</small></span>
+                    </Link>
+                  ))}
+                </div>
+                <Link href="/chat" role="menuitem" className={styles.exploreFoot} onClick={() => setToolsOpen(false)}>Have a question? <b>Ask Earnie</b> <i className="ti ti-arrow-right" aria-hidden="true" /></Link>
               </div>
             )}
           </div>
@@ -83,11 +86,11 @@ export default function Navbar() {
       {menuOpen && (
         <div className={styles.mobileNavMenu}>
           <Link href="/analyse" onClick={() => setMenuOpen(false)}>Best card for me</Link>
+          <Link href="/all-uae-cards" onClick={() => setMenuOpen(false)}>Simulate and Compare Cards</Link>
+          <Link href="/merchant-lookup" onClick={() => setMenuOpen(false)}>Check Before You Pay</Link>
+          <span className={styles.mobileGroup}>Explore Earnn</span>
           <Link href="/bulk-spend-miles" onClick={() => setMenuOpen(false)}>Big Spend Planner</Link>
-          <Link href="/merchant-lookup" onClick={() => setMenuOpen(false)}>Smart Checkout</Link>
           <Link href="/my-benefits" onClick={() => setMenuOpen(false)}>My Benefits</Link>
-          <Link href="/all-uae-cards" onClick={() => setMenuOpen(false)}>Compare and Test Cards</Link>
-          <span className={styles.mobileGroup}>Other Useful Tools</span>
           <Link href="/trip-planner" onClick={() => setMenuOpen(false)}>Turn Spending into Flights</Link>
           <Link href="/chat" onClick={() => setMenuOpen(false)}>Ask Earnie</Link>
         </div>

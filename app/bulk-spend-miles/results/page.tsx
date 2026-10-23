@@ -4,35 +4,47 @@ import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import type { BulkSpendAedResponse, BulkSpendMilesRequest, BulkSpendMilesResponse } from '@/lib/bulk-spend-miles/api'
 import { simulateBulkSpendAed, simulateBulkSpendMiles } from '@/lib/bulk-spend-miles/api'
-import { consumeBulkOutcomeFlag, readBulkRequest } from '@/lib/bulk-spend-miles/session'
+import { readBulkPath, readBulkRequest, type BulkPath } from '@/lib/bulk-spend-miles/session'
 import { fetchCards } from '@/lib/api'
 import { airlineGroupForCurrency, type AirlineGroup } from '@/lib/bulk-spend-miles/airline-reach'
 import BulkSpendResultFilters, { type BulkResultSort } from '@/components/bulk-spend-miles/BulkSpendResultFilters'
 import BulkResultView, { aedPlan, formatAed, milesPlan, planMetric, travelPotentialForMiles } from '@/components/bulk-spend-miles/BulkResultView'
-import MilesLoadingState from '@/components/miles-goal/MilesLoadingState'
+import BulkSpendHolding from '@/components/bulk-spend-miles/BulkSpendHolding'
+import BulkRefineOptions, { type RefineMode } from '@/components/bulk-spend-miles/BulkRefineOptions'
+import CardSelectionFlow from '@/components/my-benefits/CardSelectionFlow'
+import type { CatalogueCard } from '@/lib/life-moments/api'
+import { bankKey, loadOwnedCards, saveOwnedCards } from '@/lib/my-benefits/ownedCards'
 import styles from '../page.module.css'
 import resultStyles from '../result-controls.module.css'
-import tileStyles from '../travel-result-tile.module.css'
-import loadingStyles from '../BulkSpendLoading.module.css'
-import outcomeStyles from '../BulkSpendOutcome.module.css'
 import pageStyles from './results-page.module.css'
+
+const HOLD_SECONDS = 6
 
 export default function BulkSpendResultsPage() {
   const router = useRouter()
   const [request, setRequest] = useState<BulkSpendMilesRequest | null>(null)
   const [result, setResult] = useState<BulkSpendMilesResponse | null>(null)
   const [aedResult, setAedResult] = useState<BulkSpendAedResponse | null>(null)
-  const [resultTab, setResultTab] = useState<'miles' | 'aed'>('miles')
-  const [aedLoading, setAedLoading] = useState(false)
-  const [aedError, setAedError] = useState('')
+  // The user picked miles or cashback before arriving: only that path is calculated and shown.
+  const [resultTab, setResultTab] = useState<BulkPath>('miles')
+  const [holdDone, setHoldDone] = useState(false)
+  const [firstLoaded, setFirstLoaded] = useState(false)
   const [error, setError] = useState('')
   const [filtersOpen, setFiltersOpen] = useState(false)
   const [selectedBanks, setSelectedBanks] = useState<string[]>([])
   const [includeNewCard, setIncludeNewCard] = useState(true)
   const [resultSort, setResultSort] = useState<BulkResultSort>('combined')
-  const [showOutcome, setShowOutcome] = useState(false)
   const [selectedAirlines, setSelectedAirlines] = useState<AirlineGroup[]>([])
   const [cardAirlines, setCardAirlines] = useState<Record<string, AirlineGroup | null> | null>(null)
+  // Refine: "new" keeps welcome bonuses but leaves out every bank the user already banks with;
+  // "own" shows only the cards the user already has, without welcome bonuses.
+  const [mode, setMode] = useState<RefineMode>('new')
+  const [myCards, setMyCards] = useState<CatalogueCard[]>([])
+  const [pickerFor, setPickerFor] = useState<RefineMode | null>(null)
+  const [chosenPath, setChosenPath] = useState<BulkPath>('miles')
+
+  const ownedIds = useMemo(() => new Set(myCards.map(card => card.earnn_card_id)), [myCards])
+  const ownedBanks = useMemo(() => new Set(myCards.map(card => bankKey(card.bank_name))), [myCards])
 
   const editPlan = () => router.push('/bulk-spend-miles')
 
@@ -46,20 +58,40 @@ export default function BulkSpendResultsPage() {
     // sessionStorage only exists after hydration, so the saved plan is read in an effect.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setRequest(saved)
+    setResultTab(readBulkPath())
+    setChosenPath(readBulkPath())
+    setMyCards(loadOwnedCards())
   }, [router])
+
+  // Whatever the calculation speed, the welcome-bonus screen stays for at least this long.
+  useEffect(() => {
+    const timer = setTimeout(() => setHoldDone(true), HOLD_SECONDS * 1000)
+    return () => clearTimeout(timer)
+  }, [])
 
   useEffect(() => {
     if (!request) return
     let current = true
-    simulateBulkSpendMiles(request)
-      .then(response => {
-        if (!current) return
-        setResult(response)
-        if (consumeBulkOutcomeFlag()) setShowOutcome(true)
-      })
-      .catch(reason => current && setError(reason instanceof Error ? reason.message : 'We could not calculate your miles plan right now.'))
+    if (resultTab === 'miles') {
+      simulateBulkSpendMiles(request)
+        .then(response => {
+          if (!current) return
+          setResult(response)
+          setFirstLoaded(true)
+        })
+        .catch(reason => current && setError(reason instanceof Error ? reason.message : 'We could not calculate your miles plan right now.'))
+    } else {
+      // In "use only cards I have", ask for exactly those cards so points cards (e.g. noon) are not left out of cashback.
+      const ownedList = mode === 'own' ? Array.from(ownedIds) : undefined
+      // Drop the previous cashback list so a stale one is never shown for the new set of cards.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setAedResult(null)
+      simulateBulkSpendAed(ownedList?.length ? { ...request, owned_card_ids: ownedList } : request)
+        .then(response => { if (!current) return; setAedResult(response); setFirstLoaded(true) })
+        .catch(reason => current && setError(reason instanceof Error ? reason.message : 'We could not calculate your cashback right now.'))
+    }
     return () => { current = false }
-  }, [request])
+  }, [request, resultTab, mode, ownedIds])
 
   // The simulate response has no reward currency, so join it from the card catalogue for the airline filter.
   useEffect(() => {
@@ -73,23 +105,27 @@ export default function BulkSpendResultsPage() {
     return () => { current = false }
   }, [])
 
-  const showAedResults = async () => {
-    setResultTab('aed')
-    if (aedResult || !request || aedLoading) return
-    setAedLoading(true)
-    setAedError('')
-    try {
-      setAedResult(await simulateBulkSpendAed(request))
-    } catch (reason) {
-      setAedError(reason instanceof Error ? reason.message : 'We could not calculate your AED rewards right now.')
-    } finally {
-      setAedLoading(false)
-    }
-  }
-
   const onIncludeNewCardChange = (value: boolean) => {
     setIncludeNewCard(value)
     if (!value && resultSort === 'combined') setResultSort('bulk_plus_regular')
+  }
+
+
+  const applyMode = (next: RefineMode) => {
+    setMode(next)
+    onIncludeNewCardChange(next === 'new')
+    // Back to "new card": return to the kind of card the user first asked for (miles or cashback).
+    if (next === 'new') setResultTab(chosenPath)
+  }
+  const selectMode = (next: RefineMode) => {
+    if (!myCards.length) setPickerFor(next)
+    else applyMode(next)
+  }
+  const confirmCards = (cards: CatalogueCard[]) => {
+    saveOwnedCards(cards)
+    setMyCards(cards)
+    if (pickerFor) applyMode(pickerFor)
+    setPickerFor(null)
   }
 
   const bankOptions = useMemo(() => Array.from(new Set([
@@ -98,7 +134,8 @@ export default function BulkSpendResultsPage() {
   ])).sort((a, b) => a.localeCompare(b)), [result, aedResult])
 
   const passesFilters = (id: string, bank: string, airlineFilter: boolean) =>
-    (!selectedBanks.length || selectedBanks.includes(bank))
+    (mode === 'own' ? ownedIds.has(id) : !ownedBanks.has(bankKey(bank)))
+    && (!selectedBanks.length || selectedBanks.includes(bank))
     && (!airlineFilter || !selectedAirlines.length || (cardAirlines !== null && selectedAirlines.includes(cardAirlines[id] as AirlineGroup)))
 
   // The backend's own total drives the default order; the user's chosen view only re-orders explicitly.
@@ -109,7 +146,7 @@ export default function BulkSpendResultsPage() {
       .map(card => milesPlan(card, includeNewCard))
       .sort((left, right) => planMetric(right, resultSort) - planMetric(left, resultSort) || left.name.localeCompare(right.name))
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [result, resultSort, selectedBanks, selectedAirlines, cardAirlines, includeNewCard])
+  }, [result, resultSort, selectedBanks, selectedAirlines, cardAirlines, includeNewCard, mode, ownedIds, ownedBanks])
 
   const aedPlans = useMemo(() => {
     if (!aedResult) return []
@@ -118,7 +155,7 @@ export default function BulkSpendResultsPage() {
       .map(card => aedPlan(card, includeNewCard))
       .sort((left, right) => planMetric(right, resultSort) - planMetric(left, resultSort) || left.name.localeCompare(right.name))
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [aedResult, resultSort, selectedBanks, includeNewCard])
+  }, [aedResult, resultSort, selectedBanks, includeNewCard, mode, ownedIds, ownedBanks])
 
   if (error) {
     return <div className={styles.page}><main className={pageStyles.errorWrap}>
@@ -127,10 +164,20 @@ export default function BulkSpendResultsPage() {
     </main></div>
   }
 
-  if (!request || !result) {
-    return <main className={loadingStyles.screen}><MilesLoadingState destination="your best reward" headline="Turning your expenses into a deal…" supportingText="Comparing every eligible card, reward rate, spending tier and welcome bonus." /></main>
+  const projection = (resultTab === 'miles' ? result : aedResult)?.monthly_projection
+  // The welcome-bonus screen is only for the first calculation; later switches (e.g. to cashback) recalculate quietly.
+  if (!request || !holdDone || !firstLoaded) {
+    return <BulkSpendHolding path={resultTab} />
+  }
+  if (!projection) {
+    return <div className={styles.page}><main className={pageStyles.content}>
+      <div className={`${styles.empty} ${pageStyles.calculating}`} role="status" aria-live="polite"><span className={pageStyles.spinner} aria-hidden="true" /><h3>Updating your results…</h3><p>Working out the rewards for your cards.</p></div>
+    </main></div>
   }
 
+  const plannedSpend = formatAed(projection.reduce((total, month) => total + month.total_spend_aed, 0))
+  // Miles view only: when the best card could get a business class flight or upgrade, say so up front.
+  const luxury = resultTab === 'miles' && travelPotentialForMiles(milesPlans[0]?.total ?? 0).startsWith('Business')
   const activeFilterCount = (resultTab === 'miles' ? selectedAirlines.length : 0) + selectedBanks.length
   const filterButton = <button type="button" className={resultStyles.filterButton} onClick={() => setFiltersOpen(true)}><i className="ti ti-adjustments-horizontal" /> Filter & sort</button>
 
@@ -142,44 +189,24 @@ export default function BulkSpendResultsPage() {
 
     <main className={pageStyles.content}>
       <section id="bulk-results" className={styles.results}>
-        <div className={styles.resultHeading}><div><h2>You’re spending it anyway. Make it count.</h2><p>Earnn finds the smartest way to pay and helps you get more back.</p></div><div className={`${styles.totalSpend} ${tileStyles.planSpend}`}><strong>{formatAed(result.monthly_projection.reduce((total, month) => total + month.total_spend_aed, 0))}</strong><small>planned over the next 12 months</small></div></div>
-        <div className={resultStyles.controls}>
-          <div className={resultStyles.tabs}>
-            <button type="button" onClick={() => setResultTab('miles')} className={resultTab === 'miles' ? resultStyles.active : ''}>Miles view</button>
-            <button type="button" onClick={showAedResults} className={resultTab === 'aed' ? resultStyles.active : ''}>AED rewards view</button>
-          </div>
-          <button type="button" className={resultStyles.filterButton} onClick={() => setFiltersOpen(true)}><i className="ti ti-adjustments-horizontal" /> Filter & sort{activeFilterCount > 0 ? ` · ${activeFilterCount}` : ''}</button>
+        <div className={`${styles.resultHeading} ${luxury ? pageStyles.luxury : ''}`}><div>{luxury
+          ? <><h2><i className="ti ti-sparkles" /> Welcome to the world of luxury.</h2><p>You spend <b>{plannedSpend}</b> in a year. You deserve <b>business class</b> travel. Earnn finds you the smartest way.</p></>
+          : <><h2>You’re spending it anyway. Make your {plannedSpend} spending per year count.</h2><p>Earnn finds the smartest way to pay and helps you get more back.</p></>}</div></div>
+        <div className={`${resultStyles.controls} ${pageStyles.refineRow}`}>
+          <BulkRefineOptions mode={mode} onSelect={selectMode} cardCount={myCards.length} onEditCards={() => setPickerFor(mode)} unit={resultTab} action={<button type="button" className={resultStyles.filterButton} onClick={() => setFiltersOpen(true)}><i className="ti ti-adjustments-horizontal" /> Filter & sort{activeFilterCount > 0 ? ` · ${activeFilterCount}` : ''}</button>} />
         </div>
         {resultTab === 'miles' ? (
-          !milesPlans.length ? <div className={styles.empty}><i className="ti ti-plane-off" /><h3>No cards match these filters.</h3><p>Clear the bank or airline filter to see all eligible cards.</p>{filterButton}</div>
-            : <BulkResultView key={`miles-${includeNewCard}-${resultSort}`} unit="miles" plans={milesPlans} sort={resultSort} includeNewCard={includeNewCard} projection={result.monthly_projection} onOpenFilters={() => setFiltersOpen(true)} activeFilters={selectedAirlines.length + selectedBanks.length} />
-        ) : aedLoading ? <div className={`${styles.empty} ${pageStyles.calculating}`} role="status" aria-live="polite"><span className={pageStyles.spinner} aria-hidden="true" /><h3>Calculating AED rewards…</h3><p>Applying the same spend caps, bonuses and first-year fees.</p></div>
-          : aedError ? <p className={styles.error}>{aedError}</p>
-          : aedResult ? (
-            !aedPlans.length ? <div className={styles.empty}><i className="ti ti-cash-off" /><h3>No cards match this bank filter.</h3><p>Clear the bank filter to see all eligible cards.</p>{filterButton}</div>
-              : <BulkResultView key={`aed-${includeNewCard}-${resultSort}`} unit="aed" plans={aedPlans} sort={resultSort} includeNewCard={includeNewCard} projection={aedResult.monthly_projection} onOpenFilters={() => setFiltersOpen(true)} activeFilters={selectedBanks.length} />
+          !milesPlans.length && mode === 'own' && !result?.cards.some(card => ownedIds.has(card.earnn_card_id)) ? <div className={styles.empty}><i className="ti ti-plane-off" /><h3>You don’t have a miles card.</h3><p>Do you want to check cashback on the cards you have, or better, apply for a new card?</p><div className={pageStyles.emptyActions}><button type="button" className="btn-primary" onClick={() => setResultTab('aed')}>Show cashback on cards I have</button><button type="button" className="btn-secondary" onClick={() => applyMode('new')}>Apply for a new card</button></div></div>
+          : !milesPlans.length ? <div className={styles.empty}><i className="ti ti-plane-off" /><h3>No cards match these filters.</h3><p>Clear the bank or airline filter to see all eligible cards.</p>{filterButton}</div>
+            : <BulkResultView key={`miles-${includeNewCard}-${resultSort}`} unit="miles" plans={milesPlans} sort={resultSort} includeNewCard={includeNewCard} projection={projection} onOpenFilters={() => setFiltersOpen(true)} activeFilters={selectedAirlines.length + selectedBanks.length} />
+        ) : aedResult ? (
+            !aedPlans.length && mode === 'own' && !aedResult.cards.some(card => ownedIds.has(card.earnn_card_id)) ? <div className={styles.empty}><i className="ti ti-cash-off" /><h3>None of your cards could be shown.</h3><p>They may not suit your salary or spending. You can apply for a new card instead.</p><div className={pageStyles.emptyActions}><button type="button" className="btn-primary" onClick={() => applyMode('new')}>Apply for a new card</button></div></div>
+            : !aedPlans.length ? <div className={styles.empty}><i className="ti ti-cash-off" /><h3>No cards match this bank filter.</h3><p>Clear the bank filter to see all eligible cards.</p>{filterButton}</div>
+              : <BulkResultView key={`aed-${includeNewCard}-${resultSort}`} unit="aed" plans={aedPlans} sort={resultSort} includeNewCard={includeNewCard} projection={projection} onOpenFilters={() => setFiltersOpen(true)} activeFilters={selectedBanks.length} />
           ) : null}
-        <BulkSpendResultFilters open={filtersOpen} onClose={() => setFiltersOpen(false)} banks={bankOptions} selectedBanks={selectedBanks} onSelectedBanksChange={setSelectedBanks} includeNewCard={includeNewCard} onIncludeNewCardChange={onIncludeNewCardChange} sort={resultSort} onSortChange={setResultSort} showAirlines={resultTab === 'miles'} airlinesReady={cardAirlines !== null} selectedAirlines={selectedAirlines} onSelectedAirlinesChange={setSelectedAirlines} />
+        <BulkSpendResultFilters open={filtersOpen} onClose={() => setFiltersOpen(false)} banks={bankOptions} selectedBanks={selectedBanks} onSelectedBanksChange={setSelectedBanks} includeNewCard={includeNewCard} sort={resultSort} onSortChange={setResultSort} showAirlines={resultTab === 'miles'} airlinesReady={cardAirlines !== null} selectedAirlines={selectedAirlines} onSelectedAirlinesChange={setSelectedAirlines} />
       </section>
-      {showOutcome && <BulkSpendOutcome result={result} onContinue={() => setShowOutcome(false)} />}
     </main>
-  </div>
-}
-
-function BulkSpendOutcome({ result, onContinue }: { result: BulkSpendMilesResponse, onContinue: () => void }) {
-  // A hook, not a summary: the numbers are in the hero. Only the cabin and headline change with the plan.
-  const topCard = result.cards[0]
-  const guaranteed = topCard ? milesPlan(topCard, true).total : 0
-  const business = travelPotentialForMiles(guaranteed).startsWith('Business')
-  // Each banner is a finished image (headline and airline logos are part of it); only the button is live.
-  const banner = business
-    ? { src: '/miles-goal/banner-business-v3.webp', ratio: '1024 / 493', alt: 'Turn your expenses into a world of luxury. Fly Business with Emirates or Etihad.' }
-    : { src: '/miles-goal/banner-economy.png', ratio: '1024 / 377', alt: 'Your expense could get you a flight ticket. Fly with Emirates or Etihad.' }
-  /* eslint-disable @next/next/no-img-element */
-  return <div className={outcomeStyles.overlay} role="dialog" aria-modal="true" aria-label={banner.alt}>
-    <section className={`${outcomeStyles.dialog} ${outcomeStyles.banner}`} style={{ aspectRatio: banner.ratio }}>
-      <img src={banner.src} alt={banner.alt} />
-      <button type="button" className="btn-primary" onClick={onContinue}>Show me how <i className="ti ti-arrow-right" /></button>
-    </section>
+    {pickerFor && <CardSelectionFlow current={myCards} onConfirm={confirmCards} onCancel={() => setPickerFor(null)} subtitle="Choose a bank, then tick the cards you own." confirmLabel="Update my options" />}
   </div>
 }

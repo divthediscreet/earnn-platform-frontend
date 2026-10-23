@@ -8,6 +8,7 @@ import adcbTalabat from '@/assets/home-cards/adcb-talabat.webp'
 import dibShams from '@/assets/home-cards/dib-shams-signature.webp'
 import adcb365 from '@/assets/home-cards/adcb-365.webp'
 import enbdLuluPlatinum from '@/assets/home-cards/enbd-lulu-platinum.webp'
+import { EXPLORE_TOOLS } from './exploreTools'
 import styles from './HomeRedesign.module.css'
 
 const hand = Caveat({ subsets: ['latin'], weight: ['500'], display: 'swap', variable: '--font-hand' })
@@ -51,14 +52,7 @@ const NEW_WAY = [
   { icon: 'ti-gift', tone: 'toneRed', title: 'Turn spending into cashback, flights & benefits', text: 'Make every purchase work harder for you.' },
 ] as const
 
-const TOOLS = [
-  { name: 'Best card for me', text: 'Tell us how you spend and see which cards could reward you most.', href: '/analyse', img: '/images/home/tile-best-800.webp', alt: 'Several UAE bank cards fanned out of a leather wallet' },
-  { name: 'Smart Checkout', text: 'Search a shop, app or product and see which card to use before you pay.', href: '/merchant-lookup', img: '/images/home/tile-checkout-1200.webp', alt: 'A shopper at a checkout wondering which of three credit cards to use' },
-  { name: 'Big Spend Planner', text: 'Earn better rewards on upcoming big expenses like school fees, insurance or trip bookings.', href: '/bulk-spend-miles', img: '/images/home/tile-big-800.webp', alt: 'A desk calendar with upcoming plans next to a passport' },
-  { name: 'Turn Spending into Flights', text: 'You spend what you spend. Earnn plans how to turn it into a dream business-class flight ticket.', href: '/trip-planner', img: '/images/home/tile-fly-800.webp', alt: 'A business-class cabin, an infinity pool and a city skyline' },
-  { name: 'My Benefits', text: 'Discover the movies, fitness, shopping and protection perks your cards already offer.', href: '/my-benefits', img: '/images/home/tile-benefits-800.webp', alt: 'A credit card with movies, fitness, shopping and protection benefits' },
-  { name: 'Compare and Test Cards', text: 'Compare cards and test how each would perform for your spending.', href: '/all-uae-cards', img: '/images/home/tile-compare-800.webp', alt: 'Three credit cards standing side by side' },
-] as const
+
 
 function StepArt({ kind }: { kind: 'spend' | 'maths' | 'strategy' | 'rewards' }) {
   if (kind === 'spend') return (
@@ -119,12 +113,12 @@ export default function HomeRedesign() {
       <section className={styles.hero}>
         <div className={styles.heroInner}>
           <div className={styles.heroText}>
-            <p className={styles.eyebrow}>Your smart credit card rewards planner</p>
+            <p className={styles.heroTag}>UAE’s First Multi-Credit Card Rewards Simulator</p>
             <h1>Get more from every dirham you spend.</h1>
             <p className={styles.lead}>Earnn helps you find the right credit cards, know which one to use, and get more cashback, miles and benefits from your everyday spending.</p>
             <div className={styles.actions}>
               <Link href="/analyse" className="btn-primary">Find my best cards <i className="ti ti-arrow-right" aria-hidden /></Link>
-              <a href="#how-it-works" className={styles.textLink}>See how it works <i className="ti ti-arrow-down" aria-hidden /></a>
+              <Link href="/all-uae-cards" className={`btn-secondary ${styles.simLink}`}>UAE Credit Card Simulator <i className="ti ti-arrow-right" aria-hidden /></Link>
             </div>
           </div>
           <div className={styles.heroVisual} aria-hidden>
@@ -231,7 +225,7 @@ export default function HomeRedesign() {
           <h2>Discover what Earnn can do for you.</h2>
         </div>
         <div className={styles.tools}>
-          {TOOLS.map(tool => (
+          {EXPLORE_TOOLS.map(tool => (
             <Link key={tool.name} href={tool.href} className={styles.tool}>
               <Image src={tool.img} alt={tool.alt} width={800} height={430} sizes="(max-width: 640px) 94vw, (max-width: 1000px) 46vw, 400px" />
               <span className={styles.toolBody}>

@@ -320,7 +320,7 @@ export default function BulkResultView({ unit, plans, sort, includeNewCard, proj
       </div>
       <div className={styles.stats}>
         <div><span className={styles.statIcon}><i className="ti ti-coins" aria-hidden="true" /></span><p><b>{compactAed(plannedSpend)}</b><span>Planned spend</span></p></div>
-        <div><span className={styles.statIcon}><i className="ti ti-shopping-cart" aria-hidden="true" /></span><p><b>{unit === 'miles' ? compact(plan.spend) : compactAed(plan.spend)}</b><span>From spending</span></p></div>
+        <div><span className={styles.statIcon}><i className="ti ti-shopping-cart" aria-hidden="true" /></span><p><b>{unit === 'miles' ? compact(plan.spend) : compactAed(plan.spend)}</b><span>From regular spending</span></p></div>
         <div className={styles.statBonus}><span className={styles.statIcon}><i className="ti ti-gift" aria-hidden="true" /></span><p><b>{unit === 'miles' ? compact(plan.welcome + plan.benefits) : compactAed(plan.welcome + plan.benefits)}</b><span>Bonuses unlocked</span></p></div>
         {plan.potential > 0 && <div className={styles.statReach}><span className={styles.statIcon}><i className="ti ti-star" aria-hidden="true" /></span><p><b>+{unit === 'miles' ? compact(plan.potential) : compactAed(plan.potential)}</b><span>Within reach · not guaranteed</span></p></div>}
       </div>
@@ -474,7 +474,7 @@ export function PaymentPlan({ plan, unit, projection, topicLabel }: { plan: Plan
       {step.reward && <b className={styles.stepReward}>{step.reward}</b>}
     </li>)}</ol>
     <details className={styles.calendar}>
-    <summary>View my 12-month spending calendar</summary>
+    <summary><span className={styles.calendarShow}>View</span><span className={styles.calendarHide}>Hide</span> my 12-month spending calendar</summary>
     <div className={styles.monthStrip} aria-label="Spending by month">{projection.map(month => {
       const scheduled = Object.entries(month.scheduled_by_category_aed)
       return <div key={month.month_number} className={scheduled.length ? styles.monthActive : ''}>

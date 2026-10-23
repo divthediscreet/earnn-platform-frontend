@@ -28,6 +28,10 @@ function SpendForm({ initial }: { initial?: SimulatorRequest }) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [mode, setMode] = useState<'upload' | 'manual'>(initial?.form_spend ? 'manual' : 'upload') // upload first, as in the old Analyse page
+  // /analyse?mode=manual (e.g. the Compare page's "Let Earnn choose for you") opens on Manual Entry instead of Upload.
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get('mode') === 'manual') setMode('manual') // eslint-disable-line react-hooks/set-state-in-effect
+  }, [])
   const [gap, setGap] = useState<GapData | null>(null)
   const [askSalary, setAskSalary] = useState(false) // friendly prompt instead of an error when salary is empty
   const [animCardIds, setAnimCardIds] = useState<string[]>([]) // card images for the holding screen

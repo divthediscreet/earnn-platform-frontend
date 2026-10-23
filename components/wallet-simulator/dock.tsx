@@ -9,36 +9,31 @@ import { CardChip, RollingAed, type CardInfo } from './card-art'
 type CardLookup = (id: string) => CardInfo
 const cardName = (c: CardInfo) => c.name
 
-export function WalletDock({ ids, wallet, pick, isPick, status, card, onRemove, onAdd, onCompare, onReset, onRetry, open, onOpenChange, children }: {
+export function WalletDock({ ids, wallet, status, card, onRemove, onAdd, onCompare, onReset, onAskEarnn, onRetry, open, onOpenChange, children }: {
   children?: React.ReactNode // shown when the dock is expanded (the wallet's playbook)
   open: boolean
   onOpenChange: (open: boolean) => void
   ids: string[]
   wallet: Wallet | null // evaluated wallet for `ids` (null while the first evaluation is pending)
   pick: Wallet
-  isPick: boolean
+  isPick?: boolean // no longer drives the dock; kept so existing callers still type-check
   status: 'ready' | 'updating' | 'error'
   card: CardLookup
   onRemove: (id: string) => void
   onAdd: () => void // opens the wallet customisation screen
   onCompare?: () => void // opens "compare with the cards I already hold" for the current wallet (button hidden when omitted)
   onReset: () => void
+  onAskEarnn?: () => void // "Ask Earnn to find best cards for you": when omitted it just resets the wallet to Earnn's pick
   onRetry: () => void
 }) {
-  const { rw, isMiles } = useRewardMode()
+  const { isMiles } = useRewardMode()
   const total = ids.length === 0 ? 0 : wallet?.monthly_reward_aed ?? 0
-  const delta = total - pick.monthly_reward_aed
 
-  // the difference against Earnn's recommended (best) set, per month
-  let headline = "These are Earnn's recommended cards"
-  if (ids.length === 0) headline = 'Add a card to start building'
-  else if (!isPick && wallet) {
-    if (Math.abs(delta) < 0.5) headline = "Same rewards as Earnn's recommended cards"
-    else if (delta > 0) headline = `${rw(delta)}/mo more than Earnn's recommended cards`
-    else headline = `${rw(-delta)}/mo less than Earnn's recommended cards`
-  }
+  // no comparison against Earnn's recommended set here: just the empty and error states
+  let headline = ''
+  if (ids.length === 0) headline = 'Add a card to start testing'
   if (status === 'error') headline = "We couldn't update your wallet"
-  const tone = status === 'error' ? 'text-ws-loss' : isPick || delta >= -0.5 || ids.length === 0 ? 'text-ws-gain' : 'text-ws-loss'
+  const tone = status === 'error' ? 'text-ws-loss' : 'text-ws-gain'
 
   const setOpen = onOpenChange
   const openRef = useRef(open)
@@ -69,6 +64,12 @@ export function WalletDock({ ids, wallet, pick, isPick, status, card, onRemove, 
 
   return (
     <>
+    {/* a very light, slow glow on the "Ask Earnn" pill: enough to catch the eye, not to distract */}
+    <style>{`
+      @keyframes ws-ask-blink { 0%, 70%, 100% { box-shadow: 0 3px 12px rgba(236,72,153,0.5); filter: brightness(1); } 85% { box-shadow: 0 3px 16px rgba(236,72,153,0.8), 0 0 0 3px rgba(236,72,153,0.16); filter: brightness(1.08); } }
+      .ws-ask-blink { animation: ws-ask-blink 2s ease-in-out infinite; }
+      @media (prefers-reduced-motion: reduce) { .ws-ask-blink { animation: none; } }
+    `}</style>
     {open && (
       // the page stays visible (dimmed) above the sheet; tapping it closes the sheet
       <div aria-hidden onClick={() => setOpen(false)} className="fixed inset-0 z-[1040] bg-ws-ink/35 backdrop-blur-[1px]" />
@@ -77,66 +78,67 @@ export function WalletDock({ ids, wallet, pick, isPick, status, card, onRemove, 
       className={`fixed inset-x-0 bottom-0 flex flex-col border-t pb-[env(safe-area-inset-bottom)] shadow-ws-dock backdrop-blur-xl transition-[top] ${
         open
           ? 'top-[10vh] z-[1050] rounded-t-3xl border-ws-border bg-ws-card'
-          // collapsed: a light golden tint so the wallet bar stands apart from the blue-white page
-          : 'z-[900] border-[#E9C46A]/50 bg-gradient-to-b from-[#FFF9EA]/95 to-[#FBEFCF]/95'
+          // collapsed: a light beige bar with a very light border and shadow
+          : 'z-[900] border-[#E8DFC8] bg-[#FAF6EC]'
       }`}>
       {open && <span aria-hidden className="mx-auto mt-2 block h-1.5 w-12 shrink-0 rounded-full bg-ws-border" />}
-      <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center gap-x-4 gap-y-1.5 px-5 py-2 sm:px-8">
-        <div className="flex items-start gap-2">
-          {ids.map(id => (
-            <div key={id} className="flex w-[52px] flex-col items-center">
-              <CardChip card={card(id)} className="!h-[30px] !w-[48px]" />
-              <button onClick={() => onRemove(id)} aria-label={`Remove ${cardName(card(id))} from your wallet`}
-                className="min-h-5 w-full rounded-md text-[10px] font-semibold text-ws-muted transition-colors hover:bg-ws-secondary hover:text-ws-fg">
-                Remove
+      <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center gap-x-5 gap-y-2 px-5 py-2.5 sm:px-8 md:min-h-[72px]">
+        {/* 1. my selected cards */}
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center gap-2">
+            {ids.map(id => (
+              <div key={id} className="group relative">
+                <CardChip card={card(id)} className="!h-[32px] !w-[50px]" />
+                <button onClick={() => onRemove(id)} aria-label={`Remove ${cardName(card(id))} from your test wallet`}
+                  className="absolute -top-1.5 -right-1.5 grid size-[18px] place-items-center rounded-full bg-ws-ink text-[12px] leading-none text-ws-ink-fg shadow transition-opacity hover:bg-ws-loss sm:opacity-0 sm:group-hover:opacity-100 focus-visible:opacity-100">
+                  ×
+                </button>
+              </div>
+            ))}
+            {Array.from({ length: MAX_WALLET - ids.length }).map((_, i) => (
+              <button key={i} type="button" aria-label="Add a card" onClick={() => { setOpen(false); onAdd() }}
+                className="grid h-[32px] w-[50px] place-items-center rounded-[6px] border border-dashed border-ws-border text-[17px] text-ws-muted transition-colors hover:border-ws-primary hover:text-ws-primary">
+                +
               </button>
-            </div>
-          ))}
-          {Array.from({ length: MAX_WALLET - ids.length }).map((_, i) => (
-            <button key={i} type="button" aria-label="Add a card" onClick={() => { setOpen(false); onAdd() }}
-              className="flex w-[52px] flex-col items-center text-ws-muted">
-              <span className="grid h-[30px] w-[48px] place-items-center rounded-[6px] border border-dashed border-ws-border text-[16px]">+</span>
-              <span className="grid min-h-5 place-items-center text-[10px] font-semibold">Add</span>
+            ))}
+          </div>
+          {status !== 'error' && (
+            <button type="button" onClick={onAskEarnn ?? onReset}
+              className="ws-ask-blink inline-flex shrink-0 items-center gap-1.5 self-start whitespace-nowrap rounded-full bg-gradient-to-r from-[#7C3AED] to-[#EC4899] px-3 py-1 text-[11px] font-extrabold text-white shadow-[0_3px_12px_rgba(236,72,153,0.5)] transition hover:-translate-y-px hover:brightness-110">
+              <svg aria-hidden viewBox="0 0 24 24" width="13" height="13" fill="#FFD400"><path d="M12 2l2.9 6.6 7.1.6-5.4 4.7 1.7 7-6.3-3.8-6.3 3.8 1.7-7L2 9.2l7.1-.6z" /></svg>
+              Ask Earnn to find best cards for you
             </button>
-          ))}
+          )}
         </div>
 
-        <div className="hidden h-9 w-px bg-ws-border sm:block" />
+        <div className="hidden h-10 w-px bg-ws-border sm:block" />
 
+        {/* 2. my rewards */}
         <div className="min-w-0">
           <p className="text-[10px] font-semibold tracking-[0.16em] text-ws-muted uppercase">
-            My wallet{status === 'updating' && <span className="ws-animate-pulse ml-2 normal-case tracking-normal">updating…</span>}
+            Test wallet · {ids.length}/{MAX_WALLET} cards{status === 'updating' && <span className="ws-animate-pulse ml-2 normal-case tracking-normal">updating…</span>}
           </p>
-          <p className={`font-display text-[17px] leading-tight font-semibold tracking-tight text-ws-fg ${status !== 'ready' ? 'opacity-60' : ''}`}>
-            {isMiles ? <><RollingAed value={total} /> miles</> : <>AED <RollingAed value={total} /></>}
-            <span className="ml-1 text-[12px] font-medium text-ws-muted">/month</span>
+          <p className={`font-display leading-none font-semibold tracking-tight text-ws-fg ${status !== 'ready' ? 'opacity-60' : ''}`}>
+            <span className="text-[28px]">{isMiles ? <><RollingAed value={total} /> miles</> : <>AED <RollingAed value={total} /></>}</span>
+            <span className="ml-1 text-[13px] font-medium text-ws-muted">/month</span>
+            {ids.length > 0 && <span className="ml-2 hidden text-[11px] font-medium text-ws-muted lg:inline">Estimated rewards</span>}
           </p>
+          {headline && <p className={`mt-0.5 text-[12px] leading-snug font-semibold ${tone}`}>{headline}</p>}
         </div>
 
-        <div className="flex w-full items-center justify-between gap-3 md:min-w-0 md:flex-1">
-          <div className="flex min-w-0 flex-col items-start gap-1 md:ml-4">
-            <p className={`text-[12px] leading-snug font-semibold md:text-[13px] ${tone}`}>{headline}</p>
-            {status === 'error' ? (
-              <button onClick={onRetry} className="rounded-full bg-ws-ink px-2.5 py-0.5 text-[10px] font-semibold text-ws-ink-fg">
-                Try again
-              </button>
-            ) : !isPick && (
-              // only shown once the user has moved away from Earnn Pick
-              <button onClick={onReset}
-                className="rounded-full border border-ws-border bg-white/60 px-2.5 py-0.5 text-[10px] font-semibold text-ws-primary transition-colors hover:bg-ws-ink hover:text-ws-ink-fg">
-                Show Earnn Suggested Cards
-              </button>
-            )}
-          </div>
+        {/* 3. what can I do next */}
+        <div className="ml-auto flex items-center gap-2">
+          {status === 'error' && (
+            <button onClick={onRetry} className="min-h-9 rounded-full border border-ws-border px-3.5 text-[13px] font-semibold text-ws-loss">Try again</button>
+          )}
           <button type="button" onClick={() => setOpen(!open)} aria-expanded={open}
-            className="ml-auto inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-full border border-ws-primary bg-white px-3.5 text-[13px] font-semibold text-ws-primary transition-colors hover:bg-[#EEF3FF]">
-            <span aria-hidden className="text-[13px] leading-none">{open ? '↓' : '↑'}</span>
-            {open ? 'Close' : 'How to use this wallet'}
+            className="min-h-10 shrink-0 rounded-full border border-ws-border bg-white px-4 text-[13px] font-semibold text-ws-fg transition-colors hover:border-ws-primary hover:text-ws-primary">
+            {open ? 'Close' : 'How to use'}
           </button>
           {onCompare && (
             <button type="button" onClick={() => { setOpen(false); onCompare() }} disabled={ids.length === 0 || !wallet} aria-haspopup="dialog"
-              className="min-h-9 shrink-0 rounded-full bg-ws-ink px-4 py-1.5 text-[13px] font-semibold text-ws-ink-fg hover:bg-ws-primary disabled:cursor-not-allowed disabled:opacity-50">
-              Compare against my cards
+              className="min-h-10 shrink-0 rounded-full bg-ws-ink px-5 text-[13px] font-semibold text-ws-ink-fg transition-colors hover:bg-ws-primary disabled:cursor-not-allowed disabled:opacity-50">
+              Compare with my cards
             </button>
           )}
         </div>

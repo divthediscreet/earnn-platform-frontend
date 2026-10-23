@@ -18,14 +18,13 @@ function AirlineIcon({ code }: { code: AirlineGroup }) {
   return <span className={`${styles.airlineIcon} ${code === 'emirates' ? styles.badgeEmirates : styles.badgeEtihad}`} aria-hidden="true"><i className="ti ti-plane" /></span>
 }
 
-export default function BulkSpendResultFilters({ open, onClose, banks, selectedBanks, onSelectedBanksChange, includeNewCard, onIncludeNewCardChange, sort, onSortChange, showAirlines, airlinesReady, selectedAirlines, onSelectedAirlinesChange }: {
+export default function BulkSpendResultFilters({ open, onClose, banks, selectedBanks, onSelectedBanksChange, includeNewCard, sort, onSortChange, showAirlines, airlinesReady, selectedAirlines, onSelectedAirlinesChange }: {
   open: boolean
   onClose: () => void
   banks: string[]
   selectedBanks: string[]
   onSelectedBanksChange: (banks: string[]) => void
   includeNewCard: boolean
-  onIncludeNewCardChange: (value: boolean) => void
   sort: BulkResultSort
   onSortChange: (value: BulkResultSort) => void
   /** The airline filter only applies to the miles view. */
@@ -53,10 +52,9 @@ export default function BulkSpendResultFilters({ open, onClose, banks, selectedB
           <div className={styles.airlineOptions}>{AIRLINE_GROUPS.map(group => <button key={group.code} type="button" disabled={!airlinesReady} aria-pressed={selectedAirlines.includes(group.code)} onClick={() => toggleAirline(group.code)}><AirlineIcon code={group.code} /><strong>{group.label}</strong><small>{group.hint}</small></button>)}</div>
           {!airlinesReady && <p className={styles.airlineNote}>Loading card programmes…</p>}
         </fieldset>}
-        <section className={styles.newCard}><div><strong>Want to apply for a new card?</strong><small>Include qualifying welcome bonuses in the comparison.</small></div><button type="button" className={includeNewCard ? styles.switchOn : styles.switchOff} role="switch" aria-checked={includeNewCard} onClick={() => onIncludeNewCardChange(!includeNewCard)}><span /></button></section>
         <fieldset><legend>Rank cards by</legend><div className={styles.sortOptions}>{includeNewCard && <button type="button" aria-pressed={sort === 'combined'} onClick={() => onSortChange('combined')}>Combined accumulation</button>}<button type="button" aria-pressed={sort === 'bulk_only'} onClick={() => onSortChange('bulk_only')}>Bulk categories only</button><button type="button" aria-pressed={sort === 'bulk_plus_regular'} onClick={() => onSortChange('bulk_plus_regular')}>Bulk + normal spend</button></div></fieldset>
       </div>
-      <div className={styles.actions}><button type="button" onClick={() => { onSelectedBanksChange([]); onSelectedAirlinesChange([]); onIncludeNewCardChange(true); onSortChange('combined') }}>Reset</button><button type="button" onClick={onClose}>Apply filters</button></div>
+      <div className={styles.actions}><button type="button" onClick={() => { onSelectedBanksChange([]); onSelectedAirlinesChange([]); onSortChange(includeNewCard ? 'combined' : 'bulk_plus_regular') }}>Reset</button><button type="button" onClick={onClose}>Apply filters</button></div>
     </div>
   </div>
 }

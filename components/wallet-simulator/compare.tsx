@@ -4,8 +4,10 @@ import { useEffect, useMemo, useState } from 'react'
 import { evaluateWallet, listSimulatorCards, SimulatorApiError, type RewardMode, type SimulatorRequest, type SpendGroup, type Wallet } from '@/lib/wallet-simulator/api'
 import { useRewardMode } from '@/lib/wallet-simulator/reward-mode'
 import { aed, groupIcon, groupShort, MAX_WALLET } from '@/lib/wallet-simulator/groups'
-import { CardArt, CardChip, type CardInfo } from './card-art'
+import { CardArt, type CardInfo } from './card-art'
 import { FeeMathDialog } from './fee-math'
+import CardSelectionFlow from '@/components/my-benefits/CardSelectionFlow'
+import type { CatalogueCard } from '@/lib/life-moments/api'
 
 type CardLookup = (id: string) => CardInfo
 
@@ -33,6 +35,8 @@ function byGroup(wallet: Wallet) {
   return m
 }
 
+const PICKER_SUBTITLE = 'You can select three cards which you already have and see how the new set of cards is different from your existing cards.'
+
 export function CompareDialog({ request, smart, groups, card, onClose }: {
   request: SimulatorRequest
   smart: Wallet | null
@@ -41,178 +45,114 @@ export function CompareDialog({ request, smart, groups, card, onClose }: {
   onClose: () => void
 }) {
   const [cards, setCards] = useState<CardInfo[] | null>(null)
-  const [listError, setListError] = useState(false)
-  const [bank, setBank] = useState('')
-  const [selected, setSelected] = useState<string[]>([])
-  const [picking, setPicking] = useState(true)
+  const [chosen, setChosen] = useState<CatalogueCard[]>([])
+  const [pickerKey, setPickerKey] = useState(0) // bumped to re-open the card screen with a new set of ticks
   const [running, setRunning] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<{ names: string[]; text: string } | null>(null)
   const [existing, setExisting] = useState<Wallet | null>(null)
   const [margin, setMargin] = useState(0) // a switch must win by more than this a year, after fees (backend setting)
 
-  const [attempt, setAttempt] = useState(0)
+  // Names for the result view (the page's own card directory is the fallback).
   useEffect(() => {
     let alive = true
-    loadCardList(request.reward_mode ?? 'cashback')
-      .then(c => { if (alive) { setCards(c); setListError(false) } })
-      .catch(() => { if (alive) setListError(true) })
+    loadCardList(request.reward_mode ?? 'cashback').then(c => { if (alive) setCards(c) }).catch(() => undefined)
     return () => { alive = false }
-  }, [attempt, request.reward_mode])
+  }, [request.reward_mode])
 
+  const showResult = !!(existing && smart)
+  const waiting = running || (!!existing && !smart) // evaluating your cards, or still waiting for the test wallet's own numbers
   useEffect(() => {
+    if (!showResult && !waiting) return // the card screen handles its own Escape and scroll lock
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
     window.addEventListener('keydown', onKey)
     const prev = document.body.style.overflow
     document.body.style.overflow = 'hidden'
     return () => { window.removeEventListener('keydown', onKey); document.body.style.overflow = prev }
-  }, [onClose])
+  }, [onClose, showResult, waiting])
 
   const byId = useMemo(() => new Map((cards ?? []).map(c => [c.id, c])), [cards])
-  const banks = useMemo(() => [...new Set((cards ?? []).map(c => c.bank).filter((b): b is string => !!b))].sort(), [cards])
-  // "First Abu Dhabi Bank (FAB)": the bank's code from the card data, so similar names stay distinguishable
-  const bankLabel = useMemo(() => {
-    const codes = new Map<string, string>()
-    for (const c of cards ?? []) if (c.bank && c.bankCode && !codes.has(c.bank)) codes.set(c.bank, c.bankCode.replace(/_/g, ' '))
-    return (b: string) => (codes.has(b) ? `${b} (${codes.get(b)})` : b)
-  }, [cards])
-  const bankCards = useMemo(() => (cards ?? []).filter(c => c.bank === bank).sort((a, b) => a.name.localeCompare(b.name)), [cards, bank])
   const info = (id: string) => byId.get(id) ?? card(id)
-  const full = selected.length >= MAX_WALLET
 
-  const add = (id: string) => {
-    if (selected.includes(id) || full) return
-    setSelected(s => [...s, id])
-    setPicking(false) // collapse to the "cart"; the user can add another below
-    setBank('')
-    setError(null)
-  }
-  const remove = (id: string) => {
-    const next = selected.filter(c => c !== id)
-    setSelected(next)
-    if (next.length === 0) setPicking(true)
-    setError(null)
-  }
-
-  const compare = () => {
+  // Confirming the card screen runs the comparison straight away.
+  const compare = (picked: CatalogueCard[]) => {
+    const next = picked.slice(0, MAX_WALLET)
+    // The card list for this view only holds cards that earn this kind of reward: a card missing from it is of the other kind.
+    const mismatched = cards ? next.filter(c => !byId.has(c.earnn_card_id)) : []
+    if (!mismatched.length) setChosen(next)
+    if (mismatched.length) {
+      const many = mismatched.length > 1
+      setChosen(next.filter(c => byId.has(c.earnn_card_id))) // "Got it" re-opens the screen with only the cards that can be compared
+      setError({
+        names: mismatched.map(c => c.card_name),
+        text: request.reward_mode === 'miles'
+          ? `${many ? 'These are cashback cards and they' : 'This is a cashback card and it'} can’t be compared with miles cards. Switch to Cashback view to compare ${many ? 'them' : 'it'}.`
+          : `${many ? 'These are miles-only cards and they' : 'This is a miles-only card and it'} can’t be compared with cashback cards. Switch to Miles view to compare ${many ? 'them' : 'it'}.`,
+      })
+      return
+    }
     setRunning(true)
     setError(null)
     // same engine as the simulator: the backend's exact evaluation of this card set on the same spend
-    evaluateWallet(request, selected)
+    evaluateWallet(request, next.map(c => c.earnn_card_id))
       .then(res => { setMargin(res.meta.switch_margin ?? 0); setExisting(res.wallet) })
-      .catch(e => setError(e instanceof SimulatorApiError ? e.message : 'Something went wrong on our side. Please try again.'))
+      .catch(e => setError({ names: [], text: e instanceof SimulatorApiError ? e.message : 'Something went wrong on our side. Please try again.' }))
       .finally(() => setRunning(false))
   }
 
-  const showResult = existing && smart
+  // Closing the pop-up un-ticks the cards that caused it (already dropped from `chosen`); the others stay.
+  const dismissError = () => { setError(null); setPickerKey(k => k + 1) }
+
+  // Choosing the cards: the same screen as My Benefits, with its own opening message.
+  if (!showResult && !waiting) {
+    return <>
+      <CardSelectionFlow key={pickerKey} current={chosen} onConfirm={compare} onCancel={onClose} maxCards={MAX_WALLET}
+        title="Which cards do you already have?" subtitle={PICKER_SUBTITLE} confirmLabel="Compare with my wallet" />
+      {error && (
+        // a pop-up above the card screen; "Got it" returns to the screen with the ticks kept
+        <div className="ws-root fixed inset-0 z-[2000] grid place-items-center bg-ws-ink/50 p-5 backdrop-blur-sm" role="alertdialog" aria-modal="true" aria-labelledby="ws-compare-error-title" onClick={dismissError}>
+          <div onClick={e => e.stopPropagation()} className="ws-animate-rise w-full max-w-[420px] rounded-3xl bg-ws-card p-6 text-center shadow-ws-plastic">
+            <h2 id="ws-compare-error-title" className="font-display text-[20px] font-semibold text-ws-fg">{error.names.length ? 'Cards can’t be compared' : 'Something went wrong'}</h2>
+            {error.names.length > 0 && (
+              <ul className="mt-3 space-y-1">
+                {error.names.map(n => <li key={n} className="text-[14px] font-bold text-ws-fg">{n}</li>)}
+              </ul>
+            )}
+            <p className="mt-3 text-[14px] leading-relaxed text-ws-muted">{error.text}</p>
+            <button type="button" autoFocus onClick={dismissError} className="mt-5 min-h-11 w-full rounded-full bg-ws-ink text-[14px] font-semibold text-white hover:bg-ws-primary">Got it</button>
+          </div>
+        </div>
+      )}
+    </>
+  }
+
   return (
     <div className="fixed inset-0 z-[1100] grid place-items-end bg-ws-ink/50 backdrop-blur-sm sm:place-items-center sm:p-6"
       onClick={onClose} role="dialog" aria-modal="true" aria-labelledby="ws-compare-title">
       <div onClick={e => e.stopPropagation()}
-        className={`ws-animate-rise flex max-h-[92vh] w-full flex-col overflow-hidden rounded-t-3xl bg-ws-card shadow-ws-plastic sm:rounded-3xl ${showResult ? 'max-w-[760px]' : 'max-w-[540px]'}`}>
+        className={`ws-animate-rise flex max-h-[92vh] w-full flex-col overflow-hidden rounded-t-3xl bg-ws-card shadow-ws-plastic sm:rounded-3xl ${showResult ? 'max-w-[760px]' : 'max-w-[420px]'}`}>
         <div className="flex items-start justify-between gap-4 border-b border-ws-border px-6 pt-5 pb-4">
           <div>
             <h2 id="ws-compare-title" className="font-display text-[20px] font-semibold text-ws-fg">
-              {showResult ? 'Your wallet vs the Earnn Smart Wallet' : 'Which cards are actually in your active wallet?'}
+              {showResult ? 'Your wallet vs the Earnn Smart Wallet' : 'Comparing your cards…'}
             </h2>
             <p className="mt-0.5 text-[13px] text-ws-muted">
-              {showResult ? 'Same spending, same calculation for both.' : `You can add up to ${MAX_WALLET} cards.`}
+              {showResult ? 'Same spending, same calculation for both.' : 'Same spending, same calculation for both wallets.'}
             </p>
           </div>
           <button type="button" onClick={onClose} aria-label="Close"
             className="grid size-9 shrink-0 place-items-center rounded-full text-[20px] text-ws-muted hover:bg-ws-secondary">×</button>
         </div>
 
-        {showResult ? (
-          <CompareResult smart={smart} existing={existing} groups={groups} card={info} margin={margin} />
-        ) : (
-          <div className="ws-scrollbar flex-1 overflow-y-auto px-6 py-5">
-            {/* the "cart" */}
-            {selected.length > 0 && (
-              <div className="space-y-2">
-                {selected.map(id => {
-                  const c = info(id)
-                  return (
-                    <div key={id} className="flex items-center gap-3 rounded-xl border border-ws-border bg-ws-bg px-3 py-2">
-                      <CardChip card={c} />
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-[13px] font-semibold text-ws-fg">{c.name}</span>
-                        {c.bank && <span className="block truncate text-[11px] text-ws-muted">{c.bank}</span>}
-                      </span>
-                      <button type="button" onClick={() => remove(id)} aria-label={`Remove ${c.name}`}
-                        className="grid size-7 shrink-0 place-items-center rounded-full text-[16px] text-ws-muted hover:bg-ws-secondary hover:text-ws-loss">×</button>
-                    </div>
-                  )
-                })}
-              </div>
-            )}
+        {showResult
+          ? <CompareResult smart={smart} existing={existing} groups={groups} card={info} margin={margin} />
+          : <p className="ws-animate-pulse px-6 py-10 text-center text-[14px] font-semibold text-ws-primary">Comparing…</p>}
 
-            {!picking && !full && (
-              <button type="button" onClick={() => setPicking(true)}
-                className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-ws-primary/40 py-2.5 text-[13px] font-semibold text-ws-primary hover:bg-ws-secondary">
-                + Add another card
-              </button>
-            )}
-            {full && <p className="mt-3 text-center text-[12px] text-ws-muted">You can compare up to {MAX_WALLET} cards.</p>}
-
-            {picking && !full && (
-              <div className={selected.length ? 'mt-4' : ''}>
-                <label htmlFor="ws-compare-bank" className="text-[12px] font-semibold text-ws-muted">Bank</label>
-                <div className="relative mt-1.5">
-                  <select id="ws-compare-bank" value={bank} onChange={e => setBank(e.target.value)} disabled={!cards}
-                    className="h-11 w-full appearance-none rounded-xl border border-ws-border bg-ws-card pr-10 pl-3.5 text-[14px] text-ws-fg outline-none focus:border-ws-primary disabled:opacity-60">
-                    <option value="">{cards ? 'Select your bank' : listError ? 'Card list unavailable' : 'Loading banks…'}</option>
-                    {banks.map(b => <option key={b} value={b}>{bankLabel(b)}</option>)}
-                  </select>
-                  <span aria-hidden className="pointer-events-none absolute top-1/2 right-3.5 -translate-y-1/2 text-[12px] text-ws-muted">▼</span>
-                </div>
-                {listError && !cards && (
-                  <div className="mt-3 flex items-center justify-between gap-3 rounded-xl bg-ws-secondary px-3.5 py-2.5" role="alert">
-                    <p className="text-[12px] text-ws-fg">We couldn&apos;t load the card list just now.</p>
-                    <button type="button" onClick={() => { setListError(false); setAttempt(a => a + 1) }}
-                      className="shrink-0 rounded-full bg-ws-primary px-3.5 py-1.5 text-[12px] font-semibold text-white hover:bg-ws-ink">
-                      Try again
-                    </button>
-                  </div>
-                )}
-
-                {bank && (
-                  <ul className="ws-scrollbar mt-3 max-h-[300px] space-y-2 overflow-y-auto pr-1">
-                    {bankCards.map(c => {
-                      const added = selected.includes(c.id)
-                      return (
-                        <li key={c.id} className="flex items-center gap-3 rounded-xl border border-ws-border p-2.5">
-                          <div className="w-[76px] shrink-0"><CardArt card={c} size="sm" /></div>
-                          <span className="min-w-0 flex-1 text-[13px] font-semibold text-ws-fg">{c.name}</span>
-                          <button type="button" onClick={() => add(c.id)} disabled={added} aria-label={added ? `${c.name} added` : `Add ${c.name}`}
-                            className="min-h-9 shrink-0 rounded-full bg-ws-primary px-4 text-[12px] font-semibold text-white transition-colors hover:bg-ws-ink disabled:bg-ws-secondary disabled:text-ws-muted">
-                            {added ? 'Added' : 'Add'}
-                          </button>
-                        </li>
-                      )
-                    })}
-                  </ul>
-                )}
-              </div>
-            )}
+        {showResult && (
+          <div className="flex items-center justify-between gap-3 border-t border-ws-border px-6 py-4">
+            <button type="button" onClick={() => setExisting(null)} className="text-[13px] font-semibold text-ws-primary hover:underline">← Change cards</button>
+            <button type="button" onClick={onClose} className="min-h-11 rounded-full bg-ws-ink px-6 text-[14px] font-semibold text-white">Done</button>
           </div>
         )}
-
-        <div className="flex items-center justify-between gap-3 border-t border-ws-border px-6 py-4">
-          {showResult ? (
-            <>
-              <button type="button" onClick={() => setExisting(null)} className="text-[13px] font-semibold text-ws-primary hover:underline">← Change cards</button>
-              <button type="button" onClick={onClose} className="min-h-11 rounded-full bg-ws-ink px-6 text-[14px] font-semibold text-white">Done</button>
-            </>
-          ) : (
-            <>
-              <p className="min-w-0 text-[12px] text-ws-loss" role="status">{error}</p>
-              <button type="button" onClick={compare} disabled={selected.length === 0 || running || !smart}
-                className="min-h-11 shrink-0 rounded-full bg-[#10B981] px-6 text-[14px] font-semibold text-white transition-colors hover:bg-[#059669] disabled:bg-ws-secondary disabled:text-ws-muted">
-                {running ? 'Comparing…' : `Compare${selected.length ? ` ${selected.length} card${selected.length > 1 ? 's' : ''}` : ''}`}
-              </button>
-            </>
-          )}
-        </div>
       </div>
     </div>
   )

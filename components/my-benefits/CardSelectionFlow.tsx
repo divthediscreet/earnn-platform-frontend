@@ -17,6 +17,12 @@ type Props = {
   onCancel: () => void
   /** Skip choosing cards and go straight to the best cards in the category. */
   onSkip?: () => void
+  /** Wording for other pages that reuse this screen; My Benefits keeps the defaults. */
+  subtitle?: string
+  confirmLabel?: string
+  /** Most cards that can be chosen in total (no limit when omitted). */
+  maxCards?: number
+  title?: string
 }
 
 const upper = (code: string) => code.trim().toUpperCase()
@@ -34,7 +40,7 @@ const picksFromCards = (cards: CatalogueCard[]): Record<string, string> => {
   return picks
 }
 
-export default function CardSelectionFlow({ current, onConfirm, onCancel, onSkip }: Props) {
+export default function CardSelectionFlow({ current, onConfirm, onCancel, onSkip, subtitle, confirmLabel, maxCards, title }: Props) {
   const [catalogue, setCatalogue] = useState<CatalogueCard[]>([])
   const [error, setError] = useState('')
 
@@ -72,9 +78,10 @@ export default function CardSelectionFlow({ current, onConfirm, onCancel, onSkip
     banks={banks}
     cardsByBank={cardsByBank}
     picks={picksFromCards(current)}
-    title="Which cards do you have?"
-    subtitle="Choose a bank, then tick the cards you own. We’ll show their benefits."
-    confirmLabel="Show my benefits"
+    title={title ?? "Which cards do you have?"}
+    maxCards={maxCards}
+    subtitle={subtitle ?? 'Choose a bank, then tick the cards you own. We’ll show their benefits.'}
+    confirmLabel={confirmLabel ?? 'Show my benefits'}
     onConfirm={confirmCards}
     onCancel={onCancel}
     skip={onSkip && { labelNone: 'Show all best cards', labelSome: 'Ignore my cards and show me all best cards of this category', onSkip }}

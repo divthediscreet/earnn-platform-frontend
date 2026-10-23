@@ -87,7 +87,8 @@ function CardRow({ card, rank, mode }: { card: MerchantLookupCard; rank: number;
   )
 }
 
-const POPULAR_STORES = ['Lulu', 'Carrefour', 'Noon', 'Talabat', 'Amazon', 'Careem', 'Netflix']
+// A spread of everyday places: grocery, online, food delivery, cafés, fast food, dining, fashion, fuel, home, travel, rides, streaming.
+const POPULAR_STORES = ['Lulu', 'Carrefour', 'Amazon', 'Noon', 'Talabat', 'Starbucks', "McDonald's", 'Zuma', 'Nike', 'H&M', 'ADNOC', 'IKEA', 'Emirates', 'Careem', 'Netflix']
 
 const HOW_IT_WORKS = [
   { icon: 'ti-search', title: 'Search a store', text: 'Any shop, restaurant or app.', bg: '#E3EBFB', color: '#185FA5' },
@@ -121,10 +122,10 @@ export default function MerchantLookupPage() {
 
   return (
     <>
-    <PageHero tone="light" tall image="/images/heroes/CardMatch.webp" width={1112} titleSize="clamp(30px,3.6vw,50px)"
-      kicker="MATCH & TAP" kickerColor="#17265e"
-      title={<span style={{ color: '#17265e' }}>Know which card<br />to use at any store<span style={{ color: '#8a4b2a' }}>.</span></span>}
-      subtitle={<span style={{ color: '#2a3b6f' }}>Search a store, restaurant or merchant and we’ll show you the best card to use and how much you can earn.</span>} />
+    <PageHero tone="light" tall image="/images/heroes/CheckBeforeYouPay.webp" imagePosition="right 6%" imageSize="auto 112%" imageBg="#e2eefd" width={1112} titleSize="clamp(28px,3.1vw,42px)"
+      kicker="CHECK BEFORE YOU PAY" kickerColor="#17265e"
+      title={<span style={{ color: '#17265e' }}>Paying somewhere?<br />Find which card rewards you most<span style={{ color: '#8a4b2a' }}>.</span></span>}
+      subtitle={<span style={{ color: '#2a3b6f' }}>Whether you’re shopping online, at a store or using an app, check which UAE credit card gives you the most rewards before you pay.</span>} />
     <div style={{ width: 'min(1112px, calc(100% - 48px))', margin: '0 auto', padding: '0 0 80px' }}>
       <style>{'@media (max-width: 760px) { .cm-search { margin: 14px 0 0 !important; } .cm-how { margin: 16px 0 0 !important; } }'}</style>
       <div className="cm-search" style={{ position: 'relative', zIndex: 2, margin: '-46px 24px 0', background: '#fff', border: `1px solid ${COLORS.border}`, borderRadius: 16, padding: 16, boxShadow: '0 14px 34px rgba(14,55,133,0.14)' }}>
@@ -133,7 +134,7 @@ export default function MerchantLookupPage() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter') runSearch() }}
-            placeholder="Search Lulu, Noon, Talabat, Netflix…"
+            placeholder="Where are you shopping? Try Lulu, Amazon, Nike, Starbucks, Talabat..."
             aria-label="Store, restaurant or app"
             style={{
               flex: '1 1 260px', padding: '13px 16px', fontSize: 15, borderRadius: 10,
@@ -165,6 +166,7 @@ export default function MerchantLookupPage() {
       )}
 
       {!result && !loading && (
+        <>
         <div className="cm-how" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12, margin: '18px 24px 0' }}>
           {HOW_IT_WORKS.map(step => (
             <div key={step.title} style={{ display: 'flex', alignItems: 'center', gap: 12, background: '#fff', border: `1px solid ${COLORS.border}`, borderRadius: 14, padding: '13px 16px' }}>
@@ -176,6 +178,10 @@ export default function MerchantLookupPage() {
             </div>
           ))}
         </div>
+        <p style={{ margin: '14px 24px 0', textAlign: 'center', fontSize: 13, color: COLORS.secondary, letterSpacing: '.01em' }}>
+          In-store<span aria-hidden style={{ margin: '0 10px' }}>·</span>Online<span aria-hidden style={{ margin: '0 10px' }}>·</span>Apps &amp; subscriptions<span aria-hidden style={{ margin: '0 10px' }}>·</span>Cashback &amp; miles
+        </p>
+        </>
       )}
 
       <div style={{ maxWidth: 900, margin: '0 auto' }}>

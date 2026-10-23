@@ -24,6 +24,8 @@ type Props = {
   /** Trip Planner only: tag cards as miles / no miles and require at least one miles card. */
   showMiles?: boolean
   error?: string
+  /** Most cards that can be ticked in total; the rest are greyed out once it is reached. */
+  maxCards?: number
   /** Optional way out for people who hold no card or want to see the best cards anyway. The label depends on whether anything is ticked. */
   skip?: { labelNone: string; labelSome: string; onSkip: () => void }
 }
@@ -48,7 +50,7 @@ function CardImage({ id }: { id: string }) {
 
 export default function CardPickerScreen({
   banks, cardsByBank, picks, onConfirm, onCancel,
-  title = 'Which cards do you have?', subtitle = 'Choose a bank, then tick the cards you hold.', confirmLabel = 'Done', showMiles = false, error, skip,
+  title = 'Which cards do you have?', subtitle = 'Choose a bank, then tick the cards you hold.', confirmLabel = 'Done', showMiles = false, error, skip, maxCards,
 }: Props) {
   const [slots, setSlots] = useState<Record<string, string[]>>(() => slotsFromPicks(banks, picks))
   // Open on the first bank that already has a pick; a short list (the Trip Planner's held banks) opens on its first bank.
@@ -78,11 +80,15 @@ export default function CardPickerScreen({
   const chosenIds = banks.flatMap(item => slots[item.bank_code] ?? [])
   const milesIds = useMemo(() => new Set(Object.values(cardsByBank).flat().filter(card => card.is_miles_card).map(card => card.earnn_card_id)), [cardsByBank])
   const anyMiles = chosenIds.some(id => milesIds.has(id))
+  const cardNames = new Map(Object.values(cardsByBank).flat().map(card => [card.earnn_card_id, card.card_name]))
+  const chosenNames = chosenIds.map(id => ({ id, name: cardNames.get(id) })).filter((card): card is { id: string, name: string } => !!card.name)
+  const full = maxCards !== undefined && chosenIds.length >= maxCards
   const canConfirm = showMiles ? anyMiles : chosenIds.length > 0
 
   const choose = (code: string) => { setActiveBank(code); setQuery('') }
   const toggle = (code: string, id: string) => setSlots(current => {
     const list = current[code] ?? []
+    if (!list.includes(id) && maxCards !== undefined && Object.values(current).flat().length >= maxCards) return current
     return { ...current, [code]: list.includes(id) ? list.filter(item => item !== id) : [...list, id] }
   })
   const confirm = () => onConfirm(Object.fromEntries(banks.flatMap(item => (slots[item.bank_code] ?? []).map((id, index) => [index === 0 ? item.bank_code : `${item.bank_code}#${index}`, id] as const))))
@@ -113,7 +119,7 @@ export default function CardPickerScreen({
                 {visible.map(card => {
                   const on = (slots[bank.bank_code] ?? []).includes(card.earnn_card_id)
                   return <label key={card.earnn_card_id} className={`${styles.card} ${on ? styles.cardOn : ''}`}>
-                    <input type="checkbox" checked={on} onChange={() => toggle(bank.bank_code, card.earnn_card_id)} />
+                    <input type="checkbox" checked={on} disabled={!on && full} onChange={() => toggle(bank.bank_code, card.earnn_card_id)} />
                     <span className={styles.tick} aria-hidden="true"><i className="ti ti-check" /></span>
                     <CardImage id={card.earnn_card_id} />
                     <span className={styles.cardName}>{card.card_name}</span>
@@ -130,7 +136,7 @@ export default function CardPickerScreen({
         {showMiles && chosenIds.length > 0 && !anyMiles && <p className={styles.notice} role="status"><i className="ti ti-info-circle" aria-hidden="true" /><span><b>None of the selected cards earn miles,</b> so there is nothing to calculate yet.</span></p>}
 
         <footer className={styles.foot}>
-          <span className={styles.count} aria-live="polite">{chosenIds.length} {chosenIds.length === 1 ? 'card' : 'cards'} selected</span>
+          <span className={styles.count} aria-live="polite">{chosenNames.length ? chosenNames.map(card => <i key={card.id} className={styles.chip}>{card.name}</i>) : 'No card selected yet'}</span>
           <button type="button" className={styles.back} onClick={onCancel}>Cancel</button>
           <button type="button" className={styles.primary} disabled={!canConfirm} onClick={confirm}>{confirmLabel} <i className="ti ti-arrow-right" aria-hidden="true" /></button>
         </footer>

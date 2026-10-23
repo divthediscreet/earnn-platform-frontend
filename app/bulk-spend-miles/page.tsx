@@ -7,7 +7,8 @@ import type { BulkPaymentSchedule, BulkSpendTopic } from '@/lib/bulk-spend-miles
 import { getBulkSpendTopics } from '@/lib/bulk-spend-miles/api'
 import { topicName } from '@/components/bulk-spend-miles/BulkResultView'
 import { ensureProfileLoaded, patchProfile, readProfile } from '@/lib/profile/storage'
-import { readBulkForm, saveBulkSubmission } from '@/lib/bulk-spend-miles/session'
+import { readBulkForm, saveBulkSubmission, type BulkPath } from '@/lib/bulk-spend-miles/session'
+import BulkSpendPathChoice from '@/components/bulk-spend-miles/BulkSpendPathChoice'
 import styles from './page.module.css'
 import formStyles from './compact-spend-form.module.css'
 
@@ -28,6 +29,7 @@ export default function BulkSpendMilesPage() {
   const [topicsLoading, setTopicsLoading] = useState(true)
   const [payments, setPayments] = useState<BulkPaymentSchedule[]>([blankRow([])])
   const [error, setError] = useState('')
+  const [choosingPath, setChoosingPath] = useState(false)
 
   // Coming back from the results page ("Edit my plan"): restore what the user entered.
   const [profileReady, setProfileReady] = useState(false)
@@ -104,9 +106,15 @@ export default function BulkSpendMilesPage() {
       return
     }
     setError('')
+    setChoosingPath(true)
+  }
+  // The plan is saved only once the user has picked miles or cashback; the results page shows just that path.
+  const choosePath = (path: BulkPath) => {
+    const validRows = payments.filter(row => Number(row.amount_aed) > 0 && row.due_months.length > 0)
     saveBulkSubmission(
       { monthlySpend, salary, payments },
       { monthly_spend_aed: Number(monthlySpend) || 0, salary_aed: Number(salary), scheduled_payments: validRows },
+      path,
     )
     router.push('/bulk-spend-miles/results')
   }
@@ -114,11 +122,11 @@ export default function BulkSpendMilesPage() {
   return <div className={styles.page}>
     <PageHero tone="dark" gap={40} image="/images/heroes/MaxMile.webp" kicker="BIG SPEND PLANNER"
       title="Big expenses. Big rewards."
-      subtitle="Earnn will turn your upcoming big payments into rewards worth getting excited about." />
+      subtitle="Apart from your regular monthly spending, we all have a few big expenses from time to time. These big payments eat a big part of our savings, so let’s plan them in advance and get the most back from them." />
 
     <main className={styles.content}>
       <form className={styles.formCard} onSubmit={submit}>
-        <div className={styles.formHeading}><div><span>YOUR BIG-EXPENSE PLAN</span><h2>Anything extra coming up in the next 12 months?</h2><p className={formStyles.formIntro}>Add any planned expenses — we’ll show you how much further they could take you.</p></div></div>
+        <div className={styles.formHeading}><div><span>YOUR BIG-EXPENSE PLAN</span><h2>Anything extra coming up in the next 12 months?</h2><p className={formStyles.formIntro}>Add the big expenses you have planned. Earnn will show you how to get the most back from them.</p></div></div>
         <section className={formStyles.expensesPanel}>
           <div className={formStyles.expensePanelHead}><h3>Upcoming expenses</h3><p>Choose what you are paying for, the amount and every month when the same payment is due.</p></div>
           <div className={formStyles.schedules}>{payments.map((payment, index) => <div className={formStyles.expenseRow} key={`${index}-${payment.topic_code}`}>
@@ -134,8 +142,9 @@ export default function BulkSpendMilesPage() {
           <label className={formStyles.salaryInput}><span><strong>Monthly salary</strong></span><div><b>AED</b><input inputMode="decimal" type="number" min="0" step="100" required value={salary} onChange={event => setSalary(event.target.value)} placeholder="Eligible cards only" /></div></label>
         </div>
         {error && <p className={styles.error}><i className="ti ti-alert-circle" /> {error}</p>}
-        <footer className={formStyles.submitFooter}><button className="btn-primary" type="submit">Turn My Expense into Deal <i className="ti ti-arrow-right" /></button></footer>
+        <footer className={formStyles.submitFooter}><button className="btn-primary" type="submit">Get the Most from My Expenses <i className="ti ti-arrow-right" /></button></footer>
       </form>
     </main>
+    {choosingPath && <BulkSpendPathChoice onChoose={choosePath} onClose={() => setChoosingPath(false)} />}
   </div>
 }

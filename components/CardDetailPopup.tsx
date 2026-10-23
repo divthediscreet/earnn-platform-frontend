@@ -38,7 +38,7 @@ function feeLines(card: Record<string, unknown>) {
   if (firstYearFree) return { lines: ['First year: Free', laterYear === null ? 'From year 2: Fee not specified' : `From year 2: ${money(laterYear)} / year`], waiver }
   if (firstYear !== null && laterYear !== null && firstYear !== laterYear) return { lines: [`First year: ${money(firstYear)}`, `From year 2: ${money(laterYear)} / year`], waiver }
   const annualFee = laterYear ?? firstYear
-  return { lines: [annualFee === null ? 'Fee not specified' : `${money(annualFee)} / year`], waiver }
+  return { lines: [annualFee === null ? 'Fee not specified' : `Fee: ${money(annualFee)} / year`], waiver }
 }
 
 const NAVY = '#0D1828'

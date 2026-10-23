@@ -20,6 +20,8 @@ export interface BulkSpendMilesRequest {
   monthly_spend_aed: number
   salary_aed?: number
   scheduled_payments: BulkPaymentSchedule[]
+  /** "Use only cards I have": calculate just these cards, whatever their reward type. */
+  owned_card_ids?: string[]
 }
 
 export interface ProjectionMonth {
@@ -166,7 +168,7 @@ export async function simulateBulkSpendAed(request: BulkSpendMilesRequest): Prom
   const payload: unknown = await response.json().catch(() => null)
   if (!response.ok) {
     const detail = payload && typeof payload === 'object' ? (payload as { detail?: { message?: string } }).detail : null
-    throw new Error(detail?.message || 'We could not calculate your AED rewards right now.')
+    throw new Error(detail?.message || 'We could not calculate your cashback right now.')
   }
   return payload as BulkSpendAedResponse
 }

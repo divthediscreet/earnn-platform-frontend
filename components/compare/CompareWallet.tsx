@@ -6,8 +6,9 @@
 // PlaybookBody ("Which card should I use?") and GetCardsDialog components. The only difference is how cards are added:
 // the page's tiles add and remove them (up to 3) instead of Analyze's customise dialog.
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import {
-  evaluateWallet, recommendWallet, SimulatorApiError,
+  evaluateWallet, recommendWallet, saveSession, SimulatorApiError,
   type RecommendResponse, type RewardMode, type SimulatorRequest, type Wallet,
 } from '@/lib/wallet-simulator/api'
 import { sameCards, walletKey } from '@/lib/wallet-simulator/playbook'
@@ -77,6 +78,9 @@ function WalletBar({ request, ids, onIdsChange, directory: pageDirectory, onAddM
   const [walletOpen, setWalletOpen] = useState(false) // expanded wallet panel (playbook)
   const [detailCardId, setDetailCardId] = useState<string | null>(null) // card-information popup
   const [compareOpen, setCompareOpen] = useState(false) // compare against the user's current cards
+  const router = useRouter()
+  // "Ask Earnn to find best cards for you": open the Analyze result page for this same spend, no form to fill in again.
+  const findBestCards = useCallback(() => { saveSession({ request, result }); router.push('/analyse/result') }, [request, result, router])
 
   const key = walletKey(ids)
   const current = ids.length ? evaluated[key] ?? null : null
@@ -132,7 +136,7 @@ function WalletBar({ request, ids, onIdsChange, directory: pageDirectory, onAddM
         body .earnn-feedback-panel { bottom: calc(var(--ws-dock-h, 96px) + 90px) !important; }
       `}</style>
       <WalletDock ids={ids} wallet={displayWallet} pick={pick} isPick={isPick} status={status} card={card}
-        onRemove={removeCard} onAdd={onAddMore} onCompare={() => setCompareOpen(true)} onReset={reset} onRetry={retry} open={walletOpen} onOpenChange={setWalletOpen}>
+        onRemove={removeCard} onAdd={onAddMore} onCompare={() => setCompareOpen(true)} onReset={reset} onAskEarnn={findBestCards} onRetry={retry} open={walletOpen} onOpenChange={setWalletOpen}>
         <PlaybookBody wallet={displayWallet} groups={result.spend.groups} monthlySpend={result.spend.eligible_spend_aed}
           card={card} updating={status === 'updating'} onDetails={setDetailCardId} />
       </WalletDock>

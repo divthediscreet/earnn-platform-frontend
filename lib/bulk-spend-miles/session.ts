@@ -5,7 +5,10 @@ import type { BulkPaymentSchedule, BulkSpendMilesRequest } from './api'
 
 const FORM_KEY = 'earnn_bulk_form'
 const REQUEST_KEY = 'earnn_bulk_request'
-const OUTCOME_KEY = 'earnn_bulk_outcome_pending'
+const PATH_KEY = 'earnn_bulk_path'
+
+/** Which kind of card the user chose to see: a miles card or a cashback (AED) card. */
+export type BulkPath = 'miles' | 'aed'
 
 export interface BulkFormState {
   monthlySpend: string
@@ -29,20 +32,11 @@ function write(key: string, value: unknown) {
 export const readBulkForm = () => read<BulkFormState>(FORM_KEY)
 export const readBulkRequest = () => read<BulkSpendMilesRequest>(REQUEST_KEY)
 
-/** Called on submit: keep the inputs for editing, the request for the results page, and show the outcome popup once. */
-export function saveBulkSubmission(form: BulkFormState, request: BulkSpendMilesRequest) {
+export const readBulkPath = (): BulkPath => read<BulkPath>(PATH_KEY) === 'aed' ? 'aed' : 'miles'
+
+/** Called once the user has picked a path: keep the inputs for editing and the request for the results page. */
+export function saveBulkSubmission(form: BulkFormState, request: BulkSpendMilesRequest, path: BulkPath) {
   write(FORM_KEY, form)
   write(REQUEST_KEY, request)
-  try { window.sessionStorage.setItem(OUTCOME_KEY, '1') } catch { /* ignore */ }
-}
-
-/** True once per submission; reading it clears it so a refresh does not replay the popup. */
-export function consumeBulkOutcomeFlag() {
-  try {
-    const pending = window.sessionStorage.getItem(OUTCOME_KEY) === '1'
-    window.sessionStorage.removeItem(OUTCOME_KEY)
-    return pending
-  } catch {
-    return false
-  }
+  write(PATH_KEY, path)
 }

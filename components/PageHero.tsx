@@ -18,6 +18,14 @@ interface Props {
   gap?: number
   /** Taller banner with more space between the lines. */
   tall?: boolean
+  /** Where the photo is anchored in the banner, as a CSS background-position (default 'right 62%'). */
+  imagePosition?: string
+  /** CSS background-size for the photo (default 'cover'); a smaller size zooms the photo out. */
+  imageSize?: string
+  /** Banner colour behind the photo, visible where a zoomed-out photo does not reach (default dark blue). */
+  imageBg?: string
+  /** Widest the text column may be (a CSS width such as '48%'); keeps text clear of busy parts of the photo. Default 58%. */
+  textMax?: string
   /** Overrides the kicker colour. */
   kickerColor?: string
   /** Heading font size (any CSS size); defaults to the page-hero size. */
@@ -25,8 +33,8 @@ interface Props {
   children?: ReactNode
 }
 
-export default function PageHero({ image, tone, title, kicker, badge, subtitle, width = 1120, framed = true, gap = 0, tall = false, kickerColor, titleSize, children }: Props) {
-  const style = { '--hero-img': `url(${image})`, '--hero-w': `${width}px`, marginBottom: gap, ...(titleSize ? { '--hero-title-size': titleSize } : {}) } as CSSProperties
+export default function PageHero({ image, tone, title, kicker, badge, subtitle, width = 1120, framed = true, gap = 0, tall = false, kickerColor, titleSize, imagePosition, imageSize, imageBg, textMax, children }: Props) {
+  const style = { '--hero-img': `url(${image})`, '--hero-w': `${width}px`, marginBottom: gap, ...(titleSize ? { '--hero-title-size': titleSize } : {}), ...(imagePosition ? { '--hero-pos': imagePosition } : {}), ...(imageSize ? { '--hero-size': imageSize } : {}), ...(imageBg ? { '--hero-bg': imageBg } : {}), ...(textMax ? { '--hero-text-max': textMax } : {}) } as CSSProperties
   return <div className={framed ? styles.frame : styles.fill} style={style}>
     <section className={`${styles.hero} ${tone === 'dark' ? styles.dark : styles.light} ${tall ? styles.tall : ''}`}>
       <div className={styles.inner}>

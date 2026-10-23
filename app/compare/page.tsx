@@ -1,7 +1,6 @@
 'use client'
 import { useMemo, useRef, useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
-import PageHero from '@/components/PageHero'
 import { fetchCards, fetchPersonalisedCards, fetchCardDetail, prefetchCardDetail, getCardImageUrl } from '@/lib/api'
 import PersonaliseDialog, { type PersonalSpend } from '@/components/PersonaliseDialog'
 import CompareWallet from '@/components/compare/CompareWallet'
@@ -275,12 +274,11 @@ function bestForSectionItems(
 // ─────────────────────────────────────────────────────────────────────────────
 // PAGE
 // ─────────────────────────────────────────────────────────────────────────────
-const CUES: { text: string; bg: string; icon: React.ReactNode }[] = [
-              { text: 'Includes rules, caps and conditions', bg: 'linear-gradient(145deg,#6C6CF0,#4B4BC8)', icon: <><rect x="5" y="3" width="14" height="18" rx="2.5" /><rect x="8" y="6" width="8" height="3.5" rx="0.8" /><path d="M8.5 13h.01M12 13h.01M15.5 13h.01M8.5 16.5h.01M12 16.5h.01M15.5 16.5h.01" strokeWidth="2.4" /></> },
-              { text: 'Compare on your actual terms', bg: 'linear-gradient(145deg,#1FAE8E,#0E7C68)', icon: <><path d="M4 7h9M17 7h3M4 12h3M11 12h9M4 17h11M19 17h1" /><circle cx="15" cy="7" r="2" /><circle cx="9" cy="12" r="2" /><circle cx="17" cy="17" r="2" /></> },
-              { text: 'See how cards perform in practice', bg: 'linear-gradient(145deg,#2F6FF0,#1B49C4)', icon: <><path d="M6 20V11M12 20V5M18 20v-6" strokeWidth="3" /></> },
-              { text: 'Compare up to 3 cards', bg: 'linear-gradient(145deg,#E8A93B,#C4801A)', icon: <><rect x="3" y="5" width="5" height="14" rx="1.5" /><rect x="9.5" y="5" width="5" height="14" rx="1.5" /><rect x="16" y="5" width="5" height="14" rx="1.5" /></> },
-            ]
+const HERO_STEPS: { title: string; text: string }[] = [
+  { title: 'Pick your cards', text: 'Choose the UAE cards you want to test.' },
+  { title: 'Build and simulate', text: 'Add up to 3 cards and see total rewards.' },
+  { title: 'Compare and decide', text: 'Compare with your current set of cards.' },
+]
 
 const rewardRatesOf = (cards: ApiCard[] | undefined) => (cards || [])
   .map(card => card.effective_reward_rate)
@@ -337,6 +335,12 @@ export default function ComparePage() {
   // Benefit preferences (UI-only for now)
   const [compareIds, setCompareIds] = useState<string[]>([])
   const [compareOpen, setCompareOpen] = useState(false)
+  // The hero's two buttons both lead to the card list below; the hint says what to tap there.
+  const [heroHint, setHeroHint] = useState<'test' | 'compare' | null>(null)
+  const goToCards = (intent: 'test' | 'compare') => {
+    setHeroHint(intent)
+    document.querySelector('.compare-filter-ribbon')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
   const [showOptionalRewardCategories, setShowOptionalRewardCategories] = useState(false)
   const [hoverNav, setHoverNav]     = useState<string | null>(null)
   const [expanded, setExpanded]     = useState<string | null>(null)
@@ -548,7 +552,7 @@ export default function ComparePage() {
       </div>
       <div style={{ textAlign: 'center' }}>
         <div style={{ fontSize: 20, fontWeight: 800, color: '#0E3785', marginBottom: 6 }}>Fetching all UAE cards</div>
-        <div style={{ fontSize: 13, color: '#5A6A85' }}>Customised as per average UAE resident spending</div>
+        <div style={{ fontSize: 13, color: '#5A6A85' }}>Getting everything ready for you…</div>
       </div>
     </div>
   )
@@ -592,7 +596,10 @@ export default function ComparePage() {
           .compare-filter-search { grid-column: 1 / -1; }
           .compare-all-filters-trigger { grid-column: 1 / -1; }
           .compare-filter-search input { min-height: 44px !important; font-size: 16px !important; }
-          .compare-card-name { flex-basis: calc(100% - 122px); }
+          .compare-card-name { flex: 1 1 100% !important; }
+          .compare-wallet-slot { position: static !important; padding: 10px 14px 12px; justify-content: stretch !important; border-top: 1px solid #EEF3FF; }
+          .compare-wallet-slot > button { flex: 1; justify-content: center; padding: 9px 12px !important; font-size: 12.5px !important; }
+          .compare-card-select { font-size: 12px !important; }
           .compare-card-name > div:first-child { white-space: normal !important; overflow: visible !important; text-overflow: clip !important; }
           .compare-card-score { padding: 5px 8px !important; gap: 4px !important; }
           .compare-card-score > span:last-child { display: none; }
@@ -604,38 +611,111 @@ export default function ComparePage() {
           .compare-filter-actions > button { flex: 1; min-width: 0 !important; }
         }
         @media (max-width: 1000px) { .compare-hero-deco { display: none !important; } }
+        .cmp-start { margin: 36px 0 0; }
+        .cmp-start h2 { margin: 0; font-size: clamp(22px, 2.6vw, 28px); font-weight: 800; letter-spacing: -0.02em; color: #0D1828; }
+        .cmp-start p { margin: 6px 0 0; font-size: 14.5px; color: #5A6A85; }
+        .cmp-start + .cmp-toolbar { margin-top: 16px; }
+        .cmp-toolbar { display: flex; align-items: center; gap: 10px; margin: 40px 0 14px; padding: 8px; border: 1px solid #D6E0F5; border-radius: 16px; background: #fff; box-shadow: 0 6px 20px -12px rgba(14,55,133,0.25); }
+        @media (max-width: 760px) { .cmp-toolbar { flex-wrap: wrap; } .cmp-toolbar > [role=tablist] { width: 100% !important; } .cmp-toolbar > [role=status], .cmp-toolbar > [role=note] { flex: 1 1 100% !important; margin-left: 0 !important; } }
+        html, body { overflow-x: clip; }
+        .cmp-hero { position: relative; margin: -48px calc(50% - 50vw) 0; padding: 44px calc(50vw - 50%) 34px; text-align: left; background: linear-gradient(135deg, #0E3785 0%, #0A2860 100%); color: #fff; }
+        @media (max-width: 760px) { .cmp-hero { margin-top: -32px; padding-top: 32px; } }
+        .cmp-hero-main { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 340px); gap: 32px; align-items: center; }
+        .cmp-hero-badge { display: inline-block; padding: 3px 12px; border-radius: 999px; background: #fff; color: #0E3785; font-size: clamp(13px, 1.4vw, 16px); font-weight: 800; letter-spacing: -0.01em; line-height: 1.3; box-shadow: 0 8px 22px -12px rgba(0,0,0,0.45); }
+        .cmp-hero h1 { margin: 14px 0 0; max-width: 600px; font-weight: 800; font-size: clamp(32px, 4.6vw, 52px); line-height: 1.05; letter-spacing: -0.02em; color: #fff; }
+        .cmp-hero h1 em { color: #F7C948; font-style: normal; }
+        .cmp-hero-sub { margin: 12px 0 0; max-width: 540px; font-size: 15px; line-height: 1.55; color: #DBE6FF; }
+        .cmp-hero-ctas { display: grid; grid-template-columns: 1fr; gap: 10px; margin: 0; }
+        .cmp-cta { position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-height: 0; padding: 10px 16px; border-radius: 14px; text-align: left; font-family: inherit; cursor: pointer; transition: transform .15s ease, box-shadow .15s ease; }
+        .cmp-cta:hover { transform: translateY(-2px); }
+        .cmp-cta:focus-visible { outline: 3px solid #F7C948; outline-offset: 2px; }
+        .cmp-cta-primary { border: 0; background: #fff; color: #0E3785; box-shadow: 0 22px 40px -18px rgba(0,0,0,0.45); }
+        .cmp-cta-secondary { border: 0; background: linear-gradient(135deg, #F7C948, #FFD76A); color: #0A2860; box-shadow: 0 22px 40px -18px rgba(247,201,72,0.7); }
+        .cmp-cta-icon { display: block; margin-bottom: auto; }
+        .cmp-cta-primary .cmp-cta-icon { color: rgba(255,255,255,0.85); }
+        .cmp-cta-secondary .cmp-cta-icon { color: #0A2860; }
+        .cmp-cta-text { display: grid; gap: 2px; margin-top: 4px; }
+        .cmp-cta-text b { font-size: 16px; font-weight: 800; }
+        .cmp-cta-text small { font-size: 12px; line-height: 1.3; opacity: .8; }
+        .cmp-cta-arrow { position: absolute; top: 10px; right: 10px; display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; font-size: 15px; font-weight: 700; }
+        .cmp-cta-primary .cmp-cta-arrow { background: #0E3785; color: #fff; }
+        .cmp-cta-secondary .cmp-cta-arrow { background: #0E3785; color: #fff; }
+        .cmp-slots { display: flex; gap: 8px; width: 100%; padding-right: 36px; }
+        .cmp-slot { flex: 1; display: grid; place-items: center; padding: 3px 4px; border: 1.5px dashed #9DB2E0; border-radius: 10px; background: #EEF3FF; color: #0E3785; }
+        .cmp-slot b { font-size: 15px; font-weight: 600; line-height: 1.1; }
+        .cmp-slot small { font-size: 10px; font-weight: 600; opacity: .85; }
+        .cmp-slots-vs { gap: 0; justify-content: space-between; align-items: center; }
+        .cmp-slot-group { display: flex; align-items: center; gap: 4px; flex: 1; }
+        .cmp-slot-group:last-child { flex: 1.2; }
+        .cmp-slot-group em { flex: none; margin: 0 6px; font-style: normal; font-size: 11px; font-weight: 800; color: #5A6A85; text-transform: uppercase; }
+        .cmp-cta-secondary .cmp-slot { border-color: #9DB2E0; background: #EEF3FF; color: #0E3785; padding: 6px 2px; }
+        .cmp-steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 48px; list-style: none; margin: 22px 0 0; padding: 18px 0 0; border-top: 1px solid rgba(255,255,255,0.2); }
+        .cmp-steps li { position: relative; display: flex; align-items: flex-start; gap: 12px; }
+        .cmp-steps li:not(:last-child) .cmp-step-text::after { content: '→'; position: absolute; top: 0; left: calc(100% + 14px); font-size: 32px; line-height: 20px; font-weight: 700; color: rgba(247,201,72,0.95); }
+        .cmp-step-num { flex: none; display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: #F7C948; color: #0A2860; font-size: 14px; font-weight: 800; }
+        .cmp-step-text { position: relative; display: grid; gap: 2px; }
+        .cmp-step-text b { font-size: 14.5px; font-weight: 700; line-height: 20px; color: #fff; }
+        .cmp-step-text small { font-size: 12.5px; line-height: 1.4; color: #DBE6FF; }
+        @media (max-width: 760px) {
+          .cmp-steps { grid-template-columns: 1fr; gap: 14px; }
+          .cmp-steps li:not(:last-child) .cmp-step-text::after { content: none; }
+        }
+        .cmp-hero-help { margin: 16px 0 0; font-size: 13.5px; color: #DBE6FF; }
+        .cmp-hero-help a { margin-left: 6px; font-weight: 800; color: #F7C948; text-decoration: none; border-bottom: 1px solid rgba(247,201,72,0.5); }
+        .cmp-hero-help a:hover { border-bottom-color: #F7C948; }
+        .cmp-hero-hint { margin: 14px 0 0; font-size: 13.5px; font-weight: 600; color: #F7C948; }
+        @media (max-width: 640px) {
+          .cmp-hero-main { grid-template-columns: 1fr; gap: 20px; }
+          .cmp-hero-sub { font-size: 15px; }
+        }
       `}</style>
 
       {/* ── HERO ─────────────────────────────────────────────────────────── */}
-      {!fromResults && <div style={{ marginBottom: 28 }}><PageHero framed={false} tone="light" image="/images/heroes/Compare.webp"
-        kicker="COMPARE"
-        title={<>Compare real earning potential,<br /><span style={{ color: '#B7791F' }}>not just headline rates.</span></>}>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px 0', margin: '14px 0 18px' }}>
-          {CUES.map((f, i, all) => (
-            <div key={f.text} style={{ display: 'flex', alignItems: 'center', gap: 9, paddingRight: 14, marginRight: 14, borderRight: i < all.length - 1 ? '1px solid rgba(13,24,40,0.14)' : 'none' }}>
-              <span aria-hidden style={{ flexShrink: 0, width: 34, height: 34, borderRadius: '50%', background: f.bg, display: 'grid', placeItems: 'center', boxShadow: '0 6px 16px rgba(0,0,0,0.18)' }}>
-                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">{f.icon}</svg>
-              </span>
-              <span style={{ maxWidth: 122, fontSize: 12, lineHeight: 1.35, color: '#26364f' }}>{f.text}</span>
-            </div>
-          ))}
+      {!fromResults && <section className="cmp-hero" aria-labelledby="cmp-hero-title">
+        <div className="cmp-hero-main">
+        <div className="cmp-hero-copy">
+        <span className="cmp-hero-badge">UAE’s first multi-credit card rewards simulator</span>
+        <h1 id="cmp-hero-title">Simulate and compare credit cards <em>your way.</em></h1>
+        <p className="cmp-hero-sub">See how any UAE credit card performs on your spending. Test up to 3 cards together or compare one wallet against another.</p>
         </div>
-        <button type="button" onClick={() => setPersonaliseOpen(true)} style={{
-          display: 'inline-flex', alignItems: 'center', gap: 12, border: 0, cursor: 'pointer',
-          background: 'linear-gradient(90deg, #F7C948, #FFD76A)', color: '#0A2860', padding: '13px 28px', borderRadius: 999,
-          fontSize: 16, fontWeight: 800, textDecoration: 'none',
-          boxShadow: '0 12px 34px rgba(247,201,72,0.38)'
-        }}>
-          <span aria-hidden>🎯</span> Personalize these results <span aria-hidden>→</span>
-        </button>
-      </PageHero></div>}
+        <div className="cmp-hero-ctas">
+          <button type="button" className="cmp-cta cmp-cta-primary" onClick={() => goToCards('test')}>
+            <span className="cmp-slots" aria-hidden>{[1, 2, 3].map(n => <span key={n} className="cmp-slot"><b>+</b><small>Card {n}</small></span>)}</span>
+            <span className="cmp-cta-text"><b>Simulate Cards</b><small>Build your own wallet and simulate rewards.</small></span>
+            <span className="cmp-cta-arrow" aria-hidden>↗</span>
+          </button>
+          <button type="button" className="cmp-cta cmp-cta-secondary" onClick={() => goToCards('compare')}>
+            <svg className="cmp-cta-icon" aria-hidden viewBox="0 0 150 40" width="110" height="29" fill="none" stroke="currentColor" strokeWidth="1.6"><g transform="translate(0 0)"><rect x="2" y="3" width="34" height="22" rx="5" opacity=".55" /><rect x="10" y="10" width="34" height="22" rx="5" fill="currentColor" fillOpacity=".18" /><rect x="16" y="16" width="30" height="20" rx="5" fill="#fff" /></g><text x="75" y="26" textAnchor="middle" fontSize="11" fontWeight="800" fill="currentColor" stroke="none">VS</text><g transform="translate(100 0)"><rect x="2" y="3" width="34" height="22" rx="5" opacity=".55" /><rect x="10" y="10" width="34" height="22" rx="5" fill="currentColor" fillOpacity=".18" /><rect x="16" y="16" width="30" height="20" rx="5" fill="#fff" /></g></svg>
+            <span className="cmp-cta-text"><b>Compare Cards</b><small>Compare a single card or wallet against another — up to 3 vs 3.</small></span>
+            <span className="cmp-cta-arrow" aria-hidden>↗</span>
+          </button>
+        </div>
+        </div>
+        {heroHint && <p className="cmp-hero-hint" role="status">{heroHint === 'test'
+          ? 'Tap “Add to test wallet” on up to 3 cards below to see what they earn together.'
+          : 'Tick “Select to compare” on up to 3 cards below, then open the comparison.'}</p>}
+        <ol className="cmp-steps" aria-label="How it works">
+          {HERO_STEPS.map((step, i) => (
+            <li key={step.title}>
+              <span className="cmp-step-num" aria-hidden>{i + 1}</span>
+              <span className="cmp-step-text"><b>{step.title}</b><small>{step.text}</small></span>
+            </li>
+          ))}
+        </ol>
+        <p className="cmp-hero-help">Not sure which cards to test? <Link href="/analyse?mode=manual">Let Earnn choose for you <span aria-hidden>→</span></Link></p>
+      </section>}
 
       {/* ── REWARD VIEW: two slim tabs, half the width each, the active one highlighted ── */}
-      <div role="tablist" aria-label="Reward view" style={{ display: 'flex', margin: '0 0 12px', padding: 3, gap: 3, borderRadius: 12, background: '#EEF3FF', border: '1px solid #D6E0F5' }}>
+      {!fromResults && <div className="cmp-start">
+        <h2>Choose a card to start simulating</h2>
+        <p>Add up to 3 cards to your test wallet, or select cards to compare side by side.</p>
+      </div>}
+      <div className="cmp-toolbar">
+      <div role="tablist" aria-label="Reward view" style={{ display: 'flex', flex: 'none', width: 200, margin: 0, padding: 3, gap: 3, borderRadius: 12, background: '#EEF3FF', border: '1px solid #D6E0F5' }}>
         {(['cashback', 'miles'] as const).map(m => (
           <button key={m} type="button" role="tab" aria-selected={mode === m}
             onClick={() => { if (m !== mode) { setMode(m); setCompareIds([]); setCompareOpen(false); setExpanded(null); setPage(1); setWalletIds([]) } }}
-            style={{ flex: 1, border: 'none', cursor: 'pointer', padding: '7px 12px', borderRadius: 9, fontSize: 13.5, fontWeight: 800, textAlign: 'center',
+            style={{ flex: 1, border: 'none', cursor: 'pointer', padding: '5px 12px', borderRadius: 9, fontSize: 13, fontWeight: 800, textAlign: 'center',
               background: mode === m ? '#0E3785' : 'transparent', color: mode === m ? 'white' : '#5A6A85',
               boxShadow: mode === m ? '0 2px 8px rgba(14,55,133,0.25)' : 'none', transition: 'background 0.15s, color 0.15s' }}>
             {m === 'cashback' ? 'Cashback' : 'Miles'}
@@ -644,22 +724,23 @@ export default function ComparePage() {
       </div>
 
       {personal && (
-        <div role="status" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '6px 14px', margin: '0 0 12px', padding: '10px 14px', borderRadius: 12, background: '#FFF6E0', border: '1px solid #F5D98A', color: '#5A4200', fontSize: 13.5 }}>
+        <div role="status" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, margin: '0 0 0 auto', flex: '0 1 auto', padding: '7px 8px 7px 12px', borderRadius: 12, background: '#FFF6E0', border: '1px solid #F5D98A', color: '#5A4200', fontSize: 13 }}>
           <span aria-hidden>🎯</span>
-          <span><strong>Personalised to your spend</strong> · AED {Math.round(Object.values(personal.amounts).reduce((a, b) => a + b, 0)).toLocaleString()} / month · cards re-ranked for you</span>
-          <span style={{ marginLeft: 'auto', display: 'flex', gap: 14 }}>
-            <button type="button" onClick={() => setPersonaliseOpen(true)} style={{ border: 0, background: 'none', color: '#0E3785', fontWeight: 800, cursor: 'pointer', fontSize: 13.5 }}>Edit spend</button>
-            <button type="button" onClick={() => { setPersonal(null); setCompareIds([]); setExpanded(null); setPage(1); setWalletIds([]) }} style={{ border: 0, background: 'none', color: '#8A4B00', fontWeight: 800, cursor: 'pointer', fontSize: 13.5 }}>Back to default</button>
-          </span>
+          <span><strong>Personalised to your spend</strong> · AED {Math.round(Object.values(personal.amounts).reduce((a, b) => a + b, 0)).toLocaleString()} / mo</span>
+          <button type="button" onClick={() => setPersonaliseOpen(true)} aria-label="Edit spend" title="Edit spend" style={{ display: 'grid', placeItems: 'center', width: 26, height: 26, border: 0, borderRadius: 8, background: 'rgba(14,55,133,0.08)', color: '#0E3785', cursor: 'pointer' }}>
+            <svg aria-hidden viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 20h4L19 9a2.1 2.1 0 00-4-4L4 16z" /><path d="M13.5 6.5l4 4" /></svg>
+          </button>
         </div>
       )}
       {!personal && (
-        <div role="note" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '6px 14px', margin: '0 0 12px', padding: '10px 14px', borderRadius: 12, background: '#DDF5EA', border: '1px solid #8FD3B4', color: '#0B4D38', fontSize: 13.5, fontWeight: 600 }}>
+        <div role="note" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '6px 14px', margin: '0 0 0 auto', flex: '0 1 auto', padding: '7px 12px', borderRadius: 12, background: '#DDF5EA', border: '1px solid #8FD3B4', color: '#0B4D38', fontSize: 13.5, fontWeight: 600 }}>
           <span aria-hidden>ℹ️</span>
-          <span>All rates are estimated on a typical UAE spending pattern. Customize them to your own spend anytime.</span>
-          <button type="button" onClick={() => setPersonaliseOpen(true)} style={{ marginLeft: 'auto', border: 0, background: 'none', color: '#0A6B4B', fontWeight: 800, cursor: 'pointer', fontSize: 13.5, textDecoration: 'underline' }}>Customize</button>
+          <span>Displayed rates are estimated using sample monthly spending.{' '}
+            <button type="button" onClick={() => setPersonaliseOpen(true)} style={{ padding: 0, border: 0, background: 'none', color: '#0A6B4B', fontWeight: 800, cursor: 'pointer', fontSize: 'inherit', fontFamily: 'inherit', textDecoration: 'underline' }}>Personalize it →</button>
+          </span>
         </div>
       )}
+      </div>
       {personaliseOpen && (
         <PersonaliseDialog current={personal} mode={mode} onClose={() => { setPersonaliseOpen(false); setPendingWalletId(null) }}
           onSubmit={value => {
@@ -961,7 +1042,7 @@ function WalletToggle({ inWallet, onToggle, compact }: { inWallet: boolean; onTo
       <svg aria-hidden viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M3 7a2 2 0 0 1 2-2h13v4" /><path d="M3 7v11a2 2 0 0 0 2 2h14a1 1 0 0 0 1-1v-9a1 1 0 0 0-1-1H5a2 2 0 0 1-2-2" /><circle cx="16" cy="14" r="1" fill="currentColor" />
       </svg>
-      {inWallet ? 'In wallet ✓' : 'Try in my wallet'}
+      {inWallet ? 'In test wallet ✓' : 'Add to test wallet'}
     </button>
   )
 }
@@ -1077,7 +1158,7 @@ function MilesTileTop({ card, fee, topEarnRates, inCompare, compareFull, onToggl
         <span style={{ ...label, borderBottom: '1.5px dotted #9CA3AF' }}>Eff. fee</span>
         <span style={{ fontSize: 20, fontWeight: 800, color: fee === 0 ? '#00A67E' : '#C95B00', lineHeight: 1.2, marginTop: 5 }}>AED {(card.true_annual_fee_aed ?? 0).toLocaleString()}</span>
         <span style={{ fontSize: 10, color: '#9CA3AF', marginTop: 2 }}>per year</span>
-        <div style={{ position: 'absolute', left: 0, right: 0, bottom: 10, display: 'flex', justifyContent: 'center' }}><WalletToggle inWallet={inWallet} onToggle={onToggleWallet} compact /></div>
+        <div className="compare-wallet-slot" style={{ position: 'absolute', left: 0, right: 0, bottom: 10, display: 'flex', justifyContent: 'center' }}><WalletToggle inWallet={inWallet} onToggle={onToggleWallet} compact /></div>
         {hoverNav === `fee_${id}` && <InlineTooltip text="Estimating how much you could pay in annual fees based on your spending — after waivers and first-year offers." />}
       </div>
 
@@ -1092,7 +1173,7 @@ function MilesTileTop({ card, fee, topEarnRates, inCompare, compareFull, onToggl
           onClick={(e) => { e.stopPropagation(); onToggleCompare(e) }}
           style={{ display: 'inline-flex', alignItems: 'center', gap: 7, border: 'none', background: 'transparent', padding: 0, cursor: compareFull ? 'not-allowed' : 'pointer', opacity: compareFull ? 0.6 : 1, color: '#0E3785', fontSize: 12.5, fontWeight: 800 }}>
           <span aria-hidden style={{ width: 17, height: 17, boxSizing: 'border-box', borderRadius: 4, border: '1.5px solid #0E3785', background: inCompare ? '#0E3785' : 'white', color: 'white', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 11 }}>{inCompare ? '✓' : ''}</span>
-          Compare
+          Select to compare
         </button>
       </div>
 
@@ -1190,7 +1271,7 @@ function CardTile({ card, detail, detailLoading, inCompare, compareFull, onToggl
           color: inCompare ? 'white' : compareFull ? '#9DAEC8' : '#0E3785',
           fontSize: 12, fontWeight: 800, opacity: compareFull ? 0.7 : 1,
         }}>
-          <span>Compare</span>
+          <span>Select to compare</span>
           <span aria-hidden="true" style={{ width: 15, height: 15, boxSizing: 'border-box', borderRadius: 3, border: inCompare ? '1.5px solid white' : `1.5px solid ${compareFull ? '#C2CCDD' : '#0E3785'}`, background: 'white', color: '#0E3785', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 900, lineHeight: 1 }}>
             {inCompare ? '✓' : ''}
           </span>
@@ -1287,7 +1368,7 @@ function CardTile({ card, detail, detailLoading, inCompare, compareFull, onToggl
             AED {(card.true_annual_fee_aed ?? 0).toLocaleString()}
           </span>
           <span style={{ fontSize: 10.5, color: '#9CA3AF' }}>per year</span>
-          <div style={{ position: 'absolute', left: 0, right: 0, bottom: 10, display: 'flex', justifyContent: 'center' }}><WalletToggle inWallet={inWallet} onToggle={onToggleWallet} compact /></div>
+          <div className="compare-wallet-slot" style={{ position: 'absolute', left: 0, right: 0, bottom: 10, display: 'flex', justifyContent: 'center' }}><WalletToggle inWallet={inWallet} onToggle={onToggleWallet} compact /></div>
           {hoverNav === `fee_${card.earnn_card_id}` && (
             <InlineTooltip text="Estimating how much you could pay in annual fees based on your spending — after waivers and first-year offers." />
           )}

@@ -151,6 +151,7 @@
 .calendar{margin-top:16px}
 .calendar>summary{cursor:pointer;color:#31517f;font-size:13px;font-weight:800}
 .calendar .monthStrip{margin-top:14px}
+.calendar[open] .calendarShow,.calendar:not([open]) .calendarHide{display:none}
 
 /* featured opportunity */
 .featured{margin-top:18px;padding:22px;border:1px solid #e8c978;border-radius:14px;background:#fff;box-shadow:0 10px 26px rgba(165,102,0,.14)}

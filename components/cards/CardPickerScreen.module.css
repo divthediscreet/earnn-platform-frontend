@@ -47,7 +47,8 @@
 .notice { display: flex; gap: 8px; align-items: flex-start; margin: 0; padding: 10px 26px; background: #fff7e0; color: #7a5a00; font-size: 13px; }
 
 .foot { display: flex; align-items: center; gap: 10px; padding: 14px 26px; border-top: 1px solid #e4eaf5; background: #fff; }
-.count { margin-right: auto; font-size: 13px; font-weight: 700; color: #5a6a85; }
+.count { flex: 1; min-width: 0; margin-right: auto; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; max-height: 62px; overflow-y: auto; font-size: 13px; font-weight: 700; color: #5a6a85; }
+.chip { font-style: normal; font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 999px; background: #eef3ff; border: 1px solid #c9d8f5; color: #0e3785; white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
 .skipBar { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 11px 16px; border: 0; background: #10b981; color: #022c22; font: inherit; font-size: 13px; font-weight: 800; line-height: 1.3; text-align: center; cursor: pointer; transition: background 0.12s ease; }
 .skipBar:hover { background: #34d399; }
 .skipBar i:first-child { color: #fff; font-size: 15px; }

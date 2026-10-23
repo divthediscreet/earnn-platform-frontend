@@ -46,7 +46,7 @@ export const TOOLS: HomeTool[] = [
   },
   {
     key: 'tap',
-    name: 'Match & Tap',
+    name: 'Check Before You Pay',
     route: '/merchant-lookup',
     hook: ['Know which card to use', 'before you pay.'],
     headline: 'Know which card to use before you pay.',

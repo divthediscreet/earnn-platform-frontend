@@ -8,4 +8,10 @@
 .calculating{display:grid;justify-items:center;gap:14px}
 .spinner{display:block;width:54px;height:54px;border:5px solid #d6e0f5;border-top-color:#0e3785;border-radius:50%;animation:spin .85s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
-@media(prefers-reduced-motion:reduce){.spinner{animation-duration:2.4s}}
+@media(prefers-reduced-motion:reduce){.spinner{animation-duration:2.4s}}
+.luxury h2{display:flex;align-items:center;gap:10px;font-size:clamp(26px,4vw,34px)!important;background:linear-gradient(90deg,#a87a10,#e9c46a 45%,#a87a10);-webkit-background-clip:text;background-clip:text;color:transparent}
+.luxury h2 i{color:#c9a84c;-webkit-text-fill-color:#c9a84c}
+.luxury p{color:#0a1f52!important;font-size:16px!important;font-weight:600}
+.luxury p b{padding:1px 7px;border-radius:6px;background:#fff1c7;color:#8a5f00;font-weight:800}
+.refineRow{align-items:flex-start!important;flex-wrap:wrap}
+.emptyActions{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:14px}
