@@ -15,7 +15,7 @@ export default function MilesLoadingState({ destination, variant = 'result', hea
   </div>
 
   return <div className={styles.loading} role="status" aria-live="polite">
-    <div className={`${styles.sky} ${styles.targetSky}`} aria-hidden="true"><span className={styles.glow} /><Image className={styles.realGlobe} src="/miles-goal/realistic-globe.png" alt="" width={112} height={112} priority /></div>
+    <div className={`${styles.sky} ${styles.targetSky}`} aria-hidden="true"><span className={styles.glow} /><Image className={styles.realGlobe} src="/miles-goal/realistic-globe.png" alt="" width={168} height={168} priority /></div>
     <strong>{headline ?? `Finding your fastest way to ${destination}…`}</strong>
     <span>{supportingText ?? 'Comparing miles, welcome rewards, fee routes and flight targets.'}</span>
   </div>

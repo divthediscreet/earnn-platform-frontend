@@ -1,10 +1,10 @@
 'use client'
 
-// Trip Planner results page body: hero, 3-step strip, the recommended trip, then other possible trips with region filters.
+// Trip Planner results page body: hero, 3-step strip, then one tray of trips (the recommended one first, wearing a crown) with region filters.
 // Presentation only: every trip, cabin and time comes from the Trip Planner response, in the order the server sent it.
-import { useMemo, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import type { TripItem } from '@/lib/trip-planner/api'
-import { PARTY_ICON, cabinImage, tripArt } from '@/lib/trip-planner/format'
+import { PARTY_ICON, tripArt } from '@/lib/trip-planner/format'
 import styles from './TripResults.module.css'
 
 /* eslint-disable @next/next/no-img-element */
@@ -35,68 +35,59 @@ function Photo({ trip }: { trip: TripItem }) {
   return art ? <img src={art.image} alt="" loading="lazy" /> : null
 }
 
-/** Destination name only (no cabin): "Egypt or the Middle East", "London or Europe", "India". */
+/** Destination name only, kept short for display: the first place before an "or" ("Egypt or the Middle East" -> "Egypt", "London or Europe" -> "London"). */
 function placeName(trip: TripItem) {
-  const clean = (name: string) => name.replace(/^the\s+/i, '').replace(/\s+and\s+.*$/i, '').trim()
-  const names = trip.destination_names
-  return names.length <= 2 ? names.map(clean).join(' or ') : clean(names[0])
-}
-
-function blurb() {
-  return 'Within reach based on what you spend each month.'
-}
-
-function Featured({ trip, onOpen }: { trip: TripItem, onOpen: (trip: TripItem) => void }) {
-  const facts: [string, string, string][] = [
-    ['ti-armchair', 'Class', trip.cabin === 'economy' ? 'Economy' : 'Business'],
-    ['ti-clock', 'Time to fly', timeText(trip)],
-    [PARTY_ICON[trip.party], 'Travellers', travellersText(trip)],
-  ]
-  // Business and upgrade trips get the cabin scene for the destination (the country seen from the window) across the whole card,
-  // with the text on its dark left side; destinations without such a scene keep the photo-beside-text layout.
-  const art = tripArt(trip.destination_names)
-  const scene = trip.cabin !== 'economy' && art ? cabinImage(art.key) : null
-  return <section className={`${styles.featured} ${scene ? styles.featuredScene : ''}`} style={scene ? { backgroundImage: `url(${scene})` } : undefined} aria-label="Recommended for you">
-    <span className={styles.recBadge}><i className="ti ti-star-filled" aria-hidden="true" /> Recommended for you</span>
-    {!scene && <div className={styles.featPhoto}><Photo trip={trip} /></div>}
-    <div className={styles.featBody}>
-      <div className={styles.featTop}>
-        {trip.cabin === 'upgrade' && <span className={styles.valueTag}><i className="ti ti-diamond" aria-hidden="true" /> Best value route</span>}
-      </div>
-      <h2>{placeName(trip)}</h2>
-      <p>{blurb()}</p>
-      <ul className={styles.facts}>{facts.map(([icon, label, value]) => <li key={label}><i className={`ti ${icon}`} aria-hidden="true" /><span><small>{label}</small><b>{value}</b></span></li>)}</ul>
-      <button type="button" className={styles.featGo} onClick={() => onOpen(trip)}>See how to get there <i className="ti ti-arrow-right" aria-hidden="true" /></button>
-    </div>
-  </section>
+  const first = trip.destination_names[0] ?? ''
+  return first.split(/\s+or\s+/i)[0].replace(/^the\s+/i, '').replace(/\s+and\s+.*$/i, '').trim()
 }
 
 function TripTile({ trip, onOpen }: { trip: TripItem, onOpen: (trip: TripItem) => void }) {
-  return <button type="button" className={styles.tile} onClick={() => onOpen(trip)} aria-label={`Open: ${placeName(trip)}`}>
-    <span className={styles.tilePhoto}><Photo trip={trip} />{trip.cabin !== 'economy' && <span className={styles.bizBadge}><i className="ti ti-armchair" aria-hidden="true" /> Business</span>}</span>
-    <span className={styles.tileBody}>
-      <strong>{placeName(trip)}</strong>
-      <span className={styles.tileFacts}>
-        <span><i className={`ti ${PARTY_ICON[trip.party]}`} aria-hidden="true" /> {travellersText(trip)}</span>
-        <span><i className="ti ti-clock" aria-hidden="true" /> {timeText(trip)}</span>
+  return <div className={styles.tileWrap}>
+    {trip.is_hero && <span className={styles.crown} role="img" aria-label="Recommended for you" title="Recommended for you"><i className="ti ti-crown" aria-hidden="true" /></span>}
+    <button type="button" className={styles.tile} onClick={() => onOpen(trip)} aria-label={`Open: ${placeName(trip)}`}>
+      <span className={styles.tilePhoto}><Photo trip={trip} /><span className={styles.fromUae}>UAE to</span>{trip.cabin !== 'economy' && <span className={styles.bizBadge}><i className="ti ti-armchair" aria-hidden="true" /> Business class</span>}</span>
+      <span className={styles.tileBody}>
+        <strong className={styles.routeName}>{placeName(trip)}</strong>
+        <span className={styles.tileFacts}>
+          <span><i className={`ti ${PARTY_ICON[trip.party]}`} aria-hidden="true" /> {travellersText(trip)}</span>
+          <span><i className="ti ti-clock" aria-hidden="true" /> {timeText(trip)}</span>
+        </span>
+        <span className={styles.goWrap}><small>Show</small><i className="ti ti-arrow-right" aria-hidden="true" /></span>
       </span>
-      <i className={`ti ti-arrow-right ${styles.go}`} aria-hidden="true" />
-    </span>
-  </button>
+    </button>
+  </div>
+}
+
+/** One row of trips: four and a half tiles are visible, the arrows step through the rest. */
+function Tray({ trips, onOpen }: { trips: TripItem[], onOpen: (trip: TripItem) => void }) {
+  const track = useRef<HTMLDivElement>(null)
+  const [edge, setEdge] = useState({ left: false, right: false })
+  const measure = useCallback(() => {
+    const el = track.current
+    if (el) setEdge({ left: el.scrollLeft > 4, right: el.scrollLeft + el.clientWidth < el.scrollWidth - 4 })
+  }, [])
+  useEffect(() => {
+    measure()
+    window.addEventListener('resize', measure)
+    return () => window.removeEventListener('resize', measure)
+  }, [measure, trips.length])
+  const step = (direction: 1 | -1) => track.current?.scrollBy({ left: direction * track.current.clientWidth * 0.8, behavior: 'smooth' })
+  return <div className={styles.tray}>
+    <div className={styles.track} ref={track} onScroll={measure}>{trips.map(trip => <TripTile key={trip.trip_id} trip={trip} onOpen={onOpen} />)}</div>
+    {edge.left && <button type="button" className={`${styles.arrow} ${styles.arrowLeft}`} onClick={() => step(-1)} aria-label="Show earlier trips"><i className="ti ti-chevron-left" aria-hidden="true" /></button>}
+    {edge.right && <button type="button" className={`${styles.arrow} ${styles.arrowRight}`} onClick={() => step(1)} aria-label="Show more trips"><i className="ti ti-chevron-right" aria-hidden="true" /></button>}
+  </div>
 }
 
 export default function TripResults({ trips, onOpen, onCustomize, toolbar }: { trips: TripItem[], onOpen: (trip: TripItem) => void, onCustomize: () => void, toolbar?: ReactNode }) {
   const [filter, setFilter] = useState('popular')
   const [showAll, setShowAll] = useState(false)
-  const top = trips.find(trip => trip.is_hero) ?? trips[0]
-  // The server's order is kept: normal trips by score first, "Worth the wait" trips last.
-  const others = useMemo(() => [...trips.filter(trip => trip.slot !== 'stretch'), ...trips.filter(trip => trip.slot === 'stretch')].filter(trip => trip !== top), [trips, top])
-  const matches = (chip: Filter) => chip.regions === null ? others : others.filter(trip => trip.region_keys.some(key => chip.regions!.includes(key)))
+  // The server's order is kept: the recommended trip first (it wears the crown), then the rest in the order they were picked.
+  const matches = (chip: Filter) => chip.regions === null ? trips : trips.filter(trip => trip.region_keys.some(key => chip.regions!.includes(key)))
   const chips = FILTERS.filter(chip => chip.regions === null || matches(chip).length > 0)
   const active = chips.find(chip => chip.key === filter) ?? chips[0]
   const list = matches(active)
-  const shown = showAll ? list : list.slice(0, 4)
-  if (!top) return null
+  if (!trips.length) return null
 
   return <>
     <section className={styles.hero}>
@@ -105,7 +96,7 @@ export default function TripResults({ trips, onOpen, onCustomize, toolbar }: { t
         <p>See where your everyday spending could take you — and the smartest way to get there.</p>
         <div className={styles.heroCtas}>
           <button type="button" className={styles.primary} onClick={onCustomize}><i className="ti ti-plane-departure" aria-hidden="true" /> Customize My Dream Trip <i className="ti ti-arrow-right" aria-hidden="true" /></button>
-          <button type="button" className={styles.ghost} onClick={() => document.getElementById('other-trips')?.scrollIntoView({ behavior: 'smooth' })}>See Possibilities <i className="ti ti-arrow-right" aria-hidden="true" /></button>
+          <button type="button" className={styles.ghost} onClick={() => document.getElementById('other-trips')?.scrollIntoView({ behavior: 'smooth' })}>See Possibilities <i className="ti ti-arrow-down" aria-hidden="true" /></button>
         </div>
       </div>
     </section>
@@ -122,17 +113,22 @@ export default function TripResults({ trips, onOpen, onCustomize, toolbar }: { t
 
     {toolbar && <div className={styles.toolbar}>{toolbar}</div>}
 
-    <Featured trip={top} onOpen={onOpen} />
-
-    {others.length > 0 && <section className={styles.others} id="other-trips">
+    <section className={styles.others} id="other-trips">
       <div className={styles.othersHead}>
-        <h2>Other possible trips based on your spending</h2>
-        {list.length > 4 && <button type="button" className={styles.viewAll} onClick={() => setShowAll(value => !value)}>{showAll ? 'Show fewer' : 'View all destinations'} <i className="ti ti-arrow-right" aria-hidden="true" /></button>}
+        <div>
+          <h2>Few Possibilities where you could fly</h2>
+          <p className={styles.othersSub}>These are just samples — you can always <button type="button" className={styles.customizeLink} onClick={onCustomize}>customize</button> your own trip.</p>
+        </div>
       </div>
-      <div className={styles.filters} role="tablist" aria-label="Filter by region">
-        {chips.map(chip => <button key={chip.key} type="button" role="tab" aria-selected={chip.key === active.key} className={chip.key === active.key ? styles.chipOn : ''} onClick={() => { setFilter(chip.key); setShowAll(false) }}><i className={`ti ${chip.icon}`} aria-hidden="true" /> {chip.label}</button>)}
+      <div className={styles.filterRow}>
+        <div className={styles.filters} role="tablist" aria-label="Filter by region">
+          {chips.map(chip => <button key={chip.key} type="button" role="tab" aria-selected={chip.key === active.key} className={chip.key === active.key ? styles.chipOn : ''} onClick={() => { setFilter(chip.key); setShowAll(false) }}><i className={`ti ${chip.icon}`} aria-hidden="true" /> {chip.label}</button>)}
+        </div>
+  {list.length > 1 && <button type="button" className={styles.viewAll} onClick={() => setShowAll(value => !value)}>{showAll ? 'Show fewer' : 'View all destinations'} <i className={`ti ${showAll ? 'ti-chevron-up' : 'ti-arrow-right'}`} aria-hidden="true" /></button>}
       </div>
-      <div className={styles.grid}>{shown.map(trip => <TripTile key={trip.trip_id} trip={trip} onOpen={onOpen} />)}</div>
-    </section>}
+      {showAll
+        ? <div className={styles.gridAll}>{list.map(trip => <TripTile key={trip.trip_id} trip={trip} onOpen={onOpen} />)}</div>
+        : <Tray key={active.key} trips={list} onOpen={onOpen} />}
+    </section>
   </>
 }

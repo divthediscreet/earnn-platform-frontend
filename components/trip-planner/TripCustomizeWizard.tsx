@@ -1,8 +1,9 @@
 'use client'
 
 // "Customize My Trip" as a small step-by-step pop-up on the Trip Planner results page:
-//   1 where to fly (the Miles Goal world map)  ->  2 how to fly (the Miles Goal cabin cards)  ->
-//   3 who is flying, airline and one way / return  ->  4 anything else (only when there is something to ask).
+//   1 where to fly (the Miles Goal world map)  ->  2 who is flying, airline and one way / return  ->  3 anything else (only when there is something to ask).
+// The cabin screen (the Miles Goal cabin cards) is not a step: the class defaults to the Upgrade option, shown on the "who" screen with a pencil,
+// and the cabin screen opens only when the pencil is used.
 // Nothing is calculated here.  The last step sends the user to the existing Miles Goal result page (source=trip), which shows its
 // rotating-globe holding screen, runs the Trip Planner engine with every Miles Goal fallback, and then shows the result unchanged.
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
@@ -71,7 +72,7 @@ export default function TripCustomizeWizard({ request, bankCodes, onClose }: { r
   const [previewRegionId, setPreviewRegionId] = useState<MilesRegionId | null>(null)
   const [strategy, setStrategy] = useState<StrategyId>('smartest') // the upgrade option is preselected
   const [travellers, setTravellers] = useState<Travellers>({ adults: 1, children: 0, infants: 0 })
-  const [tripType, setTripType] = useState<'one_way' | 'return'>('return')
+  const [tripType, setTripType] = useState<'one_way' | 'return'>('one_way')   // one way is preselected
   const [airline, setAirline] = useState<Airline | 'any'>('any')
   const [estimates, setEstimates] = useState<Partial<Record<StrategyId, StrategyEstimate>>>({})
   const abort = useRef<AbortController | null>(null)
@@ -101,7 +102,7 @@ export default function TripCustomizeWizard({ request, bankCodes, onClose }: { r
         cash: item.associated_cash_aed, miles: item.original_target_miles, saving: Math.max(0, item.cash_price_aed - item.associated_cash_aed),
       }])) as Partial<Record<StrategyId, StrategyEstimate>>))
       .catch(() => undefined)   // the estimates are a courtesy; the cards work without them
-    setStep(1)
+    setStep(2)   // the cabin screen (1) is skipped: the Upgrade option is preselected
   }
 
   const adjust = (kind: keyof Travellers, delta: number) => setTravellers(current => ({ ...current, [kind]: Math.max(kind === 'adults' ? 1 : 0, Math.min(9, current[kind] + delta)) }))
@@ -119,11 +120,15 @@ export default function TripCustomizeWizard({ request, bankCodes, onClose }: { r
   }
 
   const next = () => (step >= lastStep ? finish() : setStep(step + 1))
+  const back = () => setStep(step === 2 ? 0 : step === 1 ? 2 : step - 1)   // 0 <- 2 <- 3; the cabin screen returns to "who"
+  // Screens the user walks through: where, who, (cards).  The cabin screen is an optional detour from "who".
+  const screens = hasFourthStep ? [0, 2, 3] : [0, 2]
+  const position = screens.indexOf(step) + 1
 
   return <div className={`${journey.editorBackdrop} ${local.backdrop}`} role="dialog" aria-modal="true" aria-label="Customize my trip" onClick={onClose}>
     <section className={`${journey.shell} ${journey.editorDialog} ${local.dialog} ${step === 0 ? local.mapStep : ''}`} onClick={event => event.stopPropagation()}>
       <div className={journey.progress}>
-        <span>CUSTOMIZE MY TRIP · {step + 1} OF {lastStep + 1}</span>
+        <span>CUSTOMIZE MY TRIP · {step === 1 ? 'CLASS' : `${position} OF ${screens.length}`}</span>
         {step > 0 && <strong>{STEP_TITLE[step]}</strong>}
         <button type="button" onClick={onClose} aria-label="Close"><i className="ti ti-x" /></button>
       </div>
@@ -156,6 +161,11 @@ export default function TripCustomizeWizard({ request, bankCodes, onClose }: { r
       </section>}
 
       {step === 2 && <section className={`${journey.compactTravellerStep} ${local.whoStep}`} aria-label="Travellers, airline and trip direction">
+        <div className={local.classRow}>
+          <i className={`ti ti-${strategy === 'easiest' ? 'plane' : strategy === 'dream' ? 'sparkles' : 'trending-up'}`} aria-hidden="true" />
+          <div><small>Class{strategy === 'smartest' ? ' · suggested for you' : ''}</small><b>{strategy === 'easiest' ? 'Fly Economy' : strategy === 'dream' ? 'Fly Business Class' : 'Upgrade to Business'}</b></div>
+          <button type="button" onClick={() => setStep(1)} aria-label="Edit class"><i className="ti ti-pencil" aria-hidden="true" /> Edit</button>
+        </div>
         <div className={journey.tripTypeToggle} role="radiogroup" aria-label="Ticket direction">
           <button type="button" role="radio" aria-checked={tripType === 'one_way'} className={tripType === 'one_way' ? journey.tripTypeSelected : ''} onClick={() => setTripType('one_way')}>One way</button>
           <button type="button" role="radio" aria-checked={tripType === 'return'} className={tripType === 'return' ? journey.tripTypeSelected : ''} onClick={() => setTripType('return')}>Return</button>
@@ -180,8 +190,8 @@ export default function TripCustomizeWizard({ request, bankCodes, onClose }: { r
       {step === 3 && <TripCardChoice bankCodes={bankCodes} onDone={finish} />}
 
       <div className={`${journey.stepAction} ${local.actions}`}>
-        {step > 0 ? <button type="button" className={step === 3 ? local.smallBack : undefined} onClick={() => setStep(step - 1)}>{step === 3 && <i className="ti ti-arrow-left" />} Back</button> : <span />}
-        {step > 0 && step !== 3 && <button className="btn-primary" type="button" onClick={next}>{step >= lastStep ? <>Show my plan <i className="ti ti-arrow-right" /></> : <>Next <i className="ti ti-arrow-right" /></>}</button>}
+        {step > 0 ? <button type="button" className={step === 3 ? local.smallBack : undefined} onClick={back}>{step === 3 && <i className="ti ti-arrow-left" />} Back</button> : <span className={local.flyingFrom}><i className="ti ti-plane-departure" aria-hidden="true" /> Flying from UAE</span>}
+        {step > 0 && step !== 3 && <button className="btn-primary" type="button" onClick={next}>{step === 1 ? <>Done <i className="ti ti-check" /></> : step >= lastStep ? <>Show my plan <i className="ti ti-arrow-right" /></> : <>Next <i className="ti ti-arrow-right" /></>}</button>}
       </div>
     </section>
   </div>
