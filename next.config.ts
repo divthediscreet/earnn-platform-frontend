@@ -9,13 +9,19 @@ const backendOrigin = (
 
 const nextConfig: NextConfig = {
   allowedDevOrigins: ['127.0.0.1'],
-  // Public URL is /all-uae-cards (the page itself still lives in app/compare); old /compare links redirect to it.
+  // Public URLs are /simulate-all-uae-cards and /compare-all-uae-cards (the pages live in app/simulate and app/compare);
+  // the old /compare and /all-uae-cards links go to the matching new page.
   async redirects() {
-    return [{ source: '/compare', destination: '/all-uae-cards', permanent: true }]
+    return [
+      { source: '/compare', destination: '/compare-all-uae-cards', permanent: true },
+      { source: '/simulate', destination: '/simulate-all-uae-cards', permanent: true },
+      { source: '/all-uae-cards', destination: '/simulate-all-uae-cards', permanent: true },
+    ]
   },
   async rewrites() {
     return [
-      { source: '/all-uae-cards', destination: '/compare' },
+      { source: '/simulate-all-uae-cards', destination: '/simulate' },
+      { source: '/compare-all-uae-cards', destination: '/compare' },
       {
         source: '/api/:path*',
         destination: `${backendOrigin}/api/:path*`,

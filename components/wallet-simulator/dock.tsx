@@ -9,7 +9,11 @@ import { CardChip, RollingAed, type CardInfo } from './card-art'
 type CardLookup = (id: string) => CardInfo
 const cardName = (c: CardInfo) => c.name
 
-export function WalletDock({ ids, wallet, status, card, onRemove, onAdd, onCompare, onReset, onAskEarnn, onRetry, open, onOpenChange, children }: {
+export function WalletDock({ ids, wallet, status, card, onRemove, onAdd, onCompare, onReset, onAskEarnn, onRetry, open, onOpenChange, children, max = MAX_WALLET, summary }: {
+  /** A line under the monthly total (the Simulate page: how many of the cards to use). */
+  summary?: string
+  /** Most cards the wallet can hold (default: Smart Wallet's limit). */
+  max?: number
   children?: React.ReactNode // shown when the dock is expanded (the wallet's playbook)
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -85,7 +89,7 @@ export function WalletDock({ ids, wallet, status, card, onRemove, onAdd, onCompa
       <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center gap-x-5 gap-y-2 px-5 py-2.5 sm:px-8 md:min-h-[72px]">
         {/* 1. my selected cards */}
         <div className="flex flex-col gap-1">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {ids.map(id => (
               <div key={id} className="group relative">
                 <CardChip card={card(id)} className="!h-[32px] !w-[50px]" />
@@ -95,7 +99,7 @@ export function WalletDock({ ids, wallet, status, card, onRemove, onAdd, onCompa
                 </button>
               </div>
             ))}
-            {Array.from({ length: MAX_WALLET - ids.length }).map((_, i) => (
+            {Array.from({ length: max > MAX_WALLET ? Math.min(1, max - ids.length) : MAX_WALLET - ids.length }).map((_, i) => (
               <button key={i} type="button" aria-label="Add a card" onClick={() => { setOpen(false); onAdd() }}
                 className="grid h-[32px] w-[50px] place-items-center rounded-[6px] border border-dashed border-ws-border text-[17px] text-ws-muted transition-colors hover:border-ws-primary hover:text-ws-primary">
                 +
@@ -116,7 +120,7 @@ export function WalletDock({ ids, wallet, status, card, onRemove, onAdd, onCompa
         {/* 2. my rewards */}
         <div className="min-w-0">
           <p className="text-[10px] font-semibold tracking-[0.16em] text-ws-muted uppercase">
-            Test wallet · {ids.length}/{MAX_WALLET} cards{status === 'updating' && <span className="ws-animate-pulse ml-2 normal-case tracking-normal">updating…</span>}
+            Test wallet · {ids.length}/{max} cards{status === 'updating' && <span className="ws-animate-pulse ml-2 normal-case tracking-normal">updating…</span>}
           </p>
           <p className={`font-display leading-none font-semibold tracking-tight text-ws-fg ${status !== 'ready' ? 'opacity-60' : ''}`}>
             <span className="text-[28px]">{isMiles ? <><RollingAed value={total} /> miles</> : <>AED <RollingAed value={total} /></>}</span>
@@ -124,6 +128,7 @@ export function WalletDock({ ids, wallet, status, card, onRemove, onAdd, onCompa
             {ids.length > 0 && <span className="ml-2 hidden text-[11px] font-medium text-ws-muted lg:inline">Estimated rewards</span>}
           </p>
           {headline && <p className={`mt-0.5 text-[12px] leading-snug font-semibold ${tone}`}>{headline}</p>}
+          {!headline && summary && <p className="mt-0.5 text-[12px] leading-snug font-semibold text-ws-primary">{summary}</p>}
         </div>
 
         {/* 3. what can I do next */}
@@ -158,7 +163,8 @@ export function WalletDock({ ids, wallet, status, card, onRemove, onAdd, onCompa
 }
 
 /** Wallet is full: the user removes a card themselves before adding another. Nothing is removed for them. */
-export function WalletFullDialog({ ids, wallet, card, onRemove, onClose }: {
+export function WalletFullDialog({ ids, wallet, card, onRemove, onClose, max = MAX_WALLET }: {
+  max?: number
   ids: string[]
   wallet: Wallet | null
   card: CardLookup
@@ -178,7 +184,7 @@ export function WalletFullDialog({ ids, wallet, card, onRemove, onClose }: {
         onClick={e => e.stopPropagation()}>
         <h2 id="ws-full-title" className="font-display text-[22px] font-semibold text-ws-fg">Your wallet is full</h2>
         <p className="mt-1 text-[14px] text-ws-muted">
-          You can have a maximum of {MAX_WALLET} cards. Remove one first before adding a new one.
+          You can have a maximum of {max} cards. Remove one first before adding a new one.
         </p>
         <div className="mt-5 space-y-2">
           {ids.map(id => {

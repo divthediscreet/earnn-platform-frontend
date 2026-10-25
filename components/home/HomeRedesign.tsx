@@ -118,7 +118,7 @@ export default function HomeRedesign() {
             <p className={styles.lead}>Earnn helps you find the right credit cards, know which one to use, and get more cashback, miles and benefits from your everyday spending.</p>
             <div className={styles.actions}>
               <Link href="/analyse" className="btn-primary">Find my best cards <i className="ti ti-arrow-right" aria-hidden /></Link>
-              <Link href="/all-uae-cards" className={`btn-secondary ${styles.simLink}`}>UAE Credit Card Simulator <i className="ti ti-arrow-right" aria-hidden /></Link>
+              <Link href="/simulate-all-uae-cards" className={`btn-secondary ${styles.simLink}`}>UAE Credit Card Simulator <i className="ti ti-arrow-right" aria-hidden /></Link>
             </div>
           </div>
           <div className={styles.heroVisual} aria-hidden>

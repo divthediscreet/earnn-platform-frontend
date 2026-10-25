@@ -238,7 +238,7 @@ export default function NewHomePage() {
             <p>Your spending is unique. Earnn finds the card strategy that could reward it better. Upload your statement and see what your spending could really earn.</p>
             <div className={styles.actions}>
               <Link href="/analyse" className={styles.primaryCta}>Analyse My Spending <i className="ti ti-arrow-right" /></Link>
-              <Link href="/all-uae-cards" className={styles.secondaryCta}>Explore UAE Cards</Link>
+              <Link href="/simulate-all-uae-cards" className={styles.secondaryCta}>Explore UAE Cards</Link>
             </div>
             <div className={styles.trustLine}><i className="ti ti-lock" /> No bank login required <b>•</b> Free analysis <b>•</b> Takes about 60 seconds</div>
           </div>
@@ -338,7 +338,7 @@ export default function NewHomePage() {
           ['Base Spend', (c:HomeCard) => rate(c.display_reward_rate_all_spend)],
           ['Lounge Access', (c:HomeCard) => c.has_lounge_access ? 'Included' : '—'],
         ].map(([label,getValue],i) => <tr key={String(label)}><td>{String(label)}</td>{compared.map(card => <td key={card.earnn_card_id} className={i < 4 ? styles.strongCell : ''}>{(getValue as (c:HomeCard)=>string)(card)}</td>)}</tr>)}</tbody></table>{!compared.length && <div className={styles.tableLoading}>Loading live card comparisons…</div>}</div>
-        <Link href="/all-uae-cards" className={styles.primaryCta}>Compare Cards <i className="ti ti-arrow-right" /></Link>
+        <Link href="/compare-all-uae-cards" className={styles.primaryCta}>Compare Cards <i className="ti ti-arrow-right" /></Link>
       </section>
 
       <section className={`${styles.section} ${styles.surface}`}>

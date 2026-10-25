@@ -4,18 +4,17 @@
 // app/analyse/result/page.tsx) with nothing new in it: the same backend calls (recommend for the Earnn pick, evaluate for
 // the user's own card set), the same evaluation / caching / "dimmed while updating" logic, and the same WalletDock,
 // PlaybookBody ("Which card should I use?") and GetCardsDialog components. The only difference is how cards are added:
-// the page's tiles add and remove them (up to 3) instead of Analyze's customise dialog.
+// the page's tiles add and remove them (up to 8, calculated by /evaluate-large) instead of Analyze's customise dialog.
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
-  evaluateWallet, recommendWallet, saveSession, SimulatorApiError,
-  type RecommendResponse, type RewardMode, type SimulatorRequest, type Wallet,
+  evaluateLargeWallet, MAX_SIMULATE_WALLET, recommendWallet, saveSession, SimulatorApiError,
+  type EvaluateLargeResponse, type RecommendResponse, type RewardMode, type SimulatorRequest,
 } from '@/lib/wallet-simulator/api'
 import { sameCards, walletKey } from '@/lib/wallet-simulator/playbook'
 import type { CardInfo } from '@/components/wallet-simulator/card-art'
 import { WalletDock } from '@/components/wallet-simulator/dock'
-import { PlaybookBody } from '@/components/wallet-simulator/sections'
-import { CompareDialog } from '@/components/wallet-simulator/compare'
+import StrategyPanel, { planOf } from '@/components/compare/CardRoutingTable'
 import { RewardModeProvider } from '@/lib/wallet-simulator/reward-mode'
 import CardDetailPopup from '@/components/CardDetailPopup'
 
@@ -69,15 +68,14 @@ function WalletBar({ request, ids, onIdsChange, directory: pageDirectory, onAddM
   // as in SmartWallet: the recommended strategy is the pick; the engine's own pick is the fallback
   const strategies = useMemo(() => result.strategies ?? [], [result.strategies])
   const pick = strategies[0]?.wallet ?? result.recommendation.wallet
-  // Wallets the backend has already calculated, keyed by card set (seeded with the pick + alternatives).
-  const [evaluated, setEvaluated] = useState<Record<string, Wallet>>(() =>
-    Object.fromEntries([pick, ...strategies.map(s => s.wallet), result.recommendation.wallet, ...result.alternatives]
-      .reverse().map(w => [walletKey(w.cards), w])))
+  // Wallets the backend has already calculated, keyed by card set. Nothing is seeded from the Smart Wallet's own results:
+  // those carry no Active/Reserve roles or minimum-spend detail, so every set is calculated by evaluate-large.
+  const [evaluated, setEvaluated] = useState<Record<string, EvaluateLargeResponse>>({})
+  const [planKind, setPlanKind] = useState<'maximum' | 'simpler'>('simpler') // the recommended strategy first
   const [failedKey, setFailedKey] = useState<string | null>(null)
-  const [previous, setPrevious] = useState<Wallet | null>(null) // shown (dimmed) while an update runs
+  const [previous, setPrevious] = useState<EvaluateLargeResponse | null>(null) // shown (dimmed) while an update runs
   const [walletOpen, setWalletOpen] = useState(false) // expanded wallet panel (playbook)
   const [detailCardId, setDetailCardId] = useState<string | null>(null) // card-information popup
-  const [compareOpen, setCompareOpen] = useState(false) // compare against the user's current cards
   const router = useRouter()
   // "Ask Earnn to find best cards for you": open the Analyze result page for this same spend, no form to fill in again.
   const findBestCards = useCallback(() => { saveSession({ request, result }); router.push('/analyse/result') }, [request, result, router])
@@ -87,13 +85,14 @@ function WalletBar({ request, ids, onIdsChange, directory: pageDirectory, onAddM
   const status: 'ready' | 'updating' | 'error' =
     ids.length === 0 || current ? 'ready' : failedKey === key ? 'error' : 'updating'
   const displayWallet = ids.length === 0 ? null : current ?? previous
+  const plan = displayWallet ? planOf(displayWallet, displayWallet.simpler_plan ? planKind : 'maximum') : null
 
   // Re-evaluate whenever the wallet changes. The backend is the only source of reward numbers.
   useEffect(() => {
     if (ids.length === 0 || evaluated[key] || failedKey === key) return
     const controller = new AbortController()
-    evaluateWallet(request, ids, controller.signal)
-      .then(res => setEvaluated(prev => ({ ...prev, [key]: res.wallet })))
+    evaluateLargeWallet(request, ids, controller.signal)
+      .then(res => setEvaluated(prev => ({ ...prev, [key]: res })))
       .catch(e => {
         if ((e as Error).name === 'AbortError') return
         console.warn('Wallet evaluation failed:', e instanceof SimulatorApiError ? e.message : e)
@@ -108,7 +107,7 @@ function WalletBar({ request, ids, onIdsChange, directory: pageDirectory, onAddM
   const directory = useMemo(() => {
     const m = new Map<string, CardInfo>()
     const put = (id: string, name: string, bank: string | null) => { if (!m.has(id)) m.set(id, { id, name, bank }) }
-    for (const w of [pick, result.recommendation.wallet, ...strategies.map(st => st.wallet), ...result.alternatives, ...Object.values(evaluated)]) {
+    for (const w of [pick, result.recommendation.wallet, ...strategies.map(st => st.wallet), ...result.alternatives, ...Object.values(evaluated).map(e => e.wallet)]) {
       for (const pc of w.per_card) put(pc.card_id, pc.card_name, pc.bank_name)
     }
     for (const c of result.card_scores ?? []) put(c.card_id, c.card_name, c.bank_name)
@@ -135,16 +134,13 @@ function WalletBar({ request, ids, onIdsChange, directory: pageDirectory, onAddM
         body .earnn-feedback-trigger { bottom: calc(var(--ws-dock-h, 96px) + 14px) !important; }
         body .earnn-feedback-panel { bottom: calc(var(--ws-dock-h, 96px) + 90px) !important; }
       `}</style>
-      <WalletDock ids={ids} wallet={displayWallet} pick={pick} isPick={isPick} status={status} card={card}
-        onRemove={removeCard} onAdd={onAddMore} onCompare={() => setCompareOpen(true)} onReset={reset} onAskEarnn={findBestCards} onRetry={retry} open={walletOpen} onOpenChange={setWalletOpen}>
-        <PlaybookBody wallet={displayWallet} groups={result.spend.groups} monthlySpend={result.spend.eligible_spend_aed}
-          card={card} updating={status === 'updating'} onDetails={setDetailCardId} />
+      <WalletDock ids={ids} wallet={plan?.wallet ?? null} pick={pick} isPick={isPick} status={status} card={card}
+        summary={plan && plan.reserve_cards.length > 0 ? `Use ${plan.active_cards.length} of ${plan.wallet.cards.length} cards this month` : undefined}
+        onRemove={removeCard} onAdd={onAddMore} max={MAX_SIMULATE_WALLET} onReset={reset} onAskEarnn={findBestCards} onRetry={retry} open={walletOpen} onOpenChange={setWalletOpen}>
+        <StrategyPanel response={displayWallet} request={request} ids={ids} kind={planKind} onKind={setPlanKind} card={card} onDetails={setDetailCardId} updating={status === 'updating'} />
       </WalletDock>
 
       {detailCardId && <CardDetailPopup cardId={detailCardId} mode={request.reward_mode} onClose={() => setDetailCardId(null)} />}
-      {compareOpen && (
-        <CompareDialog request={request} smart={current} groups={result.spend.groups} card={card} onClose={() => setCompareOpen(false)} />
-      )}
     </div>
   )
 }

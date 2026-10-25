@@ -197,6 +197,148 @@ export function evaluateWallet(request: SimulatorRequest, cardIds: string[], sig
   return post<EvaluateResponse>('/api/simulator/evaluate', { ...request, card_ids: cardIds }, signal)
 }
 
+/** The Simulate page's own wallet: up to 8 cards the user chose, calculated as given (no search for a better set).
+ *  Smart Wallet keeps evaluateWallet (3 cards). */
+export const MAX_SIMULATE_WALLET = 10
+
+/** The card's monthly minimum-spend tiers against what the wallet routes to it. */
+export type MinSpend = {
+  status: 'none' | 'met' | 'not_reached' // none: the card has no tiers; met: its tier is reached; not_reached: a higher tier exists and is not reached
+  tier_floor_aed: number
+  next_min_spend_aed: number | null
+  next_reachable: boolean | null // can the next tier be reached with the user's total spend
+  next_effect_monthly_aed: number | null // wallet reward change if the card were pushed into that tier (<= 0: the optimiser took the better option)
+}
+
+export type LargeCardInWallet = CardInWallet & {
+  role: 'active' | 'reserve'
+  role_reason: 'carries_spend' | 'not_used' | 'left_out_for_simplicity' | 'no_rewards'
+  min_spend: MinSpend
+  conditional_on_minimum_aed: number // monthly reward that disappears if the card's minimum spend is not reached
+  conditional_on_merchant_aed: number // monthly reward earned on spend with a merchant/channel condition (the engine approximates these)
+  reward_currency?: string | null // the programme's own unit (miles view, valued in AED)
+  aed_per_unit?: number | null // the AED value of one unit used for the optimisation
+  native_monthly_reward?: number | null // the reward in the programme's own unit
+}
+
+export type CurrencyReward = { currency: string; aed_monthly: number; native_monthly: number; aed_per_unit: number | null; cards: string[] }
+
+/** One step of a category: this card takes this much of the category. Ordered; `switch_after` says why to move to the next card. */
+export type InstructionStep = {
+  order: number
+  position: 'only' | 'first' | 'next' | 'remaining'
+  card_id: string
+  amount_aed: number
+  rate: number
+  monthly_reward_aed: number
+  bonus_spend_aed: number
+  post_cap_spend_aed: number
+  limit_reached: boolean
+  switch_after: { reason: 'reward_limit' | 'share_used'; amount_aed: number } | null
+  condition: string | null
+  merchant_list: string | null
+}
+
+export type InstructionCategory = { group: string; label: string; monthly_spend_aed: number; monthly_reward_aed: number; steps: InstructionStep[] }
+
+export type InstructionCard = {
+  card_id: string
+  role: 'active' | 'reserve'
+  monthly_spend_aed: number
+  monthly_reward_aed: number
+  use_for: { group: string; amount_aed: number }[]
+  minimum: {
+    status: 'none' | 'met' | 'not_reached'
+    required_aed: number | null
+    routed_aed: number
+    met: boolean
+    shortfall_aed: number | null
+    next_min_spend_aed: number | null
+    next_reachable: boolean | null
+    next_effect_monthly_aed: number | null
+  }
+  reward_cap: { limits_reached_on: string[]; card_cap_reached: boolean; spend_past_cap_aed: number }
+  reward_conditional_on_minimum_aed: number
+  reward_conditional_on_merchant_aed: number
+}
+
+export type Instructions = { categories: InstructionCategory[]; cards: InstructionCard[]; monthly_spend_aed: number; monthly_reward_aed: number }
+
+export type Plan = {
+  kind: 'maximum' | 'simpler'
+  wallet: Wallet
+  per_card: LargeCardInWallet[]
+  active_cards: string[]
+  reserve_cards: string[]
+  instructions: Instructions
+  rewards_by_currency?: CurrencyReward[]
+  reward_vs_maximum_annual_aed: number
+}
+
+export type LadderStep = {
+  size: number
+  cards: string[]
+  annual_reward_aed: number
+  loss_vs_maximum_annual_aed: number
+  loss_vs_maximum_pct: number
+  exact: boolean
+}
+
+export type EvaluateLargeResponse = {
+  mode: RewardMode
+  spend: SpendSummary
+  wallet: Wallet
+  per_card: LargeCardInWallet[]
+  active_cards: string[]
+  reserve_cards: string[]
+  instructions: Instructions
+  rewards_by_currency?: CurrencyReward[]
+  no_meaningful_rewards: boolean
+  simpler_plan: Plan | null
+  recommended_plan: 'simpler' | 'maximum' // the plan shown as the recommended strategy
+  extra_effort: {
+    cards: { card_id: string; adds_annual_aed: number }[] // the maximum plan's extra cards, each on its own added to the recommended strategy
+    all_annual_aed: number // all of them together
+    all_pct: number
+    recommended_annual_aed: number
+    maximum_annual_aed: number
+    tolerance_annual_aed: number // the larger of AED 60 and 2% of the maximum plan's yearly rewards
+    replaced_cards: string[] // recommended cards the maximum plan would stop using
+  } | null
+  ladder: LadderStep[]
+  simple_tolerance_annual_aed: number
+  valuation: { mode: 'native' | 'aed_equivalent'; unit: 'aed' | 'miles'; currencies: string[]; mixed_currencies: boolean; comparable: boolean; rates?: Record<string, { currency: string; aed_per_unit: number; source: 'data' | 'override' }> }
+  meta: { elapsed_ms: number; switch_margin?: number }
+}
+
+/** The maximum-reward plan always. Cashback view maximises AED value; Miles view maximises converted miles (AED value / each card's stored ratio, every
+ *  programme's mile counted as equal). Both are the engine's native views: no extra valuation is requested. */
+export function evaluateLargeWallet(request: SimulatorRequest, cardIds: string[], signal?: AbortSignal) {
+  return post<EvaluateLargeResponse>('/api/simulator/evaluate-large', { ...request, card_ids: cardIds, valuation: 'native' }, signal)
+}
+
+export type PlannedExpense = { label: string; group: string; amount_aed: number }
+
+export type ExceptionalResponse = {
+  normal: EvaluateLargeResponse
+  exceptional: EvaluateLargeResponse
+  changes: {
+    become_active: string[]
+    no_longer_needed: string[]
+    still_reserve: string[]
+    reward_normal_month_aed: number
+    reward_exceptional_month_aed: number
+    reward_if_normal_active_cards_only_aed: number
+    extra_from_using_reserve_cards_aed: number
+    planned_expense_routing: { label: string; card_id: string; amount_aed: number; rate: number; monthly_reward_aed: number }[]
+  }
+}
+
+/** A normal month against the same month with planned expenses added (backend: /evaluate-exceptional). */
+export function evaluateExceptionalMonth(request: SimulatorRequest, cardIds: string[], planned: PlannedExpense[], signal?: AbortSignal) {
+  return post<ExceptionalResponse>('/api/simulator/evaluate-exceptional', { ...request, card_ids: cardIds, planned_expenses: planned, valuation: 'native' }, signal)
+}
+
 export type SimulatorCard = { card_id: string; card_name: string; bank_name: string | null; bank_code?: string | null }
 
 /** Every card the simulator can evaluate, from the backend's cached rules (sorted by bank, then name). */

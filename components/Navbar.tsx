@@ -51,8 +51,11 @@ export default function Navbar() {
           <Link href="/analyse" style={navLinkStyle}>
             Best card for me
           </Link>
-          <Link href="/all-uae-cards" style={navLinkStyle}>
-            Simulate and Compare Cards
+          <Link href="/simulate-all-uae-cards" style={navLinkStyle}>
+            Simulate All UAE Cards
+          </Link>
+          <Link href="/compare-all-uae-cards" style={navLinkStyle}>
+            Compare All UAE Cards
           </Link>
           {/* Analyze-old (/analyse-old) is hidden from the nav for now; the page still works by URL. To be deleted later. */}
           <Link href="/merchant-lookup" style={navLinkStyle}>
@@ -86,7 +89,8 @@ export default function Navbar() {
       {menuOpen && (
         <div className={styles.mobileNavMenu}>
           <Link href="/analyse" onClick={() => setMenuOpen(false)}>Best card for me</Link>
-          <Link href="/all-uae-cards" onClick={() => setMenuOpen(false)}>Simulate and Compare Cards</Link>
+          <Link href="/simulate-all-uae-cards" onClick={() => setMenuOpen(false)}>Simulate All UAE Cards</Link>
+          <Link href="/compare-all-uae-cards" onClick={() => setMenuOpen(false)}>Compare All UAE Cards</Link>
           <Link href="/merchant-lookup" onClick={() => setMenuOpen(false)}>Check Before You Pay</Link>
           <span className={styles.mobileGroup}>Explore Earnn</span>
           <Link href="/bulk-spend-miles" onClick={() => setMenuOpen(false)}>Big Spend Planner</Link>
