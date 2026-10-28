@@ -1,0 +1,85 @@
+/* Home hero: the site's light blue and gold background, a still card fan that reacts to each headline word, and four action tiles. */
+.hero { position: relative; isolation: isolate; overflow: hidden; padding: 72px 24px 40px; background: radial-gradient(900px 420px at 88% 18%, #FFE9A8 0%, rgba(255, 233, 168, 0) 70%), linear-gradient(160deg, #E4EDFF 0%, #F2F6FF 60%, #F8FAFF 100%); }
+
+/* Layout */
+.inner { position: relative; max-width: 1240px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1.02fr) minmax(0, 1fr); gap: 40px; align-items: center; }
+.tag { display: inline-block; margin: 0; padding: 7px 16px; border-radius: 999px; background: linear-gradient(135deg, #F7C948, #FFD76A); color: #0A2860; font-size: 12.5px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; line-height: 1.3; box-shadow: 0 8px 20px -8px rgba(212, 160, 20, .7), inset 0 0 0 1px rgba(255, 255, 255, .45); }
+.tag i { margin-right: 4px; }
+.copy h1 { margin: 22px 0 20px; font-family: var(--font-serif), Georgia, serif; font-weight: 700; letter-spacing: -.03em; line-height: 1.04; color: #0A2860; }
+.lead { display: block; font-size: clamp(30px, 3.5vw, 50px); text-wrap: balance; }
+/* The word rises into a mask, so the change reads as a smooth vertical reveal */
+.wordBox { display: block; overflow: hidden; margin: calc(4px - .1em) 0 -.2em; font-size: clamp(44px, 6vw, 82px); line-height: 1.3; white-space: nowrap; }
+.word { display: inline-block; padding-right: .04em; background: linear-gradient(100deg, #C98A00 0%, #E8A90E 50%, #D98A00 100%); -webkit-background-clip: text; background-clip: text; color: transparent; animation: rise .7s cubic-bezier(.2, .85, .25, 1) both; }
+.dot { color: #E0A412; }
+.visuallyHidden { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; }
+.sub { margin: 0; max-width: 520px; font-size: clamp(16px, 1.5vw, 19px); line-height: 1.65; color: #3A4A66; }
+.free { display: flex; align-items: center; gap: 8px; margin: 22px 0 0; font-size: 14px; color: #5A6A85; }
+.free i { color: #00A67E; font-size: 17px; }
+
+/* Stage: a still card fan */
+.stage { position: relative; height: 470px; }
+.halo { position: absolute; left: 6%; top: 6%; width: 78%; height: 78%; border-radius: 50%; background: radial-gradient(circle, rgba(247, 201, 72, .34) 0%, rgba(247, 201, 72, 0) 68%); }
+.layer { position: absolute; }
+.layerC { right: 0; top: 2%; width: 56%; z-index: 1; }
+.layerB { left: 0; top: 17%; width: 56%; z-index: 2; }
+.layerA { left: 33%; top: 36%; width: 58%; z-index: 3; }
+.card { position: relative; filter: drop-shadow(0 26px 28px rgba(10, 40, 96, .35)); }
+.card img { display: block; width: 100%; height: auto; border-radius: 15px; }
+.card span { position: absolute; left: 10px; top: -12px; padding: 4px 11px; border-radius: 99px; background: #fff; color: #0A2860; font-size: 12px; font-weight: 800; box-shadow: 0 6px 14px -6px rgba(10, 40, 96, .5); }
+.cardA { transform: rotate(-4deg); }
+.cardB { transform: rotate(-8deg); }
+.cardC { transform: rotate(7deg); }
+
+/* The example bubble: sits just below the tiles, points at the selected one, and fades away between turns */
+.slot { max-width: 1240px; min-height: 100px; margin: 16px auto 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; align-items: start; }
+.bubble { --col: 1; --ptr: 25%; position: relative; grid-column: var(--col) / span 2; display: flex; align-items: center; gap: 12px; padding: 14px 18px; border-radius: 18px; background: #FFFDF8; border: 1px solid #F0D58A; box-shadow: 0 18px 32px -20px rgba(10, 40, 96, .55), 0 0 0 5px rgba(255, 255, 255, .55); opacity: 0; transform: translateY(-8px); transition: opacity .45s ease, transform .45s ease; pointer-events: none; }
+.bubble::after { content: ''; position: absolute; left: calc(var(--ptr) - 8px); top: -8px; width: 14px; height: 14px; background: #FFFDF8; border-left: 1px solid #F0D58A; border-top: 1px solid #F0D58A; transform: rotate(45deg); }
+.bubbleOn { opacity: 1; transform: none; }
+.bubble > i { flex: none; display: grid; place-items: center; width: 36px; height: 36px; border-radius: 12px; background: linear-gradient(135deg, #FFE08A, #F7C948); color: #0A2260; font-size: 20px; }
+.bubble p { margin: 0; font-family: var(--font-serif), Georgia, serif; font-size: clamp(17px, 1.6vw, 21px); font-weight: 600; line-height: 1.3; letter-spacing: -.01em; color: #0A2860; text-wrap: balance; }
+.bubble p::before { content: '“'; color: #E0A412; }
+.bubble p::after { content: '”'; color: #E0A412; }
+
+/* Four slim action tiles: icon, heading and tagline, arrow. Each opens its tool; hovering one holds its example open */
+.tabs { position: relative; list-style: none; max-width: 1240px; margin: 44px auto 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.tab { position: relative; overflow: hidden; display: flex; align-items: center; gap: 10px; height: 100%; padding: 10px 14px; border-radius: 14px; background: linear-gradient(135deg, #1A4FAD 0%, #0E3785 100%); border: 1px solid #0E3785; color: #fff; text-decoration: none; box-shadow: 0 14px 26px -16px rgba(14, 55, 133, .75); transition: background .25s, border-color .25s, transform .25s, box-shadow .25s; }
+.tab:hover { transform: translateY(-2px); border-color: #F0B429; box-shadow: 0 18px 30px -16px rgba(14, 55, 133, .85), 0 0 0 2px rgba(240, 180, 41, .35); }
+.tab:focus-visible { outline: 3px solid #FFD76A; outline-offset: 3px; }
+.tabIcon { flex: none; display: grid; place-items: center; width: 36px; height: 36px; border-radius: 11px; background: rgba(255, 255, 255, .16); color: #FFD76A; font-size: 20px; transition: background .25s, color .25s; }
+.tabText { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.tab b { overflow: hidden; font-size: 14.5px; font-weight: 800; line-height: 1.25; white-space: nowrap; text-overflow: ellipsis; }
+.tab small { overflow: hidden; font-size: 12px; color: rgba(226, 235, 255, .82); white-space: nowrap; text-overflow: ellipsis; }
+.go { flex: none; color: rgba(255, 255, 255, .7); font-size: 17px; transition: color .25s, transform .25s; }
+.tab:hover .go { color: #FFD76A; transform: translateX(2px); }
+.tabOn .go { color: #0A2860; transform: translateX(2px); }
+.tabOn { background: linear-gradient(135deg, #FFE08A 0%, #F7C948 100%); border-color: #E0A412; color: #0A2860; box-shadow: 0 16px 28px -14px rgba(224, 164, 18, .8); }
+.tabOn small { color: #6B5210; }
+.tabOn .tabIcon { background: #0A2860; color: #FFD76A; }
+.bar { position: absolute; left: 0; bottom: 0; height: 3px; width: 0; background: #0A2860; }
+.bar[data-run='on'] { animation: fill var(--cycle, 4800ms) linear forwards; }
+.tabOn .bar[data-run='off'] { width: 100%; opacity: .6; }
+
+/* Motion */
+@keyframes rise { from { transform: translateY(105%); } to { transform: none; } }
+@keyframes fill { to { width: 100%; } }
+
+@media (max-width: 1099px) {
+  .tabs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .slot { display: block; min-height: 104px; }
+  .bubble::after { display: none; }
+}
+@media (max-width: 1000px) {
+  .inner { grid-template-columns: 1fr; gap: 28px; }
+  .stage { max-width: 560px; width: 100%; margin: 0 auto; }
+}
+@media (max-width: 640px) {
+  .hero { padding: 40px 16px 28px; }
+  .tag { font-size: 11px; letter-spacing: .08em; padding: 6px 12px; }
+  .stage { height: 400px; }
+  .slot { min-height: 138px; }
+  .tabs { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .word, .bar { animation: none; }
+  .bubble, .tab, .go { transition: none; }
+}

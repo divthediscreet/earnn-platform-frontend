@@ -1,14 +1,12 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { Caveat, Fraunces } from 'next/font/google'
+import HeroStage from './HeroStage'
 import HomeTrustStrip from './HomeTrustStrip'
 import TwoWays from './TwoWays'
 import CardSetPicker from './CardSetPicker'
 import sibCashback from '@/assets/home-cards/sib-cashback-titanium.webp'
 import adcbTalabat from '@/assets/home-cards/adcb-talabat.webp'
-import dibShams from '@/assets/home-cards/dib-shams-signature.webp'
-import adcb365 from '@/assets/home-cards/adcb-365.webp'
-import enbdLuluPlatinum from '@/assets/home-cards/enbd-lulu-platinum.webp'
 import { EXPLORE_TOOLS } from './exploreTools'
 import styles from './HomeRedesign.module.css'
 
@@ -111,33 +109,7 @@ export default function HomeRedesign() {
   return (
     <div className={`${styles.page} ${serif.variable} ${hand.variable}`}>
       {/* 1. Hero */}
-      <section className={styles.hero}>
-        <div className={styles.heroInner}>
-          <div className={styles.heroText}>
-            <p className={styles.heroTag}>UAE’s First Multi-Credit Card Rewards Simulator</p>
-            <h1>Get more from every dirham you spend.</h1>
-            <p className={styles.lead}>Earnn helps you find the right credit cards, know which one to use, and get more cashback, miles and benefits from your everyday spending.</p>
-            <div className={styles.actions}>
-              <Link href="/find-my-best-cards" className="btn-primary">Find my best cards <i className="ti ti-arrow-right" aria-hidden /></Link>
-              <Link href="/simulate-all-uae-cards" className={`btn-secondary ${styles.simLink}`}>UAE Credit Card Simulator <i className="ti ti-arrow-right" aria-hidden /></Link>
-            </div>
-          </div>
-          <div className={styles.heroVisual} aria-hidden>
-            <div className={styles.heroPlate} />
-            <div className={`${styles.hCard} ${styles.hCardC}`}><Image src={dibShams} alt="" width={240} height={150} /><span>Card C · Big spends</span></div>
-            <div className={`${styles.hCard} ${styles.hCardB}`}><Image src={adcb365} alt="" width={240} height={150} /><span>Card B · Dining</span></div>
-            <div className={`${styles.hCard} ${styles.hCardA}`}><Image src={enbdLuluPlatinum} alt="" width={240} height={150} priority /><span>Card A · Groceries</span></div>
-            <div className={styles.hPanel}>
-              <p>This month <small>(example)</small></p>
-              <ul>
-                <li><i className="ti ti-shopping-cart" /><span>Groceries</span><b>5% back</b></li>
-                <li><i className="ti ti-tools-kitchen-2" /><span>Dining</span><b>4x miles</b></li>
-                <li><i className="ti ti-gas-station" /><span>Fuel</span><b>3% back</b></li>
-              </ul>
-            </div>
-          </div>
-        </div>
-      </section>
+      <HeroStage />
 
       {/* 1b. Two ways to start (before How it works) */}
       <TwoWays />
