@@ -237,7 +237,7 @@ export default function NewHomePage() {
             <h1>Stop Using the<br /><span>Wrong Credit Card.</span></h1>
             <p>Your spending is unique. Earnn finds the card strategy that could reward it better. Upload your statement and see what your spending could really earn.</p>
             <div className={styles.actions}>
-              <Link href="/analyse" className={styles.primaryCta}>Analyse My Spending <i className="ti ti-arrow-right" /></Link>
+              <Link href="/find-my-best-cards" className={styles.primaryCta}>Analyse My Spending <i className="ti ti-arrow-right" /></Link>
               <Link href="/simulate-all-uae-cards" className={styles.secondaryCta}>Explore UAE Cards</Link>
             </div>
             <div className={styles.trustLine}><i className="ti ti-lock" /> No bank login required <b>•</b> Free analysis <b>•</b> Takes about 60 seconds</div>
@@ -295,7 +295,7 @@ export default function NewHomePage() {
             <small>Figures shown are illustrative examples, not guaranteed returns.</small>
           </article>
         </div>
-        <Link href="/analyse" className={styles.rewardCta}>Find My Reward Gap <i className="ti ti-arrow-right" /></Link>
+        <Link href="/find-my-best-cards" className={styles.rewardCta}>Find My Reward Gap <i className="ti ti-arrow-right" /></Link>
       </section>
 
       {STATEMENT_UPLOAD_UI_ENABLED && <section className={`${styles.section} ${styles.surface} ${styles.howItWorksSection}`}>
@@ -356,7 +356,7 @@ export default function NewHomePage() {
           ['ti-shield-check','Sensitive details protected','Card numbers and personal details are handled in line with Earnn’s security implementation.'],
           ['ti-file-lock','Statement handling','Encrypted during processing and deleted after analysis.'],
         ].map(([icon,title,body]) => <article key={title} className={styles.productPanel}><i className={`ti ${icon}`} /><h3>{title}</h3><p>{body}</p></article>)}</div>
-        <div className={styles.finalCta}><h2>Find out what your spending could really earn.</h2><p>Upload a statement and Earnn will build a card strategy around the way you actually spend.</p><Link href="/analyse" className={styles.rewardCta}>Analyse My Spending <i className="ti ti-arrow-right" /></Link><small>No bank login required • Free analysis • Takes about 60 seconds</small></div>
+        <div className={styles.finalCta}><h2>Find out what your spending could really earn.</h2><p>Upload a statement and Earnn will build a card strategy around the way you actually spend.</p><Link href="/find-my-best-cards" className={styles.rewardCta}>Analyse My Spending <i className="ti ti-arrow-right" /></Link><small>No bank login required • Free analysis • Takes about 60 seconds</small></div>
       </section>}
     </div>
   )

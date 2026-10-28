@@ -3,27 +3,27 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { fetchCardDetail } from '@/lib/api'
+import { fetchCardDetail, fetchCards } from '@/lib/api'
+import type { CardLimit } from '@/components/wallet-simulator/result-summary'
 import {
   evaluateWallet, SimulatorApiError, useSimulatorSession,
   type RecommendResponse, type SimulatorRequest, type Wallet,
 } from '@/lib/wallet-simulator/api'
 import { sameCards, walletKey } from '@/lib/wallet-simulator/playbook'
 import type { CardInfo } from '@/components/wallet-simulator/card-art'
-import { CompareDialog } from '@/components/wallet-simulator/compare'
 import CardDetailPopup from '@/components/CardDetailPopup'
 import { ReplaceCardDialog, WalletCustomizeDialog } from '@/components/wallet-simulator/customize'
-import { Alternatives, PlaybookBody } from '@/components/wallet-simulator/sections'
+import { PlaybookBody } from '@/components/wallet-simulator/sections'
 import { ResultSummary } from '@/components/wallet-simulator/result-summary'
-import { RewardModeProvider } from '@/lib/wallet-simulator/reward-mode'
+import { RewardModeProvider, useRewardMode } from '@/lib/wallet-simulator/reward-mode'
 import { AllBenefitsDialog } from '@/components/wallet-simulator/all-benefits'
-import { CompareBand } from '@/components/wallet-simulator/compare-band'
+import { WalletTabs, buildWalletTabs } from '@/components/wallet-simulator/wallet-tabs'
 
 export default function SimulatorResultPage() {
   const router = useRouter()
   const session = useSimulatorSession()
   useEffect(() => {
-    if (session === null) router.replace('/analyse')
+    if (session === null) router.replace('/find-my-best-cards')
   }, [session, router])
   if (!session) return <div className="ws-root min-h-[60vh] bg-ws-bg" />
   return (
@@ -38,14 +38,14 @@ function SmartWallet({ request, result }: { request: SimulatorRequest; result: R
   // for results saved before strategies existed.
   const strategies = useMemo(() => result.strategies ?? [], [result.strategies])
   const pick = strategies[0]?.wallet ?? result.recommendation.wallet
+  const { isMiles } = useRewardMode()
   const [ids, setIds] = useState<string[]>(pick.cards)
   // Wallets the backend has already calculated, keyed by card set (seeded with the pick + alternatives).
   const [evaluated, setEvaluated] = useState<Record<string, Wallet>>(() =>
-    Object.fromEntries([pick, ...strategies.map(s => s.wallet), result.recommendation.wallet, ...result.alternatives]
+    Object.fromEntries([pick, ...strategies.map(s => s.wallet), result.recommendation.wallet, ...result.alternatives, ...Object.values(result.top_by_size ?? {}).flat()]
       .reverse().map(w => [walletKey(w.cards), w])))
   const [failedKey, setFailedKey] = useState<string | null>(null)
   const [previous, setPrevious] = useState<Wallet | null>(pick) // shown (dimmed) while an update runs
-  const [compareOpen, setCompareOpen] = useState(false) // compare against the user's current cards
   const [detailCardId, setDetailCardId] = useState<string | null>(null) // card-information popup
   const [replacing, setReplacing] = useState<{ id: string | null; group: string | null } | null>(null) // "Replace this card" list
   const [benefitsOpen, setBenefitsOpen] = useState(false) // "See all benefits" popup
@@ -102,6 +102,26 @@ function SmartWallet({ request, result }: { request: SimulatorRequest; result: R
     return () => { cancelled = true }
   }, [pick, result])
 
+  // each card's own minimum monthly spend and monthly cap, from the same card list the Compare page uses
+  const [limits, setLimits] = useState<Record<string, CardLimit> | null>(null)
+  useEffect(() => {
+    let cancelled = false
+    fetchCards({ sort_by: 'card_ranking', mode: isMiles ? 'miles' : 'cashback' })
+      .then(data => {
+        if (cancelled) return
+        const next: Record<string, CardLimit> = {}
+        for (const c of (data.cards ?? []) as Record<string, unknown>[]) {
+          const minOn = c.is_min_spend_applicable === true || String(c.is_min_spend_applicable).toLowerCase() === 'true'
+          const min = Number(c.min_monthly_spend_aed_on_card)
+          const cap = Number(c.card_cap_aed)
+          next[String(c.earnn_card_id)] = { min: minOn && min > 0 ? min : 0, cap: cap > 0 ? cap : null }
+        }
+        setLimits(next)
+      })
+      .catch(() => { /* the row then shows "–" and the page still works */ })
+    return () => { cancelled = true }
+  }, [isMiles])
+
   const card = useCallback((id: string): CardInfo => directory.get(id) ?? { id, name: id, bank: null }, [directory])
 
   const changeIds = useCallback((next: string[]) => {
@@ -110,16 +130,14 @@ function SmartWallet({ request, result }: { request: SimulatorRequest; result: R
     setIds(next)
   }, [displayWallet])
 
-  // choosing a way from "Other smart ways" brings the user back up to the result
-  const useStrategy = useCallback((next: string[]) => {
-    changeIds(next)
-    window.scrollTo({ top: 0, behavior: 'smooth' })
-  }, [changeIds])
   const removeCard = useCallback((id: string) => changeIds(ids.filter(c => c !== id)), [ids, changeIds])
   const reset = useCallback(() => changeIds(pick.cards), [changeIds, pick.cards])
   const retry = useCallback(() => setFailedKey(null), [])
-  const closeCompare = useCallback(() => setCompareOpen(false), [])
   const isPick = sameCards(ids, pick.cards)
+  // the three tabs at the top: the recommended set and the next best choices (from the wallets already calculated)
+  const tabs = useMemo(() => buildWalletTabs(pick,
+    [...strategies.map(s => s.wallet), result.recommendation.wallet, ...result.alternatives, ...Object.values(result.top_by_size ?? {}).flat()],
+    w => (isMiles ? w.annual_reward_aed : w.net_annual_value_aed)), [pick, strategies, result, isMiles])
   // Known wallets with more cards than the pick that still earn more net: Earnn judged the extra card(s) not worth it.
   const biggerWorthless = useMemo(() => {
     const all = [...strategies.map(s => s.wallet), result.recommendation.wallet, ...result.alternatives,
@@ -133,11 +151,11 @@ function SmartWallet({ request, result }: { request: SimulatorRequest; result: R
         {/* Statement runs have no manual form to edit (pre-filling it is switched off for now) */}
         {request.spend_summary
           ? <span aria-hidden />
-          : <Link href="/analyse" className="text-[13px] font-semibold text-ws-primary hover:underline">← Edit my spending</Link>}
+          : <Link href="/find-my-best-cards?mode=manual" className="text-[13px] font-semibold text-ws-primary hover:underline">← Edit my spending</Link>}
       </div>
 
       <main>
-        <ResultSummary wallet={displayWallet} groups={result.spend.groups} ids={ids} isPick={isPick} pick={pick} moreCardsNote={biggerWorthless} monthlySpend={result.spend.eligible_spend_aed} card={card}
+        <ResultSummary limits={limits} tabs={<WalletTabs tabs={tabs} currentIds={ids} onSelect={changeIds} />} wallet={displayWallet} groups={result.spend.groups} ids={ids} isPick={isPick} pick={pick} moreCardsNote={biggerWorthless} monthlySpend={result.spend.eligible_spend_aed} card={card}
           updating={status === 'updating'} onChange={() => setCustomizeOpen(true)} onDetails={setDetailCardId} onAllBenefits={() => setBenefitsOpen(true)}
           onReplace={(id, group) => setReplacing({ id, group })} onRemove={removeCard} onReset={reset}
           plan={<PlaybookBody wallet={displayWallet} groups={result.spend.groups} monthlySpend={result.spend.eligible_spend_aed}
@@ -146,9 +164,6 @@ function SmartWallet({ request, result }: { request: SimulatorRequest; result: R
               <h2 className="font-display text-[22px] font-bold text-ws-fg sm:text-[28px]">How to use these cards</h2>
               <p className="mt-1 text-[14px] text-ws-muted sm:text-[15px]">Which card to swipe for each kind of spending, and how much it earns you.</p>
             </div>} />} />
-        <CompareBand wallet={displayWallet} card={card} onCompare={() => setCompareOpen(true)} />
-        <Alternatives strategies={strategies} alternatives={result.alternatives} topBySize={result.top_by_size} pick={pick} currentIds={ids} card={card}
-          onUse={useStrategy} onDetails={setDetailCardId} />
       </main>
 
       <p className="border-t border-ws-border px-5 py-3 text-center text-[11px] text-ws-muted sm:px-8">
@@ -169,10 +184,6 @@ function SmartWallet({ request, result }: { request: SimulatorRequest; result: R
           wallet={displayWallet} status={status} onChange={changeIds} onRetry={retry} onClose={() => setCustomizeOpen(false)} />
       )}
       {benefitsOpen && ids.length > 0 && <AllBenefitsDialog cardIds={ids} onClose={() => setBenefitsOpen(false)} />}
-      {compareOpen && (
-        <CompareDialog request={request} smart={current} groups={result.spend.groups} card={card}
-          onClose={closeCompare} />
-      )}
     </div>
   )
 }

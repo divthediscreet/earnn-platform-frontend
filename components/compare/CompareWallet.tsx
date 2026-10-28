@@ -137,7 +137,7 @@ function WalletBar({ request, ids, onIdsChange, directory: pageDirectory, onAddM
       <WalletDock ids={ids} wallet={plan?.wallet ?? null} pick={pick} isPick={isPick} status={status} card={card}
         summary={plan && plan.reserve_cards.length > 0 ? `Use ${plan.active_cards.length} of ${plan.wallet.cards.length} cards this month` : undefined}
         onRemove={removeCard} onAdd={onAddMore} max={MAX_SIMULATE_WALLET} onReset={reset} onAskEarnn={findBestCards} onRetry={retry} open={walletOpen} onOpenChange={setWalletOpen}>
-        <StrategyPanel response={displayWallet} request={request} ids={ids} kind={planKind} onKind={setPlanKind} card={card} onDetails={setDetailCardId} updating={status === 'updating'} />
+        <StrategyPanel response={displayWallet} request={request} ids={ids} kind={planKind} onKind={setPlanKind} card={card} onDetails={setDetailCardId} updating={status === 'updating'} groups={result.spend.groups} monthlySpend={result.spend.eligible_spend_aed} />
       </WalletDock>
 
       {detailCardId && <CardDetailPopup cardId={detailCardId} mode={request.reward_mode} onClose={() => setDetailCardId(null)} />}

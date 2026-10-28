@@ -1,151 +1,279 @@
-/* Trip Planner results: hero, steps, recommended trip, filtered trip grid */
-.hero{position:relative;min-height:230px;display:flex;align-items:center;margin-top:6px;padding:26px 44px;border-radius:20px;overflow:hidden;background:#f3f7ff}
-/* The photo sits on the right and dissolves to the left: the mask fades its left edge into the hero background. */
-.hero::before{content:'';position:absolute;top:0;right:0;bottom:0;width:64%;background:url('/trip-planner/hero-cabin-sunrise.webp') center 58%/cover no-repeat;-webkit-mask-image:linear-gradient(90deg,transparent 0,rgba(0,0,0,.18) 14%,rgba(0,0,0,.55) 34%,rgba(0,0,0,.9) 58%,#000 74%);mask-image:linear-gradient(90deg,transparent 0,rgba(0,0,0,.18) 14%,rgba(0,0,0,.55) 34%,rgba(0,0,0,.9) 58%,#000 74%);filter:saturate(1.02)}
-.heroCopy{position:relative;z-index:1;max-width:min(560px,54%)}
-.hero h1{margin:0 0 10px;font-family:Georgia,'Times New Roman',serif;font-weight:500;font-size:clamp(24px,2.7vw,36px);line-height:1.12;letter-spacing:-.02em;color:#0d1828}
-.hero h1 em{font-style:normal;color:#0e3785}
-.hero p{margin:0 0 16px;max-width:500px;color:#44587a;font-size:14.5px;line-height:1.5}
-.heroCtas{display:flex;flex-wrap:wrap;gap:12px}
-.primary,.ghost{display:inline-flex;align-items:center;gap:10px;padding:11px 18px;border-radius:11px;font-size:14px;font-weight:700;cursor:pointer;transition:transform .15s,box-shadow .15s}
-.primary{border:0;background:#0e3785;color:#fff;box-shadow:0 10px 24px rgba(14,55,133,.28)}
-.primary:hover{transform:translateY(-1px);box-shadow:0 14px 28px rgba(14,55,133,.34)}
-.ghost{border:1px solid #c5d3ee;background:#fff;color:#0e3785}
-.ghost:hover{background:#eef3ff}
+/* Trip Planner results: hero, spending strip, example trip, more destinations, closing call to action */
+.hero{position:relative;min-height:250px;display:flex;align-items:flex-start;margin-top:6px;padding:34px 44px 70px;border-radius:22px 22px 0 0;overflow:hidden;background:#f6f9ff}
+/* The cabin photo sits on the right and dissolves to the left. */
+.hero::before{content:'';position:absolute;top:0;right:0;bottom:0;width:62%;background:url('/trip-planner/hero-cabin-sunrise.webp') center 58%/cover no-repeat;-webkit-mask-image:linear-gradient(90deg,transparent 0,rgba(0,0,0,.18) 14%,rgba(0,0,0,.55) 34%,rgba(0,0,0,.9) 58%,#000 74%);mask-image:linear-gradient(90deg,transparent 0,rgba(0,0,0,.18) 14%,rgba(0,0,0,.55) 34%,rgba(0,0,0,.9) 58%,#000 74%)}
+.heroCopy{position:relative;z-index:1;max-width:min(520px,56%)}
+.kicker{display:block;margin-bottom:14px;color:#0e3785;font-size:12px;font-weight:800;letter-spacing:.12em}
+.hero h1{margin:0 0 12px;font-family:Georgia,'Times New Roman',serif;font-weight:500;font-size:clamp(30px,3.6vw,46px);line-height:1.1;letter-spacing:-.02em;color:#0d1828}
+.hero h1 em{display:block;font-style:normal;color:#0e3785}
+.hero p{margin:0;max-width:470px;color:#44587a;font-size:15.5px;line-height:1.55}
 
-.stepsWrap{margin-top:12px;padding:8px 16px 10px;border:1px solid #9fb8e8;border-radius:16px;background:linear-gradient(135deg,#aec6f0,#c4d6f6 55%,#d6e2f9);box-shadow:0 12px 28px rgba(14,55,133,.2);color:#0d1828}
-.stepsHead{display:flex;align-items:center;justify-content:center;gap:12px;margin:0 0 6px;color:#0e3785;font-size:10.5px;font-weight:800;letter-spacing:.22em}
-.stepsHead::before,.stepsHead::after{content:'';flex:1;max-width:120px;height:1px;background:linear-gradient(90deg,transparent,rgba(14,55,133,.45))}
-.stepsHead::after{transform:scaleX(-1)}
-.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:0;padding:0;list-style:none}
-.steps li{position:relative;display:flex;align-items:center;gap:10px;padding:6px 12px;border:1px solid #b9cdf0;border-radius:12px;background:#fff;box-shadow:0 4px 12px rgba(14,55,133,.1)}
-.num{flex:none;display:grid;place-items:center;width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,#f3d98b,#c9a02e);color:#3b2a00;font-size:14px;font-weight:800;box-shadow:0 6px 14px rgba(0,0,0,.28)}
-.stepIcon{display:none}
-.steps b{display:block;color:#0d1828;font-size:13px;line-height:1.25}
-.steps small{display:block;margin-top:1px;color:#566782;font-size:11px;line-height:1.25}
+.strip{position:relative;z-index:2;display:flex;align-items:center;gap:14px;margin:-48px 12px 0;padding:18px 24px;border:1px solid #dbe6fa;border-radius:20px;background:#f3f7ff;box-shadow:0 14px 34px rgba(14,55,133,.12)}
+.stripItem{flex:1;display:flex;align-items:center;gap:14px;min-width:0}
+.stripIcon{flex:none;display:grid;place-items:center;width:52px;height:52px;border-radius:15px;background:#fff;color:#0e3785;font-size:28px;box-shadow:0 4px 12px rgba(14,55,133,.1)}
+.gold{color:#c58a10;background:#fff7e1}
+.stripItem small{display:block;color:#5a6a85;font-size:13px}
+.stripItem b{display:block;margin-top:2px;color:#0d1828;font-size:19px;line-height:1.25}
+.editBtn{margin-left:6px;width:30px;height:24px;border:1px solid #c5d3ee;border-radius:999px;background:#fff;color:#0e3785;font-size:13px;cursor:pointer;vertical-align:middle}
+.editBtn:hover{background:#eef3ff}
+.chev{flex:none;color:#9bb0d8;font-size:20px}
 
-.featured{position:relative;display:grid;grid-template-columns:minmax(260px,38%) 1fr;gap:26px;margin-top:30px;padding:12px;border:2px solid #cfe0fb;border-radius:20px;background:#fff;box-shadow:0 14px 34px rgba(14,55,133,.1)}
-.recBadge{position:absolute;left:-2px;top:-14px;z-index:2;display:inline-flex;align-items:center;gap:8px;padding:9px 18px;border-radius:12px 12px 12px 0;background:#0e3785;color:#fff;font-size:15px;font-weight:700;box-shadow:0 8px 18px rgba(14,55,133,.3)}
-.featPhoto{position:relative;min-height:230px;border-radius:14px;overflow:hidden;background:linear-gradient(135deg,#143a86,#2a5db8)}
-.featPhoto img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
-.featBody{display:flex;flex-direction:column;padding:10px 12px 8px 0}
-.featTop{display:flex;align-items:center;justify-content:space-between;gap:12px}
-.featKicker{color:#71809a;font-size:12px;font-weight:700;letter-spacing:.1em}
-.valueTag{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:999px;background:#eef3ff;color:#0e3785;font-size:12px;font-weight:700}
-.featBody h2{margin:6px 0 8px;font-family:Georgia,'Times New Roman',serif;font-weight:500;font-size:clamp(24px,2.8vw,34px);letter-spacing:-.02em;color:#0d1828}
-.featBody p{margin:0 0 16px;max-width:560px;color:#566782;font-size:15px;line-height:1.5}
-.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin:auto 0 0;padding:0;list-style:none}
-.facts li{display:flex;align-items:center;gap:8px;padding:6px 12px;border:1px solid #d9e3f5;border-radius:10px;background:#fff;box-shadow:0 2px 6px rgba(13,24,40,.12)}
-.facts li>i{flex:none;display:grid;place-items:center;width:28px;height:28px;border-radius:50%;background:#eef3ff;color:#0e3785;font-size:16px}
-.facts small{display:block;color:#71809a;font-size:10.5px;font-weight:600;line-height:1.2}
-.facts b{display:block;color:#0d1828;font-size:13px;line-height:1.2}
-.featGo{align-self:flex-start;display:inline-flex;align-items:center;gap:8px;margin-top:16px;padding:11px 18px;border:0;border-radius:10px;background:#0e3785;color:#fff;font-size:14px;font-weight:700;cursor:pointer}
-.featGo:hover{background:#0b2d6f}
+/* One slim, single-colour strip: the question and the two choices on one line, in the brand blue so it stands out. */
+.refineBar{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px 20px;align-items:center;margin-top:18px;padding:14px 18px;border-radius:16px;background:linear-gradient(90deg,#0b2c6b,#1d57c8);box-shadow:0 10px 24px rgba(14,55,133,.28)}
+.refineStory b{display:block;color:#fff;font-size:17px;line-height:1.25}
+.refineStory p{margin:5px 0 0;color:rgba(255,255,255,.88);font-size:13px;line-height:1.5}
+.refineStory p i{color:#ffe08a;margin-right:3px}
+.refineActions>div{display:grid!important;gap:6px;margin:0}
+.refineActions div[role="group"]{display:flex!important;flex-direction:row;flex-wrap:nowrap;gap:10px}
+.refineActions button{white-space:nowrap}
+.refineBar strong{display:none!important}
+.refineBar strong{color:#fff!important;font-size:15px}
+.refineBar button{border:1.5px solid rgba(255,255,255,.4)!important;background:rgba(255,255,255,.12)!important;color:#fff!important;box-shadow:none!important}
+.refineBar button small{color:rgba(255,255,255,.78)!important}
+.refineBar button>i{background:rgba(255,255,255,.22)!important;color:#fff!important}
+.refineBar button[aria-pressed="true"]{border-color:#ffd666!important;background:#fff!important;color:#0b2c6b!important;box-shadow:0 0 0 3px rgba(255,214,102,.45)!important}
+.refineBar button[aria-pressed="true"] small{color:#40577b!important}
+.refineBar button[aria-pressed="true"]>i{background:#0e3785!important;color:#fff!important}
+.example{margin-top:26px}
+.example h2,.more h2{margin:0;font-family:Georgia,'Times New Roman',serif;font-weight:500;font-size:28px;color:#0d1828}
+.sub{margin:4px 0 16px;color:#5a6a85;font-size:14.5px}
+.exampleCard{display:grid;grid-template-columns:1.05fr 1fr;overflow:hidden;border:1px solid #dbe6fa;border-radius:20px;background:#fff;box-shadow:0 12px 30px rgba(14,55,133,.1)}
+.examplePhoto{position:relative;min-height:290px;background:#0e3785}
+.examplePhoto img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.examplePhoto::after{content:'';position:absolute;inset:0;background:linear-gradient(to top,rgba(8,20,48,.78),rgba(8,20,48,0) 55%)}
+.badge{position:absolute;z-index:1;top:16px;left:16px;display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:999px;background:#fff;color:#0e3785;font-size:12.5px;font-weight:800;box-shadow:0 4px 12px rgba(0,0,0,.15)}
+.exampleName{position:absolute;z-index:1;left:18px;bottom:16px;display:flex;align-items:center;gap:10px;color:#fff}
+.exampleName>i{font-size:30px}
+.exampleName small{display:block;font-size:13px;opacity:.92}
+.exampleName strong{display:block;font-size:28px;line-height:1.1}
+.exampleBody{display:flex;flex-direction:column;justify-content:center;gap:12px;padding:26px 30px}
+.exampleBody>small{color:#5a6a85;font-size:14px}
+.exampleBody>b{font-family:Georgia,'Times New Roman',serif;font-weight:500;font-size:38px;line-height:1.1;color:#0e3785}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin:0;padding:0;list-style:none}
+.chips li{padding:7px 13px;border-radius:999px;background:#eef3ff;color:#0d1828;font-size:13px;font-weight:700}
+.chips i{color:#0e3785;margin-right:3px}
+.bestCard{margin:0;font-size:14px;color:#40577b}
+.fine{margin:0;font-size:12px;color:#6b7b95;line-height:1.45}
+.how{align-self:flex-start;display:inline-flex;align-items:center;gap:10px;padding:14px 26px;border:0;border-radius:14px;background:#0e3785;color:#fff;font:inherit;font-size:15px;font-weight:800;cursor:pointer;box-shadow:0 10px 24px rgba(14,55,133,.28)}
+.how:hover{background:#0b2c6b}
 
-.others{margin-top:34px;scroll-margin-top:84px}
-.othersHead{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap}
-.othersHead h2{margin:0;font-family:Georgia,'Times New Roman',serif;font-weight:500;font-size:clamp(22px,2.4vw,30px);letter-spacing:-.02em;color:#0d1828}
-.viewAll{border:0;background:transparent;color:#0e3785;font-size:14px;font-weight:700;cursor:pointer}
-.viewAll:hover{text-decoration:underline}
-.filterRow{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:12px 0 6px}
-.filters{display:flex;flex-wrap:wrap;gap:8px;margin:0}
-.filters button{display:inline-flex;align-items:center;gap:6px;padding:5px 14px;border:1px solid #d6e0f5;border-radius:999px;background:#fff;color:#33496f;font-size:13px;font-weight:600;cursor:pointer}
-.filters button:hover{background:#f3f7ff}
-.filters .chipOn{background:#0e3785;border-color:#0e3785;color:#fff}
-.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:18px}
-.tile{display:flex;flex-direction:column;padding:0;text-align:left;border:1px solid #e3eaf7;border-radius:16px;background:#fff;overflow:hidden;cursor:pointer;color:inherit;box-shadow:0 6px 18px rgba(13,24,40,.06);transition:transform .15s,box-shadow .15s}
-.tile:hover{transform:translateY(-3px);box-shadow:0 14px 28px rgba(13,24,40,.13)}
-.tile:focus-visible{outline:2px solid #0e3785;outline-offset:3px}
-.tilePhoto{position:relative;display:block;aspect-ratio:16/9;background:linear-gradient(135deg,#143a86,#2a5db8)}
-.tilePhoto img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
-.worth{position:absolute;right:10px;top:10px;padding:4px 10px;border-radius:999px;background:#f6d06b;color:#3d2f08;font-size:11px;font-weight:800}
-.tileBody{display:flex;flex-direction:column;gap:10px;flex:1;padding:14px 16px 14px}
-.tileBody strong{font-size:15.5px;line-height:1.3;letter-spacing:-.01em;color:#0d1828}
-.chips{display:flex;flex-wrap:wrap;gap:6px 14px;color:#5a6a85;font-size:12.5px}
-.chips>span{display:inline-flex;align-items:center;gap:6px}
-.chips i{color:#0e3785;font-size:15px}
-.tileTime{display:flex;align-items:center;gap:8px;margin-top:auto;padding-top:10px;border-top:1px solid #edf1f8;color:#0d1828;font-size:14px;font-weight:700}
-.tileTime>i:first-child{color:#0e3785;font-size:17px}
-.go{margin-left:auto;display:grid;place-items:center;width:32px;height:32px;border:1px solid #cfd9ea;border-radius:50%;color:#0e3785;font-size:16px}
-.tile:hover .go{background:#0e3785;border-color:#0e3785;color:#fff}
+.more{margin-top:40px}
+.moreHead{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap}
+.exploreAll{display:inline-flex;align-items:center;gap:8px;padding:11px 20px;border:1px solid #9fb8e8;border-radius:12px;background:#fff;color:#0e3785;font:inherit;font-size:14px;font-weight:800;cursor:pointer}
+.exploreAll:hover{background:#eef3ff}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+.tile{display:flex;flex-direction:column;overflow:hidden;padding:0;border:1px solid #dbe6fa;border-radius:16px;background:#fff;text-align:left;cursor:pointer;box-shadow:0 6px 18px rgba(14,55,133,.07);transition:transform .15s,box-shadow .15s}
+.tile:hover{transform:translateY(-2px);box-shadow:0 12px 26px rgba(14,55,133,.14)}
+.tilePhoto{display:block;height:120px;background:#0e3785;overflow:hidden}
+.tilePhoto img{width:100%;height:100%;object-fit:cover;display:block}
+.tileBody{display:flex;flex-direction:column;gap:9px;padding:14px 16px 16px}
+.tileBody strong{font-size:17px;color:#0d1828}
+.row{display:flex;align-items:center;gap:10px;color:#40577b;font-size:14px}
+.row i{color:#0e3785;font-size:17px}
+.rowLast{position:relative}
+.rowLast .go{position:absolute;right:0;top:50%;transform:translateY(-50%);display:grid;place-items:center;width:30px;height:30px;border:1px solid #c5d3ee;border-radius:50%;background:#fff;font-size:15px}
 
-@media(max-width:1000px){.grid{grid-template-columns:repeat(2,1fr)}.steps{grid-template-columns:1fr;gap:14px}.featured{grid-template-columns:1fr}.featBody{padding:0 8px 8px}}
-@media(max-width:600px){.hero{padding:22px 20px 150px;min-height:0}.hero::before{top:auto;left:0;width:100%;height:140px;background-position:center;-webkit-mask-image:linear-gradient(180deg,transparent,#000 60%);mask-image:linear-gradient(180deg,transparent,#000 60%)}.heroCopy{max-width:100%}.grid{grid-template-columns:1fr}.primary,.ghost{width:100%;justify-content:center}.recBadge{font-size:13px;padding:8px 14px}}
-.toolbar{margin-top:18px}
+.cta{display:flex;align-items:center;gap:18px;margin:40px 0 20px;padding:20px 26px;border:1px solid #f3e3b8;border-radius:18px;background:linear-gradient(90deg,#fff8e8,#fffdf6)}
+.ctaIcon{flex:none;display:grid;place-items:center;width:58px;height:58px;border-radius:50%;border:2px solid #c9a02e;color:#c9a02e;font-size:30px;background:#fff}
+.cta>div{flex:1;min-width:0}
+.cta h2{margin:0 0 2px;font-family:Georgia,'Times New Roman',serif;font-weight:500;font-size:24px;color:#0d1828}
+.cta p{margin:0;font-size:14px;color:#5a6a85}
+.cta .how{align-self:center;white-space:nowrap}
 
-/* Possibility tiles: destination, how many people, time to fly */
-.tileBody{position:relative;padding-right:56px}
-.tileFacts{display:flex;flex-direction:column;gap:6px;color:#33496f;font-size:13.5px;font-weight:600}
-.tileFacts>span{display:inline-flex;align-items:center;gap:8px}
-.tileFacts i{color:#0e3785;font-size:17px}
-.tileBody>.go{position:absolute;right:14px;bottom:14px}
+@media (max-width:900px){
+  .refineBar{grid-template-columns:1fr}
+  .hero{padding:26px 22px 64px}
+  .heroCopy{max-width:100%}
+  .hero::before{width:100%;opacity:.35}
+  .strip{flex-direction:column;align-items:stretch;margin:-40px 0 0}
+  .chev{display:none}
+  .exampleCard{grid-template-columns:1fr}
+  .grid{grid-template-columns:1fr 1fr}
+  .cta{flex-direction:column;align-items:flex-start}
+}
+@media (max-width:520px){.grid{grid-template-columns:1fr}}
 
-.bizBadge{position:absolute;left:10px;top:10px;display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:999px;background:linear-gradient(135deg,#f3d98b,#c9a02e);color:#3b2a00;font-size:12px;font-weight:800;box-shadow:0 4px 10px rgba(0,0,0,.25)}
+.stripTo{display:block;font:inherit;color:inherit}
+.modalBack{position:fixed;inset:0;z-index:1200;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(13,24,40,.5)}
+.modal{width:min(520px,100%);max-height:86vh;overflow:auto;padding:22px;border-radius:18px;background:#fff;box-shadow:0 20px 50px rgba(0,0,0,.25)}
+.modalHead{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.modalHead h3{margin:0;font-size:19px;color:#0d1828}
+.modalHead button{border:0;background:none;font-size:20px;color:#40577b;cursor:pointer}
+.modalBlock{margin-bottom:14px;padding:12px 14px;border:1px solid #dbe6fa;border-radius:14px;background:#f8faff}
+.sum{display:flex;justify-content:space-between;gap:12px;margin:0 0 6px;color:#0d1828;font-size:14px}
+.sum span{font-weight:700}
+.modalBlock ul{margin:0;padding:0;list-style:none}
+.modalBlock li{display:flex;justify-content:space-between;gap:12px;padding:5px 0;border-top:1px solid #e6edfa;font-size:13px;color:#40577b}
+.modalBlock li b{color:#0d1828;white-space:nowrap}
+.none{margin:0;font-size:13px;color:#6b7b95}
+.total{padding:10px 14px;border-radius:12px;background:#eef3ff;font-size:16px}
+.editLink{margin-top:12px;border:0;background:none;color:#0e3785;font:inherit;font-weight:800;text-decoration:underline;cursor:pointer}
 
-/* Recommended card as a cabin scene: the window shows the country; text sits on the dark left of the picture */
-.featuredScene{position:relative;display:block;min-height:300px;padding:50px 34px 28px;border:0;background-color:#0b1a3d;background-size:cover;background-position:right center;box-shadow:0 18px 38px rgba(11,26,61,.35);overflow:hidden}
-.featuredScene::before{content:'';position:absolute;inset:0;background:linear-gradient(90deg,rgba(8,18,44,.92) 0,rgba(8,18,44,.82) 34%,rgba(8,18,44,.35) 56%,rgba(8,18,44,0) 72%)}
-.featuredScene .featBody{position:relative;max-width:min(520px,54%);padding:0}
-.featuredScene .recBadge{z-index:3}
-.featuredScene .featKicker{color:#e8c66b}
-.featuredScene h2{color:#fff}
-.featuredScene .featBody p{color:#d7e1f7}
-.featuredScene .valueTag{background:rgba(255,255,255,.16);color:#fff}
-.featuredScene .featGo{background:#fff;color:#0e3785}
-.featuredScene .featGo:hover{background:#eef3ff}
-.featuredScene .recBadge{left:0;top:0;border-radius:20px 0 12px 0}
-@media(max-width:1000px){.featuredScene{background-position:75% center}.featuredScene .featBody{max-width:100%}}
+.example h2{position:relative;display:inline-block}
+.example h2::after{content:'';display:block;height:4px;width:56px;margin-top:6px;border-radius:4px;background:linear-gradient(90deg,#e0a82c,#ffe08a)}
 
-/* One tray of trips: 4.5 tiles visible, arrows for the rest, a crown above the recommended tile */
-.tray{position:relative}
-.track{display:flex;gap:18px;overflow-x:auto;scroll-snap-type:x proximity;scrollbar-width:none;padding:30px 4px 10px;margin:0 -4px}
-.track::-webkit-scrollbar{display:none}
-.tileWrap{position:relative;flex:0 0 calc((100% - 72px) / 4.5);min-width:210px;scroll-snap-align:start;display:flex}
-.tileWrap>.tile{width:100%}
-.crown{position:absolute;right:14px;top:-26px;z-index:3;display:grid;place-items:center;width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,#f6dc8e,#c9a02e);color:#3b2a00;font-size:21px;box-shadow:0 6px 14px rgba(120,90,10,.4);border:2px solid #fff}
-.arrow{position:absolute;top:50%;z-index:4;display:grid;place-items:center;width:44px;height:44px;margin-top:-10px;border:1px solid #d5dff0;border-radius:50%;background:#fff;color:#0e3785;font-size:21px;cursor:pointer;box-shadow:0 10px 24px rgba(13,24,40,.22)}
-.arrow:hover{background:#0e3785;color:#fff;border-color:#0e3785}
-.arrowRight{right:-14px}
-.arrowLeft{left:-14px}
-@media(max-width:700px){.tileWrap{flex-basis:78%}.arrowRight{right:-6px}.arrowLeft{left:-6px}}
+.stripLabel{display:block;margin-bottom:2px;font-style:normal;font-size:11px;font-weight:800;letter-spacing:.14em;color:#0e3785}
+.stripItem b small{display:inline;font-size:13px;font-weight:700;color:#5a6a85}
+.chev{display:grid;place-items:center;width:34px;height:34px;border-radius:50%;background:#0e3785;color:#fff!important;font-size:17px!important}
 
-.othersHead{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap}
-.othersHead h2{margin-bottom:4px}
-.othersSub{margin:0;color:#566782;font-size:14.5px}
+/* "Business Class Experience" stands out in bright blue at full size; the lines above it are smaller. */
+.hero h1{font-size:clamp(24px,2.6vw,34px)}
+.hero h1 em{display:block;width:fit-content;font-weight:700;font-size:1.4em;letter-spacing:-.01em;color:#1f5fd6}
 
-.customizeLink{display:inline;padding:0;border:0;background:transparent;color:#0e3785;font:inherit;font-size:18px;font-weight:800;text-decoration:underline;text-underline-offset:3px;cursor:pointer}
-.customizeLink:hover{color:#0b2d6f}
-.customizeLink:focus-visible{outline:2px solid #c9a84c;outline-offset:3px;border-radius:4px}
+/* No hero text: the cabin photo is a banner and the three-step flow below it is the main result. */
+.hero{min-height:170px;padding:0 0 60px}
+.strip{margin-top:-66px;padding:24px 28px;gap:18px}
+.stripItem b{font-size:25px}
+.stripItem b small{font-size:14px}
+.stripLabel{font-size:12px}
+.stripIcon{width:60px;height:60px;font-size:32px}
+.chev{width:40px;height:40px;font-size:20px!important}
+.hero{min-height:210px}
+.strip{margin-top:-44px;padding:22px 24px;gap:14px}
+.stripItem b{font-size:22px}
+.stripItem b small{white-space:nowrap}
+.stripIcon{width:54px;height:54px;font-size:28px}
 
-/* View all: the tray opens downwards into a grid */
-.gridAll{display:grid;grid-template-columns:repeat(4,1fr);gap:30px 18px;padding-top:30px}
-.gridAll>.tileWrap{min-width:0;flex:none}
-@media(max-width:1000px){.gridAll{grid-template-columns:repeat(2,1fr)}}
-@media(max-width:600px){.gridAll{grid-template-columns:1fr}}
+/* Journey hero: spend -> earn -> fly, over the cabin photo. */
+.journey{position:relative;display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr) auto minmax(0,1.15fr);align-items:stretch;gap:14px;margin-top:6px;padding:34px 28px;border-radius:26px;overflow:hidden;background:linear-gradient(100deg,rgba(6,22,62,.95) 0%,rgba(11,44,107,.88) 55%,rgba(14,55,133,.7) 100%),url('/trip-planner/hero-cabin-sunrise.webp') center 60%/cover no-repeat;box-shadow:0 18px 40px rgba(8,28,79,.35)}
+.step{position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:4px;padding:22px 20px 18px;border:1px solid rgba(255,255,255,.28);border-radius:20px;background:rgba(255,255,255,.12);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);color:#fff}
+.num{position:absolute;top:14px;right:16px;display:grid;place-items:center;width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,#ffe08a,#e0a82c);color:#3b2a00;font-size:13px;font-weight:800}
+.medal{display:grid;place-items:center;width:54px;height:54px;margin-bottom:8px;border-radius:16px;background:rgba(255,255,255,.2);color:#ffe08a;font-size:28px}
+.kick{font-style:normal;font-size:12px;font-weight:800;letter-spacing:.16em;color:#ffe08a}
+.value{display:block;font-family:Georgia,'Times New Roman',serif;font-weight:600;font-size:clamp(22px,2.3vw,30px);line-height:1.15;color:#fff}
+.value small{font-family:inherit;font-size:.5em;font-weight:600;color:rgba(255,255,255,.8)}
+.step p{margin:2px 0 0;font-size:14px;line-height:1.4;color:rgba(255,255,255,.86)}
+.step p strong{color:#ffe08a;font-size:1.15em}
+.how2{margin-top:10px;display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border:1px solid rgba(255,255,255,.5);border-radius:999px;background:rgba(255,255,255,.14);color:#fff;font:inherit;font-size:12.5px;font-weight:700;cursor:pointer}
+.how2:hover{background:rgba(255,255,255,.26)}
+.how2 i{color:#ffe08a}
+.link{align-self:center;display:grid;place-items:center;width:38px;height:38px;border-radius:50%;background:#ffe08a;color:#3b2a00;font-size:20px;box-shadow:0 6px 16px rgba(0,0,0,.3)}
+.finale{border:2px solid #ffe08a;background:#fff;color:#0d1828;box-shadow:0 0 0 6px rgba(255,224,138,.25),0 16px 34px rgba(0,0,0,.35)}
+.finale .medal{background:#eef3ff;color:#0e3785}
+.finale .kick{color:#0e3785}
+.finale .value{color:#0e3785}
+.finale .value small{color:#40577b}
+.finale p{color:#40577b}
+.finale p strong{color:#0d1828}
+@media (max-width:900px){
+  .journey{grid-template-columns:1fr;padding:22px 16px}
+  .link{transform:rotate(90deg);justify-self:center}
+}
+.value small{font-family:'Inter',system-ui,sans-serif;font-size:.55em;white-space:nowrap}
+.finale .value small{display:block;margin-top:2px;font-family:Georgia,'Times New Roman',serif;font-size:.9em;font-weight:600;color:#1f5fd6;white-space:normal}
+.journey{background:linear-gradient(100deg,rgba(6,22,62,.92) 0%,rgba(11,44,107,.72) 55%,rgba(14,55,133,.45) 100%),url('/trip-planner/hero-cabin-sunrise.webp') center 60%/cover no-repeat}
+.journey{background:linear-gradient(100deg,#06163e 0%,#0b2c6b 55%,#0e3785 100%)}
 
-.route{display:flex;flex-direction:column;gap:1px}
-.route small{color:#71809a;font-size:11.5px;font-weight:600;letter-spacing:.02em}
+/* Flight-path timeline: no boxes. A dashed route runs through three milestones and ends in a plane. */
+.journey{grid-template-columns:repeat(3,minmax(0,1fr));gap:0;align-items:start;padding:30px 36px 30px}
+.journey::before{content:'';position:absolute;top:43px;left:50px;right:70px;border-top:2px dashed rgba(255,224,138,.65)}
+.link,.medal{display:none}
+.step,.finale{padding:36px 18px 0 0;border:0;border-radius:0;background:none;box-shadow:none;backdrop-filter:none;-webkit-backdrop-filter:none;color:#fff}
+.num{top:0;right:auto;left:0;width:26px;height:26px;box-shadow:0 0 0 6px rgba(255,224,138,.25)}
+.finale .num{width:30px;height:30px;top:-2px;left:-2px;font-size:15px;box-shadow:0 0 0 8px rgba(255,224,138,.35)}
+.step .kick,.finale .kick{margin-top:6px;color:#ffe08a}
+.step .value,.finale .value{font-size:clamp(26px,3vw,38px);color:#fff}
+.step .value small{color:rgba(255,255,255,.75)}
+.finale .value small{color:#ffe08a;font-size:.8em}
+.step p,.finale p{color:rgba(255,255,255,.85);font-size:15px}
+.step p strong,.finale p strong{color:#ffe08a;font-size:1.25em}
+.planeEnd{position:absolute;top:28px;right:30px;font-size:30px;color:#ffe08a;transform:rotate(0deg);filter:drop-shadow(0 4px 8px rgba(0,0,0,.4))}
+@media (max-width:900px){
+  .journey{grid-template-columns:1fr;padding:24px 20px}
+  .journey::before{top:40px;bottom:60px;left:32px;right:auto;border-top:0;border-left:2px dashed rgba(255,224,138,.65)}
+  .step,.finale{padding:0 0 22px 46px}
+  .num,.finale .num{top:0;left:0}
+  .planeEnd{top:auto;bottom:18px;right:22px}
+}
 
-/* "Show" and the arrow together inside one rounded box */
-.goWrap{align-self:flex-end;margin-top:2px;display:inline-flex;align-items:center;gap:3px;padding:4px 9px;border:1px solid #cfd9ea;border-radius:999px;background:#fff;color:#0e3785;font-size:12px;font-weight:700;line-height:1;width:fit-content}
-.goWrap small{font-size:12px;font-weight:700;color:inherit;line-height:1}
-.goWrap i{font-size:13px;width:auto;margin:0}
-.tile:hover .goWrap{background:#0e3785;border-color:#0e3785;color:#fff}
+/* Story: three plain sentences with highlighted values, and a small route illustration. No dark band. */
+.story{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:24px;align-items:center;margin-top:10px;padding:10px 6px 4px}
+.storyText{display:grid;gap:14px}
+.line{display:flex;align-items:flex-start;gap:14px;margin:0;font-family:Georgia,'Times New Roman',serif;font-size:clamp(20px,2.3vw,27px);line-height:1.35;color:#0d1828}
+.ico{flex:none;display:grid;place-items:center;width:44px;height:44px;margin-top:2px;border-radius:14px;background:#eaf1ff;color:#1f5fd6;font-size:24px}
+.icoGold{background:#fff4d6;color:#c58a10}
+.line mark{padding:0 4px;border-radius:4px;background:linear-gradient(transparent 58%,#ffe08a 58%);color:#1f5fd6;font-weight:700}
+.bulb{display:inline-flex;align-items:center;gap:5px;margin-left:4px;padding:3px 11px;border:1px solid #b9cdf0;border-radius:999px;background:#fff;color:#0e3785;font:inherit;font-family:'Inter',system-ui,sans-serif;font-size:12.5px;font-weight:700;vertical-align:middle;cursor:pointer}
+.bulb:hover{background:#eef3ff}
+.bulb i{color:#c58a10}
+.choose{justify-self:start;display:inline-flex;align-items:center;gap:8px;margin-top:4px;padding:10px 18px;border:1.5px solid #1f5fd6;border-radius:999px;background:#fff;color:#1f5fd6;font:inherit;font-size:14px;font-weight:800;cursor:pointer}
+.choose:hover{background:#1f5fd6;color:#fff}
+.art{position:relative;min-height:230px}
+.art svg{position:absolute;inset:0;width:100%;height:100%}
+.node{position:absolute;display:grid;place-items:center;width:52px;height:52px;border-radius:50%;background:#fff;color:#1f5fd6;font-size:26px;box-shadow:0 8px 20px rgba(14,55,133,.22)}
+.nodeGold{color:#c58a10}
+.n1{left:2%;bottom:3%}
+.n2{left:42%;top:44%}
+.n3{right:6%;top:6%;width:62px;height:62px;background:#1f5fd6;color:#fff;font-size:32px}
+@media (max-width:900px){.story{grid-template-columns:1fr}.art{min-height:190px}}
 
-.tileBody{padding-right:16px}
+/* Premium story: ivory panel, champagne gold, deep navy; three figures and an animated route. */
+.prem{position:relative;display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:20px;align-items:center;margin-top:10px;padding:34px 40px;border:1px solid #e7d9b6;border-radius:28px;background:linear-gradient(135deg,#fffdf8 0%,#f7f1e3 100%);box-shadow:0 18px 44px rgba(11,27,58,.1),inset 0 1px 0 #fff;overflow:hidden}
+.figures{position:relative;display:grid;gap:22px;z-index:1}
+.figures::before{content:'';position:absolute;left:17px;top:20px;bottom:64px;border-left:1px solid #d8c391}
+.fig{position:relative;display:flex;gap:18px;align-items:flex-start}
+.figNo{flex:none;display:grid;place-items:center;width:36px;height:36px;border:1px solid #b8934a;border-radius:50%;background:#fffdf8;color:#8a6a2a;font-size:12px;font-weight:700;letter-spacing:.06em}
+.fig em{display:block;font-style:normal;font-size:11.5px;font-weight:700;letter-spacing:.2em;color:#8a6a2a}
+.fig b{display:block;margin-top:2px;font-family:Georgia,'Times New Roman',serif;font-weight:400;font-size:clamp(32px,4vw,48px);line-height:1.1;letter-spacing:-.01em;color:#0b1b3a;font-variant-numeric:tabular-nums}
+.fig b small{font-family:'Inter',system-ui,sans-serif;font-size:.3em;font-weight:600;letter-spacing:.04em;color:#5d6b86}
+.figFly .figNo{background:#0b1b3a;border-color:#0b1b3a;color:#e9c872}
+.figFly b{color:#1f4fa8}
+.premBulb{display:inline-flex;align-items:center;gap:6px;margin-top:6px;padding:0;border:0;background:none;color:#1f4fa8;font:inherit;font-size:12.5px;font-weight:700;text-decoration:underline;text-underline-offset:3px;cursor:pointer}
+.premBulb i{color:#b8934a}
+.premChoose{justify-self:start;margin-left:54px;display:inline-flex;align-items:center;gap:8px;padding:10px 20px;border:1px solid #0b1b3a;border-radius:999px;background:#0b1b3a;color:#f3e2b0;font:inherit;font-size:13px;font-weight:700;letter-spacing:.04em;cursor:pointer;transition:transform .15s,box-shadow .15s}
+.premChoose:hover{transform:translateY(-1px);box-shadow:0 10px 22px rgba(11,27,58,.28)}
+.sky{position:relative;min-height:250px}
+.sky svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+.route{stroke-dasharray:6 9}
+.stars{opacity:.9}
+@media (prefers-reduced-motion:no-preference){
+  .route{animation:dash 14s linear infinite}
+  .ping{animation:ping 2.8s ease-out infinite;transform-box:fill-box;transform-origin:center}
+  .ping2{animation:ping 2.8s ease-out 1.2s infinite;transform-box:fill-box;transform-origin:center}
+  .cloudA{animation:drift 14s ease-in-out infinite alternate}
+  .cloudB{animation:drift 18s ease-in-out infinite alternate-reverse}
+  .stars path{animation:twinkle 3s ease-in-out infinite;transform-box:fill-box;transform-origin:center}
+  .stars path:nth-child(2){animation-delay:.8s}.stars path:nth-child(3){animation-delay:1.6s}
+  @keyframes dash{to{stroke-dashoffset:-150}}
+  @keyframes ping{0%{transform:scale(.6);opacity:.9}100%{transform:scale(1.8);opacity:0}}
+  @keyframes drift{from{transform:translateX(-14px)}to{transform:translateX(18px)}}
+  @keyframes twinkle{0%,100%{opacity:.25;transform:scale(.7)}50%{opacity:1;transform:scale(1.15)}}
+}
+@media (prefers-reduced-motion:reduce){.planeG{display:none}}
+@media (max-width:900px){.prem{grid-template-columns:1fr;padding:26px 22px}.sky{min-height:200px}.premChoose{margin-left:0}}
+/* Match the premium palette: deep navy with champagne gold. */
+.refineBar{background:linear-gradient(90deg,#0b1b3a,#17294f);box-shadow:0 10px 24px rgba(11,27,58,.25)}
+.refineStory p i{color:#e9c872}
+.refineBar button[aria-pressed="true"]{border-color:#e9c872!important;box-shadow:0 0 0 3px rgba(233,200,114,.4)!important}
 
-/* UAE on the left, "to" in the middle, the destination on the right */
-.routeLine{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
-.routeLine span:first-child{text-align:left}
-.routeLine span:last-child{text-align:right}
-.routeLine em{font-style:normal;font-weight:600;font-size:12px;color:#71809a}
+/* Refine bar: the new light-blue and gold page theme */
+.refineBar{background:#c6d9f7;border:1px solid #b3cbf1;box-shadow:none}
+.refineStory b{color:#0a2860}
+.refineStory p{color:#3e5584}
+.refineStory p i{color:#b07d12}
+.refineBar button{border:1.5px solid #bcd0f3!important;background:#fff!important;color:#0a2860!important}
+.refineBar button small{color:#5a6a85!important}
+.refineBar button>i{background:#e4edff!important;color:#0e3785!important}
+.refineBar button[aria-pressed="true"]{border-color:#c9a02e!important;background:#fffaf0!important;color:#0a2860!important;box-shadow:0 0 0 3px rgba(201,160,46,.28)!important}
+.refineBar button[aria-pressed="true"] small{color:#5a6a85!important}
+.refineBar button[aria-pressed="true"]>i{background:#0e3785!important;color:#fff!important}
 
-/* "UAE to" very small on the first line, the destination big and bold on the second */
-.routeStack{display:flex;flex-direction:column;gap:5px}
-.routeStack small{color:#71809a;font-size:10.5px;font-weight:600;letter-spacing:.03em;line-height:1.2}
-.routeStack strong{color:#0d1828;font-size:19px;font-weight:800;line-height:1.2;letter-spacing:-.01em}
+/* More room before the "Here's One Possibility" heading */
+.example{margin-top:56px}
 
-/* "UAE to" sits on the photo's bottom-left edge; the destination is the big bold title below */
-.tilePhoto::after{content:'';position:absolute;left:0;right:0;bottom:0;height:46%;background:linear-gradient(0deg,rgba(8,18,44,.6),rgba(8,18,44,0));pointer-events:none}
-.fromUae{position:absolute;left:12px;bottom:8px;z-index:2;color:#fff;font-size:12px;font-weight:700;letter-spacing:.04em;text-shadow:0 1px 4px rgba(0,0,0,.55)}
-.tileBody .routeName{color:#0d1828;font-size:19px;font-weight:800;line-height:1.2;letter-spacing:-.01em}
+/* Slimmer refine bar */
+.refineBar{margin-top:12px;padding:8px 16px;gap:4px 18px;border-radius:12px}
+.refineStory b{font-size:15px;line-height:1.2}
+.refineStory p{margin:2px 0 0;font-size:12px;line-height:1.4}
+.refineBar button{padding-top:4px!important;padding-bottom:4px!important}
+.refineBar button>i{width:24px!important;height:24px!important;font-size:13px!important}
+.refineBar button small{font-size:10.5px!important}
+
+/* More destinations: twelve in one row, four and a quarter visible so the next one peeks in */
+.rail{display:flex;gap:14px;overflow-x:auto;scroll-snap-type:x proximity;padding:4px 2px 12px;scrollbar-width:thin}
+.rail .tile{flex:0 0 calc((100% - 56px) / 4.25);scroll-snap-align:start}
+.railArrows{display:flex;gap:8px}
+.railArrows button{display:grid;place-items:center;width:40px;height:40px;border:1px solid #9fb8e8;border-radius:50%;background:#fff;color:#0e3785;font-size:18px;cursor:pointer}
+.railArrows button:hover{background:#eef3ff}
+@media (max-width:900px){.rail .tile{flex-basis:calc((100% - 28px) / 2.25)}}
+@media (max-width:520px){.rail .tile{flex-basis:78%}}

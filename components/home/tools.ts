@@ -21,7 +21,7 @@ export const TOOLS: HomeTool[] = [
   {
     key: 'best',
     name: 'Best for Me',
-    route: '/analyse',
+    route: '/find-my-best-cards',
     hook: ['Your spending.', 'Your best cards.'],
     headline: 'Your spending. Your best cards.',
     description: 'Tell Earnn how you spend — or upload your credit card statement — and see which cards could reward you most.',
@@ -60,7 +60,7 @@ export const TOOLS: HomeTool[] = [
   {
     key: 'big',
     name: 'Big Spend Planner',
-    route: '/bulk-spend-miles',
+    route: '/bulk-spend',
     hook: ['Big payment?', 'Make it count.'],
     headline: 'Big expense coming? Make it count.',
     description: 'Plan upcoming payments like school fees, insurance or travel and see how to get more from them.',

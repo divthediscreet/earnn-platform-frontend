@@ -1,20 +1,25 @@
-'use client'
+﻿'use client'
 
 // The top of the result page: the wallet in one glance — headline, net rewards banner, one tile per card
 // with the categories to use it for, and the two next steps (spending plan / change cards).
 
-import { useState } from 'react'
 import type { SpendGroup, Wallet } from '@/lib/wallet-simulator/api'
 import { MAX_WALLET, aed, groupShort } from '@/lib/wallet-simulator/groups'
-import { buildPlaybook, cardGroups } from '@/lib/wallet-simulator/playbook'
+import { cardGroups } from '@/lib/wallet-simulator/playbook'
 import { useRewardMode } from '@/lib/wallet-simulator/reward-mode'
 import CardNameLink from '@/components/CardNameLink'
 import RewardConditionLabel from '@/components/RewardConditionLabel'
 import { CardArt, RollingAed, type CardInfo } from './card-art'
-import { FeeMathDialog, NetOfFeesDialog } from './fee-math'
-import { CategoryGlyph, PlaybookByCard } from './sections'
+import { FeeMathContent, NetOfFeesContent } from './fee-math'
+import { InfoHover } from './info-hover'
+import { CategoryGlyph } from './sections'
 
-export function ResultSummary({ wallet, groups, isPick, pick, moreCardsNote, ids, monthlySpend, card, updating, plan, onChange, onReplace, onRemove, onReset, onDetails }: {
+/** A card's own limits: minimum monthly spend (0 = none) and monthly reward cap (null = no cap). */
+export type CardLimit = { min: number; cap: number | null }
+
+export function ResultSummary({ limits, tabs, wallet, isPick, pick, moreCardsNote, ids, monthlySpend, card, updating, plan, onChange, onReplace, onRemove, onReset, onDetails }: {
+  limits?: Record<string, CardLimit> | null // each card's minimum spend and cap (null while loading)
+  tabs?: React.ReactNode     // the three ways to carry the result, shown under the headline
   wallet: Wallet | null
   groups: SpendGroup[]       // the spend categories (for the card-by-card list in view 2)
   ids: string[]              // the user's card order: tiles keep their slot when a card is swapped
@@ -33,8 +38,6 @@ export function ResultSummary({ wallet, groups, isPick, pick, moreCardsNote, ids
   onAllBenefits?: () => void // no longer shown here (the banner button was removed)
 }) {
   const { isMiles, rw } = useRewardMode()
-  const [explain, setExplain] = useState<'net' | 'fees' | null>(null)
-  const [setView, setSetView] = useState<'tiles' | 'list'>('tiles') // view 1: card tiles side by side; view 2: card by card, top to bottom
   if (!wallet) {
     return (
       <section className="mx-auto max-w-6xl px-5 pt-8 pb-6 sm:px-8">
@@ -80,17 +83,11 @@ export function ResultSummary({ wallet, groups, isPick, pick, moreCardsNote, ids
       {/* the answer first: what you keep is the hero; total rewards and yearly card fees sit beside it.
           "Check" links open how the net figure and the fees are worked out. */}
       {(() => {
-        const link = (onClick: () => void, label: string) => (
-          <button type="button" onClick={onClick} aria-haspopup="dialog"
-            className="mt-1.5 inline-flex cursor-pointer items-center gap-1 whitespace-nowrap border-0 bg-transparent p-0 text-[15px] font-semibold text-[#1A6FE0] transition hover:text-ws-primary hover:underline">
-            {label} <span aria-hidden>→</span>
-          </button>
-        )
         const icon = (bg: string, children: React.ReactNode) => (
           <span aria-hidden className="grid size-12 shrink-0 place-items-center rounded-full" style={{ background: bg }}>{children}</span>
         )
         return (
-      <div className="mt-6 grid overflow-hidden rounded-3xl border border-ws-border bg-white p-2 shadow-ws-lift lg:grid-cols-[1.1fr_1fr] lg:items-stretch lg:gap-0">
+      <div className="mt-6 grid rounded-3xl border border-ws-border bg-white p-2 shadow-ws-lift lg:grid-cols-[1.1fr_1fr] lg:items-stretch lg:gap-0">
         <div className="flex min-w-0 items-center gap-5 rounded-2xl px-6 py-6 text-white sm:px-8 lg:[clip-path:polygon(0_0,calc(100%_-_22px)_0,100%_100%,0_100%)] lg:pr-14"
           style={{ background: 'linear-gradient(120deg,#091e42 0%,#0A2A66 55%,#12367a 100%)' }}>
           <span aria-hidden className="grid size-[72px] shrink-0 place-items-center rounded-full bg-white/10 ring-1 ring-white/10">
@@ -113,25 +110,32 @@ export function ResultSummary({ wallet, groups, isPick, pick, moreCardsNote, ids
 
         <div className="flex min-w-0 flex-col justify-center gap-5 rounded-2xl px-4 py-4 sm:flex-row sm:items-center sm:gap-0 sm:px-6 lg:-ml-[18px] lg:pl-12 lg:[clip-path:polygon(0_0,100%_0,100%_100%,22px_100%)]" style={{ background: 'linear-gradient(120deg,#FFF3D1 0%,#FFF9E8 100%)' }}>
           {!isMiles && (
-            <div className="flex min-w-0 flex-1 items-center gap-4 sm:pr-5">
-              {icon('#FFE08A', <span className="text-[26px]">🎁</span>)}
-              <div className="min-w-0">
-                <p className="mb-2 text-[15px] font-semibold tracking-wide text-ws-muted uppercase">Total rewards</p>
-                <p className="font-display text-[28px] leading-tight font-bold whitespace-nowrap text-ws-fg tabular-nums">AED <RollingAed value={monthly} /></p>
-                <p className="text-[12.5px] text-ws-muted">{`from ${n} ${n === 1 ? 'card' : 'cards'}`}</p>
-                {link(() => setExplain('net'), 'Check rewards')}
-              </div>
-            </div>
+            <InfoHover className="flex min-w-0 flex-1 items-center gap-4 sm:pr-5" label="How your rewards after fees are worked out"
+              panelTitle="How rewards after fees are worked out" panelSub="This wallet" tone="gain"
+              panel={<NetOfFeesContent monthlyReward={monthly} yearlyFee={fees}
+                cards={[...wallet.per_card].sort((a, b) => slot(a.card_id) - slot(b.card_id)).map(pc => ({ name: pc.card_name || card(pc.card_id).name, monthly: pc.monthly_reward_aed }))} />}>
+              {eye => (<>
+                {icon('#FFE08A', <span className="text-[26px]">🎁</span>)}
+                <div className="min-w-0">
+                  <p className="mb-2 text-[15px] font-semibold tracking-wide text-ws-muted uppercase">Total rewards</p>
+                  <p className="font-display text-[28px] leading-tight font-bold whitespace-nowrap text-ws-fg tabular-nums">AED <RollingAed value={monthly} /></p>
+                  <p className="flex items-center gap-1.5 text-[12.5px] text-ws-muted">{`from ${n} ${n === 1 ? 'card' : 'cards'}`}{eye}</p>
+                </div>
+              </>)}
+            </InfoHover>
           )}
-          <div className={`flex min-w-0 flex-1 items-center gap-4 sm:pl-5 ${isMiles ? '' : 'sm:border-l sm:border-[#E8D5A0]'}`}>
-            {icon('#FFFFFF', <span className="text-[26px]">💳</span>)}
-            <div className="min-w-0">
-              <p className="mb-2 text-[15px] font-semibold tracking-wide text-ws-muted uppercase">Card fees</p>
-              <p className="font-display text-[28px] leading-tight font-bold whitespace-nowrap text-ws-fg tabular-nums">{aed(fees)}<span className="ml-1 text-[13px] font-medium text-ws-muted">/ yr</span></p>
-              <p className="text-[12.5px] text-ws-muted tabular-nums">≈ {aed(fees / 12)} / month</p>
-              {link(() => setExplain('fees'), 'Check fees')}
-            </div>
-          </div>
+          <InfoHover align="right" className={`flex min-w-0 flex-1 items-center gap-4 sm:pl-5 ${isMiles ? '' : 'sm:border-l sm:border-[#E8D5A0]'}`} label="How the annual fees are estimated"
+            panelTitle="How the annual fee is estimated" panelSub="This wallet" tone="fee"
+            panel={<FeeMathContent cards={wallet.per_card} nameOf={id => card(id).name} />}>
+            {eye => (<>
+              {icon('#FFFFFF', <span className="text-[26px]">💳</span>)}
+              <div className="min-w-0">
+                <p className="mb-2 text-[15px] font-semibold tracking-wide text-ws-muted uppercase">Card fees</p>
+                <p className="font-display text-[28px] leading-tight font-bold whitespace-nowrap text-ws-fg tabular-nums">{aed(fees)}<span className="ml-1 text-[13px] font-medium text-ws-muted">/ yr</span></p>
+                <p className="flex items-center gap-1.5 text-[12.5px] text-ws-muted tabular-nums">≈ {aed(fees / 12)} / month{eye}</p>
+              </div>
+            </>)}
+          </InfoHover>
         </div>
       </div>
         )
@@ -142,18 +146,9 @@ export function ResultSummary({ wallet, groups, isPick, pick, moreCardsNote, ids
         </p>
       )}
 
+      {tabs}
+
       {/* one tile per card */}
-      {/* switch between the two views of the set (outside the frame) */}
-      <div className="mt-6 flex justify-end">
-        <div role="tablist" aria-label="How to show the set of cards" className="flex gap-0.5 rounded-[9px] bg-ws-secondary p-[3px]">
-          {([['tiles', 'View 1'], ['list', 'View 2']] as const).map(([id, label]) => (
-            <button key={id} type="button" role="tab" aria-selected={setView === id} onClick={() => setSetView(id)}
-              className={`cursor-pointer rounded-md border-0 px-4 py-1.5 text-[12px] font-bold transition-colors ${setView === id ? 'bg-white text-ws-primary shadow-[0_1px_3px_rgba(14,55,133,0.12)]' : 'bg-transparent text-ws-muted hover:text-ws-fg'}`}>
-              {label}
-            </button>
-          ))}
-        </div>
-      </div>
       {/* one set: the cards share a single tinted frame and are joined by + signs, so they read as one wallet */}
       <div className="mt-3 mb-4 rounded-3xl border border-[#C9D8F5] bg-gradient-to-b from-[#EAF1FF] to-[#F5F8FF] px-4 pt-5 pb-12 sm:px-6">
         <div className="mb-5 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
@@ -172,38 +167,40 @@ export function ResultSummary({ wallet, groups, isPick, pick, moreCardsNote, ids
             ? <p className={`ml-auto max-w-[400px] text-right text-[14px] leading-snug font-semibold sm:text-[15px] ${delta >= -0.5 ? 'text-ws-gain' : 'text-ws-loss'}`}>{diff}{extraCardNote && <span className="block whitespace-nowrap">but Earnn thinks not worth to have an extra card</span>}</p>
             : n > 1 && <p className="text-[13px] text-ws-muted">Use them together. Each one covers different spending.</p>}
         </div>
-      {setView === 'list' && (
-        <>
-          <PlaybookByCard embedded wallet={wallet} rows={buildPlaybook(wallet, groups)} card={card} onDetails={onDetails} order={ids}
-            actions={{ onReplace, onRemove, canAdd: n < MAX_WALLET }} />
-          {n < MAX_WALLET && (
-            <div className="mt-10 flex flex-col items-start gap-1.5">
-              <button type="button" onClick={() => onReplace(null, null)} aria-haspopup="dialog"
-                className="inline-flex min-h-9 cursor-pointer items-center gap-1.5 rounded-full border border-dashed border-ws-primary bg-[#F5F8FF] px-4 text-[14px] font-semibold text-ws-primary transition hover:bg-[#EEF3FF]">
-                <span aria-hidden className="text-[18px] leading-none">+</span> Add a card
-              </button>
-              <span className="text-[13px] text-ws-muted">You can add up to {MAX_WALLET - n} more {MAX_WALLET - n === 1 ? 'card' : 'cards'}</span>
-            </div>
-          )}
-        </>
-      )}
-      <ul className={`grid gap-x-10 gap-y-9 md:grid-cols-3 ${setView === 'list' ? 'hidden' : ''}`}>
+      <ul className={`grid gap-x-0 gap-y-9 md:grid-cols-3 md:gap-x-6`}>
         {[...wallet.per_card].sort((a, b) => slot(a.card_id) - slot(b.card_id)).map((pc, i) => {
           const groups = cardGroups(wallet, pc.card_id)
           const c = card(pc.card_id)
           return (
-            <li key={pc.card_id} className="relative flex flex-col rounded-2xl border border-ws-border bg-white p-4 pb-6 shadow-ws-lift sm:p-5 sm:pb-7">
+            <li key={pc.card_id} className={`relative flex flex-col rounded-2xl border border-ws-border bg-white p-4 pb-6 shadow-ws-lift sm:p-5 sm:pb-7`}>
               {i < n - 1 && (
-                <span aria-hidden className="absolute top-[34%] -right-[34px] z-20 hidden size-8 place-items-center rounded-full border border-[#C9D8F5] bg-white text-[20px] leading-none font-semibold text-ws-primary shadow-ws-lift md:grid">+</span>
+                <span aria-hidden className="absolute top-1/2 left-full z-30 -ml-[11px] hidden size-[46px] -translate-y-1/2 place-items-center rounded-full border-[3px] border-white bg-gradient-to-br from-[#00A67E] to-[#2DD4A0] pb-0.5 text-[34px] leading-none font-black text-white shadow-[0_8px_20px_rgba(0,166,126,0.45)] md:grid">+</span>
               )}
-              <span className="absolute top-4 left-4 z-10 grid size-9 place-items-center rounded-full bg-[#EEF2F8] text-[13px] font-bold text-ws-muted sm:top-5 sm:left-5">
+              <span className="absolute -top-3.5 -left-3.5 z-20 grid size-9 place-items-center rounded-full border-2 border-white bg-[#0A2A66] text-[13px] font-bold text-white shadow-[0_3px_8px_rgba(10,42,102,0.35)]">
                 {String(i + 1).padStart(2, '0')}
               </span>
+              <p className="mt-2 mb-3 line-clamp-2 min-h-[2.75em] text-[15px] leading-snug font-bold text-ws-fg sm:text-[16px]" title={c.name}><CardNameLink cardId={pc.card_id} mode={isMiles ? 'miles' : 'cashback'}>{c.name}</CardNameLink></p>
               <button type="button" onClick={() => onDetails(pc.card_id)} aria-haspopup="dialog" title="View card details"
                 className="mx-auto block w-[62%] min-w-[150px] max-w-[250px] cursor-pointer border-0 bg-transparent p-0 transition-transform hover:-translate-y-0.5">
                 <CardArt card={c} size="md" eager />
               </button>
-              <p className="mt-4 line-clamp-2 min-h-[2.75em] text-[15px] leading-snug font-bold text-ws-fg sm:text-[16px]" title={c.name}><CardNameLink cardId={pc.card_id} mode={isMiles ? 'miles' : 'cashback'}>{c.name}</CardNameLink></p>
+              {/* always shown, below the card image: minimum spend on the left, the card's monthly cap on the right, each in its own small box */}
+              {(() => {
+                const lim = limits?.[pc.card_id]
+                const money = (n: number) => (isMiles ? `${Math.round(n).toLocaleString('en-US')} miles` : `AED ${Math.round(n).toLocaleString('en-US')}`)
+                const cell = (label: string, value: string, right = false) => (
+                  <div className={`w-fit max-w-[48%] min-w-0 grow-0 rounded-lg border border-[#D6E0F5] bg-[#F3F7FF] px-2.5 py-1.5 ${right ? 'text-right' : ''}`}>
+                    <p className="text-[8.5px] font-bold tracking-wide text-ws-muted uppercase">{label}</p>
+                    <p className="text-[10.5px] leading-tight font-bold text-ws-fg tabular-nums">{value}</p>
+                  </div>
+                )
+                return (
+                  <div className="mt-3 flex items-stretch justify-between gap-2">
+                    {cell('Min. spend', lim ? `${money(lim.min)}${lim.min > 0 ? ' / mo' : ''}` : '–')}
+                    {cell('Card cap', lim ? (lim.cap !== null ? `${money(lim.cap)} / mo` : 'No cap') : '–', true)}
+                  </div>
+                )
+              })()}
               <p className="mx-auto mt-2 rounded-full bg-[#E3F6EE] px-4 py-1.5 text-center font-display text-[18px] font-bold text-ws-gain tabular-nums sm:text-[20px]">
                 <span className="text-[13px] font-semibold text-ws-muted">Reward </span>
                 {isMiles ? <>{Math.round(pc.monthly_reward_aed).toLocaleString('en-US')}<span className="text-[13px] font-medium text-ws-muted"> miles/mo</span></> : <>AED {Math.round(pc.monthly_reward_aed).toLocaleString('en-US')}<span className="text-[13px] font-medium text-ws-muted">/mo</span></>}
@@ -284,13 +281,6 @@ export function ResultSummary({ wallet, groups, isPick, pick, moreCardsNote, ids
         </button>
       </div>
 
-      {explain === 'net' && (
-        <NetOfFeesDialog title="This wallet" monthlyReward={monthly} yearlyFee={fees}
-          cards={[...wallet.per_card].sort((a, b) => slot(a.card_id) - slot(b.card_id)).map(pc => ({ name: pc.card_name || card(pc.card_id).name, monthly: pc.monthly_reward_aed }))} onClose={() => setExplain(null)} />
-      )}
-      {explain === 'fees' && (
-        <FeeMathDialog title="This wallet" cards={wallet.per_card} nameOf={id => card(id).name} onClose={() => setExplain(null)} />
-      )}
     </section>
   )
 }

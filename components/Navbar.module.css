@@ -2,9 +2,9 @@
 .tools{position:relative}
 .toolsButton{display:inline-flex;align-items:center;gap:6px;border:0;background:transparent;font-family:inherit;cursor:pointer}
 .toolsButton:hover{color:var(--earnn-blue)}
-.toolsMenu{position:absolute;top:calc(100% + 10px);right:0;z-index:110;width:min(980px,calc(100vw - 48px));padding:16px 18px 12px;border:1px solid var(--earnn-border);border-radius:14px;background:white;box-shadow:0 18px 40px rgba(14,55,133,.16)}
+.toolsMenu{position:absolute;top:calc(100% + 10px);right:0;z-index:110;width:min(680px,calc(100vw - 48px));padding:16px 18px 12px;border:1px solid var(--earnn-border);border-radius:14px;background:white;box-shadow:0 18px 40px rgba(14,55,133,.16)}
 .exploreHead{margin:0 0 10px;padding-bottom:8px;border-bottom:1px solid var(--earnn-border);color:var(--earnn-text-muted);font-size:11.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
-.exploreGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px 18px}
+.exploreGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px 18px}
 .exploreItem{display:flex;align-items:flex-start;gap:12px;padding:10px;border-radius:10px;text-decoration:none;white-space:normal}
 .exploreItem:hover{background:#eef3ff}
 .exploreItem img{flex:none;width:96px;height:60px;border-radius:8px;object-fit:cover}

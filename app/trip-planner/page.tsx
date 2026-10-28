@@ -1,7 +1,7 @@
 'use client'
 
 /* eslint-disable @next/next/no-img-element */
-// Trip Planner input form: 1 regular monthly spend (Analyse groups) -> 2 big payments (Max Miles rows) -> 3 current cards.
+// Trip Planner input form: 1 regular monthly spend (Analyse groups) -> 2 big payments (Max Miles rows). Cards held are chosen on the results page.
 // Step 1 is the Analyse spend form itself (shared component); the payment rows reuse the Max Miles styling.
 import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
@@ -9,12 +9,12 @@ import type { BulkPaymentSchedule, BulkSpendTopic } from '@/lib/bulk-spend-miles
 import { getBulkSpendTopics } from '@/lib/bulk-spend-miles/api'
 import { topicName } from '@/components/bulk-spend-miles/BulkResultView'
 import { SPLIT_KEYS, SimulatorStyles, SpendEntryFields, computeAmounts, splitFromAmounts, type SplitState } from '@/components/wallet-simulator/spend-entry'
-import { getBanks, type BankOption } from '@/lib/trip-planner/api'
-import { AIRLINE_LOGO, bankLogo } from '@/lib/trip-planner/bank-logos'
 import { ensureProfileLoaded, patchProfile, readProfile } from '@/lib/profile/storage'
-import { readTripForm, saveFromWallet, saveTripSubmission, type BankMode, type TripFormState } from '@/lib/trip-planner/session'
-import styles from '../bulk-spend-miles/page.module.css'
-import formStyles from '../bulk-spend-miles/compact-spend-form.module.css'
+import { saveFromWallet } from '@/lib/trip-planner/session'
+import { useSavedProfile } from '@/lib/profile/useSavedProfile'
+import SnapshotHold from '@/components/profile/SnapshotHold'
+import styles from '../bulk-spend/page.module.css'
+import formStyles from '../bulk-spend/compact-spend-form.module.css'
 import tp from './trip-planner.module.css'
 import lp from './landing.module.css'
 
@@ -23,17 +23,10 @@ const MONTHS = [
   ['Jul', 7], ['Aug', 8], ['Sep', 9], ['Oct', 10], ['Nov', 11], ['Dec', 12],
 ] as const
 
-const STEPS = ['Monthly Spending', 'Upcoming Expenses', 'Your Cards & Miles'] as const
+const STEPS = ['Monthly Spending', 'Upcoming Expenses'] as const
 
 function blankRow(topics: BulkSpendTopic[]): BulkPaymentSchedule {
   return { topic_code: topics[0]?.topic_code ?? '', amount_aed: 0, due_months: [] }
-}
-
-/** A bank's logo, or a generic bank icon when none exists or it fails to load. */
-function BankLogo({ code }: { code: string }) {
-  const [failed, setFailed] = useState(false)
-  const src = bankLogo(code)
-  return <span className={tp.bankLogo}>{src && !failed ? <img src={src} alt="" loading="lazy" onError={() => setFailed(true)} /> : <i className="ti ti-building-bank" aria-hidden="true" />}</span>
 }
 
 export default function TripPlannerPage() {
@@ -46,72 +39,44 @@ export default function TripPlannerPage() {
   const [topicsLoading, setTopicsLoading] = useState(true)
   const [topicsError, setTopicsError] = useState('')
   const [payments, setPayments] = useState<BulkPaymentSchedule[]>([blankRow([])])
-  const [bankMode, setBankMode] = useState<BankMode>('skipped')
-  const [banks, setBanks] = useState<string[]>([])
-  const [bankOptions, setBankOptions] = useState<BankOption[]>([])
-  const [skywards, setSkywards] = useState('')
-  const [etihad, setEtihad] = useState('')
-  const [bankQuery, setBankQuery] = useState('')
-  const [pickerOpen, setPickerOpen] = useState(false)
-  const [draftBanks, setDraftBanks] = useState<string[]>([])
   const [error, setError] = useState('')
 
-  // Coming back from the results page ("Edit my plan"): restore what the user entered.
+  // Everything the user entered lives in the shared profile; this page only reads and updates it.
   const [profileReady, setProfileReady] = useState(false)
+  const saved = useSavedProfile()
+  const [snapshotOpen, setSnapshotOpen] = useState(false)
   // Opened from the Smart Wallet result ("Turn your everyday spend into a flight ticket"): the spend and salary come from
   // that result (saved to the profile just before), the user lands on step 2, and Back returns to the result.
   const [fromResult, setFromResult] = useState(false)
   useEffect(() => {
     const query = new URLSearchParams(window.location.search)
     const opened = query.get('from') === 'result'
+    const editing = query.get('edit') === '1'
     // The results page remembers the wallet route; "Edit spending" (?edit=1) keeps it, any other way in clears it.
-    if (opened || query.get('edit') === '1') setTimeout(() => document.getElementById('plan')?.scrollIntoView(), 0)
+    if (opened || editing) setTimeout(() => document.getElementById('plan')?.scrollIntoView(), 0)
     if (opened) saveFromWallet(true)
-    else if (query.get('edit') !== '1') saveFromWallet(false)
-    // A saved trip is only used when this page was not opened from the result.
-    const saved = opened ? null : readTripForm()
+    else if (!editing) saveFromWallet(false)
     if (opened) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setFromResult(true)
-      setStep(1)
-      // Keep the answers from the last "Your Cards & Miles" step, if any; the spending always comes from the result.
-      const held = readTripForm()
-      if (held) {
-        setBankMode(held.bankMode)
-        setBanks(held.banks)
-        setSkywards(held.skywards)
-        setEtihad(held.etihad)
+    }
+    let alive = true
+    ensureProfileLoaded().then(() => {
+      if (!alive) return
+      const profile = readProfile()
+      if (profile?.spend) {
+        setSpend(Object.fromEntries(Object.entries(profile.spend).filter(([key, value]) => Number(value) > 0 && !SPLIT_KEYS.has(key))))
+        setSplits(splitFromAmounts(Object.fromEntries(Object.entries(profile.spend).map(([key, value]) => [key, Number(value) || 0]))))
       }
-    }
-    if (!saved) {
-      // No plan in this tab: fall back to the browser-local details shared by the planners.
-      let alive = true
-      ensureProfileLoaded().then(() => {
-        if (!alive) return
-        const profile = readProfile()
-        if (profile?.spend) {
-          setSpend(Object.fromEntries(Object.entries(profile.spend).filter(([key, value]) => Number(value) > 0 && !SPLIT_KEYS.has(key))))
-          setSplits(splitFromAmounts(Object.fromEntries(Object.entries(profile.spend).map(([key, value]) => [key, Number(value) || 0]))))
-        }
-        if (profile?.salary) setSalary(profile.salary)
-        if (profile?.payments?.length) setPayments(profile.payments)
-        setProfileReady(true)
-      })
-      return () => { alive = false }
-    }
-    // Browser storage only exists after hydration, so restoring has to happen in an effect.
-    /* eslint-disable react-hooks/set-state-in-effect */
-    setProfileReady(true)
-    // saved.spend holds every category's final amount; the two split sliders are rebuilt from them, as Analyse does.
-    setSpend(Object.fromEntries(Object.entries(saved.spend).filter(([key]) => !SPLIT_KEYS.has(key))))
-    setSplits(splitFromAmounts(Object.fromEntries(Object.entries(saved.spend).map(([key, value]) => [key, Number(value) || 0]))))
-    setSalary(saved.salary)
-    if (saved.payments?.length) setPayments(saved.payments)
-    setBankMode(saved.bankMode)
-    setBanks(saved.banks)
-    setSkywards(saved.skywards)
-    setEtihad(saved.etihad)
-    /* eslint-enable react-hooks/set-state-in-effect */
+      if (profile?.salary) setSalary(profile.salary)
+      if (profile?.payments?.length) setPayments(profile.payments)
+      // Spend and salary already saved: go straight to the upcoming expenses (not when the user came to edit them).
+      // A result read from a statement saves nothing, so the page then starts at step 1 and asks.
+      const hasSpend = Object.values(profile?.spend ?? {}).some(value => Number(value) > 0)
+      if (!editing && hasSpend && Number(profile?.salary) > 0) { setStep(1); if (!opened) setSnapshotOpen(true) }
+      setProfileReady(true)
+    })
+    return () => { alive = false }
   }, [])
 
   // The payment categories come from the Max Miles topic list. If that call fails the step shows its own message and a Retry
@@ -129,11 +94,8 @@ export default function TripPlannerPage() {
   }, [])
 
   useEffect(() => {
-    let current = true
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadTopics()
-    getBanks().then(response => current && setBankOptions(response.banks)).catch(() => undefined)
-    return () => { current = false }
   }, [loadTopics])
 
   const amounts = computeAmounts(spend, splits)
@@ -169,7 +131,7 @@ export default function TripPlannerPage() {
     setStep(step + 1)
   }
 
-  // Everything except the step-3 answers is checked here; returns the step to send the user back to when something is missing.
+  // Everything is checked here; returns the step to send the user back to when something is missing.
   const validate = () => {
     if (monthlyTotal <= 0 && !validPayments().length) return { step: 0, message: 'Enter your monthly spending or at least one upcoming expense.' }
     if (Number(salary) <= 0) return { step: 0, message: 'Enter your monthly salary so we only show cards you can apply for.' }
@@ -177,18 +139,14 @@ export default function TripPlannerPage() {
     return null
   }
 
-  const go = (held: { bankMode: BankMode, banks: string[], skywards: string, etihad: string }) => {
+  const go = () => {
     setError('')
-    const form: TripFormState = { spend: Object.fromEntries(Object.entries(amounts).map(([key, value]) => [key, String(value)])), salary, payments, ...held, existingPicks: readTripForm()?.existingPicks ?? {} }
-    const regular = Object.fromEntries(Object.entries(amounts).filter(([, amount]) => amount > 0))
-    saveTripSubmission(form, {
-      salary_aed: Number(salary),
-      regular_spend: regular,
-      scheduled_payments: validPayments(),
-      banks_held: held.bankMode === 'skipped' ? null : held.bankMode === 'none' ? [] : held.banks,
-      skywards_balance: Number(held.skywards) || 0,
-      etihad_balance: Number(held.etihad) || 0,
-      existing_card_ids: Object.values(form.existingPicks).filter(Boolean),
+    // The results page builds its request from the shared profile, so save now rather than wait for the delayed auto-save.
+    patchProfile({
+      salary,
+      spend: Object.fromEntries(Object.entries(amounts).filter(([, v]) => v > 0).map(([k, v]) => [k, String(v)])),
+      monthly_total: undefined,
+      payments: validPayments(),
     })
     router.push('/trip-planner/results')
   }
@@ -201,22 +159,10 @@ export default function TripPlannerPage() {
       setStep(problem.step)
       return setError(problem.message)
     }
-    go({ bankMode, banks, skywards, etihad })
+    go()
   }
 
-  // "Skip this step": see the trips without adding any cards or miles.
-  const skipStep = () => {
-    const problem = validate()
-    if (problem) {
-      setStep(problem.step)
-      return setError(problem.message)
-    }
-    setBankMode('skipped')
-    setBanks([])
-    setSkywards('')
-    setEtihad('')
-    go({ bankMode: 'skipped', banks: [], skywards: '', etihad: '' })
-  }
+  if (snapshotOpen) return <SnapshotHold profile={saved} title="Getting your trip ready" subtitle="Planning your flights on the spending below" onDone={() => setSnapshotOpen(false)} />
 
   return <div className={styles.page}>
     <section className={lp.landing}>
@@ -307,65 +253,12 @@ export default function TripPlannerPage() {
           </section>
         </section>}
 
-        {step === 2 && <section className={tp.lastThing}>
-          <div className={tp.lastHead}>
-            <div className={tp.lastIntro}><span>ONE LAST THING…</span><h2>Already have cards or airline miles?</h2><p>Add them and we’ll see if they can get you there sooner.</p></div>
-            <div className={tp.lastArt} aria-hidden="true">
-              <i className={`ti ti-plane ${tp.artPlane}`} />
-              <span className={`${tp.artCard} ${tp.artCardA}`} /><span className={`${tp.artCard} ${tp.artCardB}`} /><span className={`${tp.artCard} ${tp.artCardC}`}><b /></span>
-              <span className={tp.artPassport}><i className="ti ti-world" /></span>
-            </div>
-          </div>
-
-          <div className={tp.block}>
-            <div className={tp.blockHead}>
-              <span className={tp.blockNum}>1</span>
-              <div><h3>Your cards <small>(optional)</small></h3><p>Select the banks where you hold a card. We won’t count any new-customer bonuses there.</p></div>
-            </div>
-            <div className={tp.bankGrid}>
-              {banks.map(code => <div key={code} className={`${tp.bankOn} ${tp.bankChip}`}><BankLogo code={code} /><span>{bankOptions.find(bank => bank.bank_code === code)?.bank_name ?? code}</span>
-                <button type="button" aria-label="Remove this bank" onClick={() => { const next = banks.filter(item => item !== code); setBanks(next); setBankMode(next.length ? 'banks' : 'skipped') }}><i className="ti ti-x" aria-hidden="true" /></button></div>)}
-              <button type="button" className={tp.bankAdd} onClick={() => { setDraftBanks(banks); setBankQuery(''); setPickerOpen(true) }}><i className="ti ti-plus" aria-hidden="true" /><span>{banks.length ? 'Add another bank' : 'Add a bank'}</span></button>
-            </div>
-          </div>
-
-          <div className={`${tp.block} ${tp.blockSplit}`}>
-            <div className={tp.blockHead}>
-              <span className={tp.blockNum}>2</span>
-              <div><h3>Airline miles <small>(optional)</small></h3><p>Add the airline miles you already have. We’ll add these to what your spending could earn.</p></div>
-            </div>
-            <div className={tp.balances}>
-              <label><img src={AIRLINE_LOGO.emirates} alt="" /><strong>Emirates Skywards</strong><div className={formStyles.amountInput}><input inputMode="numeric" type="number" min="0" step="100" value={skywards} onChange={event => setSkywards(event.target.value)} placeholder="0" aria-label="Emirates Skywards miles you already have" /><b>miles</b></div></label>
-              <label><img src={AIRLINE_LOGO.etihad} alt="" /><strong>Etihad Guest</strong><div className={formStyles.amountInput}><input inputMode="numeric" type="number" min="0" step="100" value={etihad} onChange={event => setEtihad(event.target.value)} placeholder="0" aria-label="Etihad Guest miles you already have" /><b>miles</b></div></label>
-            </div>
-          </div>
-        </section>}
-
-        {pickerOpen && <div className={tp.bankModalBack} role="dialog" aria-modal="true" aria-label="Choose your banks" onClick={event => { if (event.target === event.currentTarget) setPickerOpen(false) }}>
-          <div className={tp.bankModal}>
-            <div className={tp.bankModalHead}><h3>Select your banks</h3><button type="button" aria-label="Close" onClick={() => setPickerOpen(false)}><i className="ti ti-x" aria-hidden="true" /></button></div>
-            <label className={tp.bankSearch}><i className="ti ti-search" aria-hidden="true" /><input type="search" value={bankQuery} onChange={event => setBankQuery(event.target.value)} placeholder="Search for a bank…" aria-label="Search for a bank" /></label>
-            <div className={`${tp.bankGrid} ${tp.bankModalGrid}`}>{bankOptions.filter(bank => bank.bank_name.toLowerCase().includes(bankQuery.trim().toLowerCase())).map(bank => <label key={bank.bank_code} className={draftBanks.includes(bank.bank_code) ? tp.bankOn : ''}>
-              <input type="checkbox" checked={draftBanks.includes(bank.bank_code)} onChange={() => setDraftBanks(current => current.includes(bank.bank_code) ? current.filter(code => code !== bank.bank_code) : [...current, bank.bank_code])} /><BankLogo code={bank.bank_code} /><span>{bank.bank_name}</span></label>)}
-              {!bankOptions.length && <p className={tp.hint}>Loading banks…</p>}
-              {bankOptions.length > 0 && !bankOptions.some(bank => bank.bank_name.toLowerCase().includes(bankQuery.trim().toLowerCase())) && <p className={tp.hint}>No bank matches “{bankQuery}”.</p>}</div>
-            <div className={tp.bankModalFoot}><button type="button" onClick={() => setPickerOpen(false)}>Cancel</button><button type="button" className="btn-primary" onClick={() => { setBanks(draftBanks); setBankMode(draftBanks.length ? 'banks' : 'skipped'); setPickerOpen(false) }}>OK</button></div>
-          </div>
-        </div>}
-
         {step > 0 && error && <p className={styles.error}><i className="ti ti-alert-circle" /> {error}</p>}
         {step > 0 && <footer className={formStyles.submitFooter}>
           {step > 0 && (fromResult && step === 1
             ? <button type="button" className={tp.back} onClick={() => router.push('/analyse/result')}><i className="ti ti-arrow-left" /> Back to Smart wallet result</button>
             : <button type="button" className={tp.back} onClick={() => { setError(''); setStep(step - 1) }}><i className="ti ti-arrow-left" /> Back</button>)}
-          {step < STEPS.length - 1
-            // Distinct keys: without them React reuses the one button node, so the click that opens step 3 flips it to type="submit" before the
-            // browser finishes the click and the form is submitted at once (step 3 flashes by and the results load immediately).
-            ? <button key="continue" className="btn-primary" type="button" onClick={next}>{step === 0 ? 'Next: Upcoming Expenses' : <>Go for step 3:<br />Add Existing Miles</>} <i className="ti ti-arrow-right" /></button>
-            : <>
-              <button type="button" className={tp.skipLink} onClick={skipStep}>Skip this step</button>
-              <button key="submit" className="btn-primary" type="submit">Show my trips <i className="ti ti-arrow-right" /></button>
-            </>}
+          <button key="submit" className="btn-primary" type="submit">Show my trips <i className="ti ti-arrow-right" /></button>
         </footer>}
       </form>
     </main>

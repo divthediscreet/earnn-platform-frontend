@@ -26,8 +26,10 @@ function spendFromGroups(groups: SpendGroup[]): Record<string, string> {
 export function FlightBand({ request, groups }: { request: SimulatorRequest; groups: SpendGroup[] }) {
   const router = useRouter()
   const open = () => {
-    const spend = spendFromGroups(groups)
-    patchProfile({ spend, monthly_total: undefined, ...(request.salary_aed ? { salary: String(request.salary_aed) } : {}) })
+    // Only spending the user typed is kept; what was read from a statement is never saved (the planner asks for it instead).
+    if (request.form_spend) {
+      patchProfile({ spend: spendFromGroups(groups), monthly_total: undefined, ...(request.salary_aed ? { salary: String(request.salary_aed) } : {}) })
+    }
     router.push(TRIP_PLANNER_FROM_RESULT)
   }
   return (

@@ -3,7 +3,7 @@
 // Trip results as a simple discovery page: four destination cards and the Customize call to action; plus the trip detail pop-up.
 // The first view never shows the airline, a card, or how the miles are earned (spec v4 §4.B).
 // Presentation only: every trip, label and time comes from the Trip Planner response, in the order the server sent it.
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { getCardImageUrl } from '@/lib/api'
 import { getTripPlan } from '@/lib/trip-planner/api'
 import type { TripItem, TripPlannerRequest, TripPlanResponse } from '@/lib/trip-planner/api'
@@ -13,6 +13,8 @@ import { TripWhyThisCard, summariseSpend } from './TripPlanSections'
 import { AIRLINE_LABEL, cabinImage, CABIN_LABEL, formatMiles, monthsPhrase, PARTY_ICON, tripArt } from '@/lib/trip-planner/format'
 import styles from './TripShowcase.module.css'
 import CardNameLink from '@/components/CardNameLink'
+import TripAlternatives from './TripAlternatives'
+import type { TripAlternative } from '@/lib/trip-planner/session'
 
 /* eslint-disable @next/next/no-img-element */
 
@@ -91,7 +93,8 @@ export function CustomizeCta({ onClick }: { onClick: () => void }) {
  * (Why this card / Your payment plan / Don't leave this behind).  The sections are the Max Miles components themselves, fed by
  * /api/trip-planner/plan, which runs the Bulk Spend engine for this card and airline.
  */
-export function TripDetail({ trip, request, existingOnly, onBack }: { trip: TripItem, request: TripPlannerRequest, existingOnly: boolean, onBack: () => void }) {
+export function TripDetail({ trip, request, existingOnly, onBack, alternatives = [], onPick, calculation }: { trip: TripItem, request: TripPlannerRequest, existingOnly: boolean, onBack: () => void, alternatives?: TripAlternative[], onPick?: (alternative: TripAlternative) => void, calculation?: ReactNode }) {
+  const [view, setView] = useState<'plan' | 'calc'>('plan')
   const art = tripArt(trip.destination_names)
   const [result, setResult] = useState<TripPlanResponse | null>(null)
   const [error, setError] = useState('')
@@ -150,6 +153,11 @@ export function TripDetail({ trip, request, existingOnly, onBack }: { trip: Trip
             </div>
           </div>
           : <div className={styles.topCard}><i className="ti ti-circle-check" style={{ fontSize: 28, color: '#00a67e' }} /><div><small>YOU ALREADY HAVE ENOUGH MILES</small><strong>No new card needed</strong><span>Your current balance covers this trip.</span></div></div>}
+        {calculation && <div className={styles.viewTabs} role="tablist" aria-label="How the trip is worked out">
+          <button type="button" role="tab" aria-selected={view === 'plan'} className={view === 'plan' ? styles.viewOn : ''} onClick={() => setView('plan')}><i className="ti ti-route" aria-hidden="true" /> Your plan</button>
+          <button type="button" role="tab" aria-selected={view === 'calc'} className={view === 'calc' ? styles.viewOn : ''} onClick={() => setView('calc')}><i className="ti ti-calculator" aria-hidden="true" /> The calculation</button>
+        </div>}
+        {calculation && view === 'calc' ? calculation : <>
         {card && !result && !error && <p className={styles.planStatus} role="status"><i className="ti ti-loader-2" /> Building the plan for this card…</p>}
         {error && <p className={styles.planStatus} role="alert"><i className="ti ti-alert-circle" /> {error}</p>}
         {result && cardPlan && summary && <div className={plan.view} style={{ marginTop: 0 }}>
@@ -158,7 +166,9 @@ export function TripDetail({ trip, request, existingOnly, onBack }: { trip: Trip
           <Opportunities plan={cardPlan} unit="miles" items={items.filter(item => item.kind === 'potential')} alternatives={items.filter(item => item.kind === 'alternative')} />
           <small className={styles.planNote}>{result.assumption}</small>
         </div>}
+        </>}
       </div>
+      {card && onPick && <TripAlternatives current={{ cardId: card.earnn_card_id, airline: trip.airline }} months={trip.months} alternatives={alternatives} onPick={onPick} />}
     </section>
   </div>
 }

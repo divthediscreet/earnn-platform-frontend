@@ -2,6 +2,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { Caveat, Fraunces } from 'next/font/google'
 import HomeTrustStrip from './HomeTrustStrip'
+import TwoWays from './TwoWays'
 import CardSetPicker from './CardSetPicker'
 import sibCashback from '@/assets/home-cards/sib-cashback-titanium.webp'
 import adcbTalabat from '@/assets/home-cards/adcb-talabat.webp'
@@ -117,7 +118,7 @@ export default function HomeRedesign() {
             <h1>Get more from every dirham you spend.</h1>
             <p className={styles.lead}>Earnn helps you find the right credit cards, know which one to use, and get more cashback, miles and benefits from your everyday spending.</p>
             <div className={styles.actions}>
-              <Link href="/analyse" className="btn-primary">Find my best cards <i className="ti ti-arrow-right" aria-hidden /></Link>
+              <Link href="/find-my-best-cards" className="btn-primary">Find my best cards <i className="ti ti-arrow-right" aria-hidden /></Link>
               <Link href="/simulate-all-uae-cards" className={`btn-secondary ${styles.simLink}`}>UAE Credit Card Simulator <i className="ti ti-arrow-right" aria-hidden /></Link>
             </div>
           </div>
@@ -137,6 +138,9 @@ export default function HomeRedesign() {
           </div>
         </div>
       </section>
+
+      {/* 1b. Two ways to start (before How it works) */}
+      <TwoWays />
 
       {/* 2. How it works */}
       <section id="how-it-works" className={styles.section}>
@@ -243,7 +247,7 @@ export default function HomeRedesign() {
       <section className={styles.final} aria-labelledby="final-title">
         <h2 id="final-title">Your money already works hard. Make your cards work harder.</h2>
         <p>Let Earnn help you make smarter choices with the spending you already do.</p>
-        <Link href="/analyse" className="btn-primary">Get started for free <i className="ti ti-arrow-right" aria-hidden /></Link>
+        <Link href="/find-my-best-cards" className="btn-primary">Get started for free <i className="ti ti-arrow-right" aria-hidden /></Link>
       </section>
     </div>
   )

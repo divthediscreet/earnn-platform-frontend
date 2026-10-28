@@ -46,13 +46,13 @@ export default function BulkSpendResultsPage() {
   const ownedIds = useMemo(() => new Set(myCards.map(card => card.earnn_card_id)), [myCards])
   const ownedBanks = useMemo(() => new Set(myCards.map(card => bankKey(card.bank_name))), [myCards])
 
-  const editPlan = () => router.push('/bulk-spend-miles')
+  const editPlan = () => router.push('/bulk-spend')
 
   // The plan to show comes from the form (saved in sessionStorage). Without one, send the user back to the form.
   useEffect(() => {
     const saved = readBulkRequest()
     if (!saved) {
-      router.replace('/bulk-spend-miles')
+      router.replace('/bulk-spend')
       return
     }
     // sessionStorage only exists after hydration, so the saved plan is read in an effect.

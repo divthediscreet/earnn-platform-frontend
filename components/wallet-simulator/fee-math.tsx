@@ -1,6 +1,6 @@
-'use client'
+﻿'use client'
 
-import { useEffect } from 'react'
+import { Fragment, useEffect } from 'react'
 import type { CardInWallet, FeeDetail } from '@/lib/wallet-simulator/api'
 import { aed } from '@/lib/wallet-simulator/groups'
 
@@ -97,11 +97,20 @@ export function FeeMathDialog({ title, cards, nameOf, onClose }: {
 }) {
   return (
     <Shell heading="How the annual fee is estimated" sub={title} onClose={onClose}>
+      <FeeMathContent cards={cards} nameOf={nameOf} />
+    </Shell>
+  )
+}
+
+/** The body of the annual-fee explanation (also shown on hover in the result summary). */
+export function FeeMathContent({ cards, nameOf }: { cards: CardInWallet[]; nameOf: (id: string) => string }) {
+  return (
+    <div className="space-y-3">
       {cards.map(c => <CardFeeMath key={c.card_id} name={c.card_name || nameOf(c.card_id)} fee={c.annual_fee_aed} detail={c.fee_detail} />)}
       <p className="text-[12px] text-ws-muted">
         This is an estimate of what you would pay per year, based on your spending. The bank&apos;s own fee schedule applies when you apply.
       </p>
-    </Shell>
+    </div>
   )
 }
 
@@ -114,6 +123,19 @@ export function NetOfFeesDialog({ title, monthlyReward, yearlyFee, cards, onClos
   yearlyFee: number
   onClose: () => void
 }) {
+  return (
+    <Shell heading="How rewards after fees are worked out" sub={title} onClose={onClose}>
+      <NetOfFeesContent monthlyReward={monthlyReward} yearlyFee={yearlyFee} cards={cards} />
+    </Shell>
+  )
+}
+
+/** The body of the rewards-after-fees explanation (also shown on hover in the result summary). */
+export function NetOfFeesContent({ monthlyReward, yearlyFee, cards }: {
+  monthlyReward: number
+  cards?: { name: string; monthly: number }[]
+  yearlyFee: number
+}) {
   const monthlyFee = yearlyFee / 12
   const line = (label: string, value: string, strong = false) => (
     <div className="flex justify-between gap-4">
@@ -122,12 +144,12 @@ export function NetOfFeesDialog({ title, monthlyReward, yearlyFee, cards, onClos
     </div>
   )
   return (
-    <Shell heading="How rewards after fees are worked out" sub={title} onClose={onClose}>
+    <div className="space-y-3">
       <div className="rounded-xl border border-ws-border p-4">
         <dl className="space-y-1.5 text-[13px]">
           {cards && cards.length > 0 && (
             <>
-              {cards.map(c => line(c.name, `${aed(c.monthly)} / mo`))}
+              {cards.map(c => <Fragment key={c.name}>{line(c.name, `${aed(c.monthly)} / mo`)}</Fragment>)}
               <div className="border-t border-ws-border pt-1.5">{line('Total rewards each month', aed(monthlyReward), true)}</div>
               <div className="h-2" />
             </>
@@ -141,6 +163,6 @@ export function NetOfFeesDialog({ title, monthlyReward, yearlyFee, cards, onClos
         </dl>
       </div>
       <p className="text-[12px] text-ws-muted">The annual fee is spread over 12 months so it can be compared with your monthly rewards.</p>
-    </Shell>
+    </div>
   )
 }

@@ -1,42 +1,35 @@
-// Hand-off between the Max Miles form and its results page (same pattern as Analyze's sessionStorage
-// result): the form saves what the user typed, the results page re-runs the simulation from the saved
-// request, and "Edit my plan" returns to the form with every input restored.
-import type { BulkPaymentSchedule, BulkSpendMilesRequest } from './api'
+// Big Spend Planner hand-off. The monthly spend, salary and payments live only in the shared profile
+// (lib/profile/storage.ts); the plan below is built from it every time. Only the chosen path is page flow.
+import { readProfile } from '@/lib/profile/storage'
+import type { BulkSpendMilesRequest } from './api'
 
-const FORM_KEY = 'earnn_bulk_form'
-const REQUEST_KEY = 'earnn_bulk_request'
 const PATH_KEY = 'earnn_bulk_path'
 
 /** Which kind of card the user chose to see: a miles card or a cashback (AED) card. */
 export type BulkPath = 'miles' | 'aed'
 
-export interface BulkFormState {
-  monthlySpend: string
-  salary: string
-  payments: BulkPaymentSchedule[]
+/** The regular monthly spend the planner uses: the single total typed here, else the sum of the saved categories. */
+export function bulkMonthlySpend(profile: ReturnType<typeof readProfile>): number {
+  const total = Number(profile?.monthly_total)
+  if (total > 0) return total
+  return Object.values(profile?.spend ?? {}).reduce((sum, value) => sum + (Number(value) || 0), 0)
 }
 
-function read<T>(key: string): T | null {
-  try {
-    const raw = window.sessionStorage.getItem(key)
-    return raw ? JSON.parse(raw) as T : null
-  } catch {
-    return null
-  }
+/** The plan for what the shared profile holds now, or null while salary or any spend is missing. */
+export function readBulkRequest(): BulkSpendMilesRequest | null {
+  const profile = readProfile()
+  if (!profile) return null
+  const payments = (profile.payments ?? []).filter(row => Number(row.amount_aed) > 0 && row.due_months?.length > 0)
+  const monthly = bulkMonthlySpend(profile)
+  const salary = Number(profile.salary)
+  if (!(salary > 0) || (monthly <= 0 && !payments.length)) return null
+  return { monthly_spend_aed: monthly, salary_aed: salary, scheduled_payments: payments }
 }
 
-function write(key: string, value: unknown) {
-  try { window.sessionStorage.setItem(key, JSON.stringify(value)) } catch { /* storage unavailable: the flow still works for this page view */ }
+export function readBulkPath(): BulkPath {
+  try { return window.sessionStorage.getItem(PATH_KEY) === 'aed' ? 'aed' : 'miles' } catch { return 'miles' }
 }
 
-export const readBulkForm = () => read<BulkFormState>(FORM_KEY)
-export const readBulkRequest = () => read<BulkSpendMilesRequest>(REQUEST_KEY)
-
-export const readBulkPath = (): BulkPath => read<BulkPath>(PATH_KEY) === 'aed' ? 'aed' : 'miles'
-
-/** Called once the user has picked a path: keep the inputs for editing and the request for the results page. */
-export function saveBulkSubmission(form: BulkFormState, request: BulkSpendMilesRequest, path: BulkPath) {
-  write(FORM_KEY, form)
-  write(REQUEST_KEY, request)
-  write(PATH_KEY, path)
+export function saveBulkPath(path: BulkPath) {
+  try { window.sessionStorage.setItem(PATH_KEY, path) } catch { /* the flow still works for this page view */ }
 }

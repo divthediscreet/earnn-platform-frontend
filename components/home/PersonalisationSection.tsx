@@ -19,7 +19,7 @@ const COLUMNS = [
     title: 'Your best wallet',
     text: 'Find the right combination of cards for your monthly spending.',
     cta: 'Find my cards',
-    href: '/analyse',
+    href: '/find-my-best-cards',
   },
   {
     key: 'big',
@@ -33,7 +33,7 @@ const COLUMNS = [
     title: 'Make big spending count',
     text: 'Plan large payments and discover which cards could reward you most.',
     cta: 'Plan big spending',
-    href: '/bulk-spend-miles',
+    href: '/bulk-spend',
   },
   {
     key: 'travel',

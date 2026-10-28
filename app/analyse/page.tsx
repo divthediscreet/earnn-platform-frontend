@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import PageHero from '@/components/PageHero'
+import ExploreStage from '@/components/explore/ExploreStage'
+import heroStyles from '@/components/explore/explore.module.css'
 import { evaluateWallet, recommendWallet, saveSession, SimulatorApiError, useSimulatorSession, type RewardMode, type SimulatorRequest } from '@/lib/wallet-simulator/api'
 import { SPLIT_KEYS, SimulatorStyles, SpendEntryFields, computeAmounts, splitFromAmounts, type SplitState } from '@/components/wallet-simulator/spend-entry'
 import { StatementUpload, type StatementSubmit } from '@/components/wallet-simulator/statement-upload'
@@ -10,6 +11,8 @@ import { ComparisonPopup, buildGapData, type GapData } from '@/components/wallet
 import { pingBackend } from '@/lib/api'
 import { ensureProfileLoaded, patchProfile, readProfile } from '@/lib/profile/storage'
 import { SalaryPrompt } from '@/components/wallet-simulator/salary-prompt'
+import { useSavedProfile } from '@/lib/profile/useSavedProfile'
+import SnapshotToast from '@/components/profile/SnapshotToast'
 import { CardColumnsLoader, loadCardIds, preloadCardImages } from '@/components/wallet-simulator/loading-columns'
 
 export default function SimulatorSpendPage() {
@@ -27,11 +30,21 @@ function SpendForm({ initial }: { initial?: SimulatorRequest }) {
   const [salary, setSalary] = useState(initial?.salary_aed ? String(initial.salary_aed) : '')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [mode, setMode] = useState<'upload' | 'manual'>(initial?.form_spend ? 'manual' : 'upload') // upload first, as in the old Analyse page
-  // /analyse?mode=manual (e.g. the Compare page's "Let Earnn choose for you") opens on Manual Entry instead of Upload.
+  // null = the page with the two choices (opening the page never starts on a form); 'upload' / 'manual' open that way of sharing spending in a pop-up
+  const [mode, setMode] = useState<'upload' | 'manual' | null>(null)
+  // Spending saved in this browser: ask once whether to use it, then calculate straight away (no re-entry).
+  const saved = useSavedProfile()
+  const [confirmOpen, setConfirmOpen] = useState(false)
+  const [savedChecked, setSavedChecked] = useState(false)
+  // /analyse?mode=manual (e.g. the Compare page's "Let Earnn choose for you") opens Manual Entry instead of the saved-spending question.
   useEffect(() => {
-    if (new URLSearchParams(window.location.search).get('mode') === 'manual') setMode('manual') // eslint-disable-line react-hooks/set-state-in-effect
-  }, [])
+    if (!saved.ready || savedChecked) return
+    /* eslint-disable react-hooks/set-state-in-effect */
+    setSavedChecked(true)
+    if (new URLSearchParams(window.location.search).get('mode') === 'manual') setMode('manual')
+    else if (!initial && saved.spend && saved.salary) setConfirmOpen(true)
+    /* eslint-enable react-hooks/set-state-in-effect */
+  }, [saved.ready, saved.spend, saved.salary, savedChecked, initial])
   const [gap, setGap] = useState<GapData | null>(null)
   const [askSalary, setAskSalary] = useState(false) // friendly prompt instead of an error when salary is empty
   const [animCardIds, setAnimCardIds] = useState<string[]>([]) // card images for the holding screen
@@ -94,6 +107,23 @@ function SpendForm({ initial }: { initial?: SimulatorRequest }) {
     }
   }
 
+  // The saved spending and salary, confirmed by the user: same request as the manual form, without typing anything again.
+  const runSaved = async () => {
+    if (!saved.spend || !saved.salary) return
+    setConfirmOpen(false)
+    setError('')
+    setLoading(true)
+    const request: SimulatorRequest = { form_spend: saved.spend, salary_aed: Number(saved.salary), reward_mode: rewardMode }
+    try {
+      const result = await recommendWallet(request)
+      saveSession({ request, result })
+      router.push('/analyse/result')
+    } catch (e) {
+      setError(e instanceof SimulatorApiError ? e.message : 'Something went wrong. Please try again.')
+      setLoading(false)
+    }
+  }
+
   // Statement path: best wallet + (if the user's card is known) that card on the same spend, then the "reward gap" popup.
   const submitStatement = async (s: StatementSubmit) => {
     setError('')
@@ -118,12 +148,57 @@ function SpendForm({ initial }: { initial?: SimulatorRequest }) {
 
   return (
     <div className="sim-page">
-      <PageHero tone="light" tall image="/images/heroes/Analyze-new.webp" width={1112}
-        kicker="BEST CARDS FOR ME" kickerColor="#5a6a85"
-        title={<>Find your best set of <span style={{ color: '#C9972B' }}>credit cards.</span></>}
-        subtitle="Tell us how you spend. Earnn finds the best set of 1, 2, or 3 cards which gives you the most rewards, and also tells you where to use each card." />
+      <div className={heroStyles.page}>
+        <div className={heroStyles.wrap}>
+          <section className={heroStyles.hero}>
+            <div className={heroStyles.heroText}>
+              <span className={heroStyles.kicker}>Explore UAE credit cards</span>
+              <h1><em>Get more back</em>from every dirham<br />you spend.</h1>
+              <p>The right credit cards could help you earn 4–6% back in rewards on eligible spending. Earnn helps you find the best combination and shows you which card to use, and where.</p>
+              <div className={heroStyles.heroCtas}>
+                <button type="button" className={heroStyles.primary} style={{ border: 0, font: 'inherit', cursor: 'pointer' }} onClick={() => { setError(''); setMode('upload') }}>
+                  <span><b>Upload statement</b></span>
+                  <i className="ti ti-arrow-right" aria-hidden />
+                </button>
+                <button type="button" className={heroStyles.secondary} style={{ font: 'inherit', cursor: 'pointer' }} onClick={() => { setError(''); setMode('manual') }}>
+                  <span><b>Manual entry</b></span>
+                  <i className="ti ti-arrow-right" aria-hidden />
+                </button>
+              </div>
+              <p className={heroStyles.footnote}>Your rewards depend on spending categories, card conditions, fees and limits.</p>
+            </div>
+            <ExploreStage />
+          </section>
+        </div>
+      </div>
 
       <div className="sim-content">
+        {!mode && (
+          <div className="ex-choice">
+            <h2>How would you like to share your spending?</h2>
+            <p>Pick one. Either way, Earnn finds the best set of cards for you.</p>
+            <div className="ex-boxes">
+              <button type="button" className="ex-box ex-box-rec" onClick={() => { setError(''); setMode('upload') }}>
+                <span className="ex-crown"><span aria-hidden>👑</span> Recommended</span>
+                <span className="ex-icon" aria-hidden>📄</span>
+                <b>Upload my statement</b>
+                <small>Upload one credit card statement (PDF). Earnn reads it and sorts your spending for you. Nothing to type, and the most accurate.</small>
+                <span className="ex-go">Upload a statement →</span>
+              </button>
+              <button type="button" className="ex-box" onClick={() => { setError(''); setMode('manual') }}>
+                <span className="ex-icon" aria-hidden>✏️</span>
+                <b>Enter manually</b>
+                <small>Type roughly how much you spend each month in each category. Takes about two minutes. Estimates are fine.</small>
+                <span className="ex-go">Enter my spending →</span>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {mode && (
+          <div className="ex-overlay" onClick={() => { setMode(null); setError('') }}>
+          <section className="sim-page ex-panel" role="dialog" aria-modal="true" aria-label={mode === 'upload' ? 'Upload my statement' : 'Enter my spending'} onClick={e => e.stopPropagation()}>
+          <button type="button" className="ex-close" onClick={() => { setMode(null); setError('') }} aria-label="Close">×</button>
         <div className="sim-trust">
           {(mode === 'upload'
             ? [{ icon: '🛡️', label: 'No bank login required' }, { icon: '✂️', label: 'Sensitive information automatically masked' }, { icon: '🇦🇪', label: 'No personal info is stored' }, { icon: '🤝', label: 'Your data is never shared with third parties' }]
@@ -131,15 +206,6 @@ function SpendForm({ initial }: { initial?: SimulatorRequest }) {
           ).map(t => <div key={t.label}><span>{t.icon}</span><span>{t.label}</span></div>)}
         </div>
 
-        <div className="sim-method-switch" role="tablist" aria-label="How do you want to enter your spend?">
-          {(['upload', 'manual'] as const).map(m => (
-            <button key={m} type="button" role="tab" aria-selected={mode === m} className={mode === m ? 'on' : ''}
-              onClick={() => { setMode(m); setError('') }}>
-              {m === 'upload' ? '📄 Upload Statement' : '✏️ Manual Entry'}
-              <small className={m === 'upload' ? 'rec' : ''}>{m === 'upload' ? 'RECOMMENDED' : 'Enter spending yourself'}</small>
-            </button>
-          ))}
-        </div>
 
         {mode === 'upload' && <StatementUpload onSubmit={submitStatement} submitting={loading} submitError={error} onManual={() => { setMode('manual'); setError('') }} />}
 
@@ -182,7 +248,12 @@ function SpendForm({ initial }: { initial?: SimulatorRequest }) {
           )}
           </>
         )}
+          </section>
+          </div>
+        )}
       </div>
+
+      {confirmOpen && !loading && <SnapshotToast profile={saved} onConfirm={runSaved} onEdit={() => { setConfirmOpen(false); setMode('manual') }} onDone={() => {}} />}
 
       {loading && (
         <CardColumnsLoader cardIds={animCardIds} title="Building your smart wallet…"
@@ -209,6 +280,22 @@ function SpendForm({ initial }: { initial?: SimulatorRequest }) {
         .sim-method-switch small.rec { letter-spacing:.08em; color:#A8801B; animation:simRecFlash 1.35s ease-in-out infinite; }
         .sim-method-switch button.on small.rec { color:#A8801B; }
         @keyframes simRecFlash { 0%,100% { opacity:.55; } 50% { opacity:1; } }
+        .ex-choice { max-width:860px; margin:26px auto 0; padding:0 6px; text-align:center; }
+        .ex-choice h2 { margin:0; font-size:24px; font-weight:800; color:#0D1828; }
+        .ex-choice > p { margin:6px 0 0; font-size:14.5px; color:#5A6A85; }
+        .ex-boxes { display:grid; grid-template-columns:1fr 1fr; gap:18px; margin-top:34px; }
+        .ex-box { position:relative; display:flex; flex-direction:column; align-items:center; gap:8px; padding:30px 22px 22px; border:1.5px solid #CBD7EF; border-radius:18px; background:#fff; cursor:pointer; text-align:center; font-family:inherit; transition:box-shadow .15s, border-color .15s, transform .15s; }
+        .ex-box:hover { border-color:#0E3785; box-shadow:0 12px 30px rgba(14,55,133,.14); transform:translateY(-2px); }
+        .ex-box-rec { border-color:#E0B13C; background:linear-gradient(180deg,#FFFBEF,#fff); }
+        .ex-crown { position:absolute; top:-14px; left:50%; transform:translateX(-50%); white-space:nowrap; padding:4px 14px; border-radius:999px; background:#F7C948; color:#5A4200; font-size:12px; font-weight:800; box-shadow:0 4px 12px rgba(247,201,72,.45); }
+        .ex-icon { font-size:30px; }
+        .ex-box b { font-size:18px; color:#0D1828; }
+        .ex-box small { font-size:13.5px; line-height:1.5; color:#5A6A85; }
+        .ex-go { margin-top:6px; font-size:14px; font-weight:800; color:#0E3785; }
+        .ex-overlay { position:fixed; inset:0; z-index:1200; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,.6); }
+        .ex-panel { position:relative; width:96%; max-width:1100px; max-height:94vh; overflow-y:auto; border-radius:22px; box-shadow:0 24px 64px rgba(0,0,0,.3); padding:20px 22px 24px; background:#fff; }
+        .ex-close { position:absolute; top:12px; right:18px; z-index:2; border:0; background:none; color:#5A6A85; font-size:26px; line-height:1; cursor:pointer; }
+        @media (max-width:640px) { .ex-boxes { grid-template-columns:1fr; gap:26px; } .ex-panel { padding:16px 12px 20px; } }
         @media (max-width:560px) { .sim-method-switch button:not(.on)::after { display:none; } .sim-method-switch button { font-size:13px; } }
       `}</style>
     </div>

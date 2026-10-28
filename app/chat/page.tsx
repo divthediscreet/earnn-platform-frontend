@@ -308,7 +308,7 @@ export default function ChatPage() {
   const handleWalletClick = () => {
     if (Object.keys(sessionProfile.spend).length > 0)
       sessionStorage.setItem('prefill_spend', JSON.stringify(sessionProfile.spend))
-    router.push('/analyse')
+    router.push('/find-my-best-cards')
   }
 
   // ─────────────────────────────────────────────────────────────────────────

@@ -288,6 +288,7 @@ export default function BulkResultView({ unit, plans, sort, includeNewCard, proj
 
   const choose = (id: string) => {
     setFocusId(id)
+    setShowAll(false)
     requestAnimationFrame(() => document.getElementById('plan-top')?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
   }
 
@@ -335,19 +336,25 @@ export default function BulkResultView({ unit, plans, sort, includeNewCard, proj
       <button type="button" className={styles.filterButton} onClick={onOpenFilters}><i className="ti ti-adjustments-horizontal" /> Filter &amp; sort{activeFilters > 0 ? ` · ${activeFilters}` : ''}</button>
     </div>
 
-    {alternatives.length > 0 && <section className={`${styles.section} ${styles.tinted}`} aria-labelledby="alt-title">
+    {!showAll && alternatives.length > 0 && <section className={`${styles.section} ${styles.tinted}`} aria-labelledby="alt-title">
       <Carousel plans={alternatives} pick={topPlan} sort={sort} unit={unit} topicLabel={topicLabel} onSelect={choose} />
+      {plans.length > 1 && <div className={styles.allCards}>
+        <button type="button" className={styles.allToggle} onClick={() => setShowAll(true)}>See all {plans.length} cards <span aria-hidden="true">→</span></button>
+      </div>}
     </section>}
 
-    {plans.length > 1 && <section className={styles.allCards}>
-      <button type="button" className={styles.allToggle} aria-expanded={showAll} onClick={() => setShowAll(value => !value)}>{showAll ? 'Hide full ranking' : `See all ${plans.length} cards`} <span aria-hidden="true">{showAll ? '↑' : '→'}</span></button>
-      {showAll && <ol className={styles.allList}>{plans.map((item, index) => <li key={item.id} className={item.id === plan.id ? styles.allActive : ''}>
+    {showAll && <section className={`${styles.section} ${styles.tinted}`} aria-labelledby="all-title">
+      <header className={`${styles.sectionHead} ${styles.carouselHead}`}>
+        <div><span>ALL CARDS</span><h3 id="all-title">All {plans.length} cards</h3></div>
+        <button type="button" className={styles.allToggle} onClick={() => setShowAll(false)}>Back to top options <span aria-hidden="true">↑</span></button>
+      </header>
+      <ol className={styles.allList}>{plans.map((item, index) => <li key={item.id} className={item.id === plan.id ? styles.allActive : ''}>
         <span className={styles.allRank}>#{index + 1}</span>
         <CardImage id={item.id} width={56} height={35} />
         <span className={styles.allName}><strong><CardNameLink cardId={item.id} mode="miles">{item.name}</CardNameLink></strong><small>{item.bank}</small></span>
         <b>{fmt(unit, planMetric(item, sort))}</b>
         <button type="button" onClick={() => choose(item.id)}>{item.id === plan.id ? 'Viewing' : 'See this plan'}</button>
-      </li>)}</ol>}
+      </li>)}</ol>
     </section>}
   </div>
 }
@@ -532,6 +539,19 @@ function reasonFor(plan: PlanCard, pick: PlanCard, unit: PlanUnit, topicLabel: (
   return null
 }
 
+/** One card tile, shared by the "Want another option?" row and the all-cards grid. */
+function PlanTile({ item, pick, sort, unit, topicLabel, onSelect, viewing = false }: { item: PlanCard, pick: PlanCard, sort: BulkResultSort, unit: PlanUnit, topicLabel: (code: string) => string, onSelect: (id: string) => void, viewing?: boolean }) {
+  const difference = planMetric(pick, sort) - planMetric(item, sort)
+  const reason = reasonFor(item, pick, unit, topicLabel)
+  return <article data-tile className={styles.tile}>
+    <div className={styles.tileTop}><CardImage id={item.id} width={64} height={40} /><span className={styles.tileName}><strong><CardNameLink cardId={item.id} mode="miles">{item.name}</CardNameLink></strong><small>{item.bank}</small></span></div>
+    <b className={styles.tileValue}>{fmt(unit, planMetric(item, sort))}</b>
+    <small className={styles.tileDiff}>{difference > 0.5 ? `${fmt(unit, difference)} less than Earnn's pick` : difference < -0.5 ? `${fmt(unit, -difference)} more than Earnn's pick` : "Same as Earnn's pick"}</small>
+    <p className={styles.tileReason}>{reason ?? ''}</p>
+    <button type="button" disabled={viewing} onClick={() => onSelect(item.id)}>{viewing ? 'Viewing' : 'See this plan'}</button>
+  </article>
+}
+
 function Carousel({ plans, pick, sort, unit, topicLabel, onSelect }: { plans: PlanCard[], pick: PlanCard, sort: BulkResultSort, unit: PlanUnit, topicLabel: (code: string) => string, onSelect: (id: string) => void }) {
   const track = useRef<HTMLDivElement>(null)
   const [edge, setEdge] = useState({ start: true, end: false })
@@ -563,16 +583,7 @@ function Carousel({ plans, pick, sort, unit, topicLabel, onSelect }: { plans: Pl
     </header>
     <div className={styles.trackWrap}>
       <div className={styles.track} ref={track} tabIndex={0} aria-label="Alternative cards">
-        {plans.map(item => {
-          const difference = planMetric(pick, sort) - planMetric(item, sort)
-          return <article key={item.id} data-tile className={styles.tile}>
-            <div className={styles.tileTop}><CardImage id={item.id} width={64} height={40} /><span className={styles.tileName}><strong><CardNameLink cardId={item.id} mode="miles">{item.name}</CardNameLink></strong><small>{item.bank}</small></span></div>
-            <b className={styles.tileValue}>{fmt(unit, planMetric(item, sort))}</b>
-            <small className={styles.tileDiff}>{difference > 0.5 ? `${fmt(unit, difference)} less than Earnn's pick` : difference < -0.5 ? `${fmt(unit, -difference)} more than Earnn's pick` : "Same as Earnn's pick"}</small>
-            {(() => { const reason = reasonFor(item, pick, unit, topicLabel); return <p className={styles.tileReason}>{reason ?? ''}</p> })()}
-            <button type="button" onClick={() => onSelect(item.id)}>See this plan</button>
-          </article>
-        })}
+        {plans.map(item => <PlanTile key={item.id} item={item} pick={pick} sort={sort} unit={unit} topicLabel={topicLabel} onSelect={onSelect} />)}
       </div>
     </div>
   </>

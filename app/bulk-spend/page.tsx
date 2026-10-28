@@ -7,7 +7,7 @@ import type { BulkPaymentSchedule, BulkSpendTopic } from '@/lib/bulk-spend-miles
 import { getBulkSpendTopics } from '@/lib/bulk-spend-miles/api'
 import { topicName } from '@/components/bulk-spend-miles/BulkResultView'
 import { ensureProfileLoaded, patchProfile, readProfile } from '@/lib/profile/storage'
-import { readBulkForm, saveBulkSubmission, type BulkPath } from '@/lib/bulk-spend-miles/session'
+import { bulkMonthlySpend, saveBulkPath, type BulkPath } from '@/lib/bulk-spend-miles/session'
 import BulkSpendPathChoice from '@/components/bulk-spend-miles/BulkSpendPathChoice'
 import styles from './page.module.css'
 import formStyles from './compact-spend-form.module.css'
@@ -31,32 +31,20 @@ export default function BulkSpendMilesPage() {
   const [error, setError] = useState('')
   const [choosingPath, setChoosingPath] = useState(false)
 
-  // Coming back from the results page ("Edit my plan"): restore what the user entered.
+  // Everything the user entered lives in the shared profile; this page only reads and updates it.
   const [profileReady, setProfileReady] = useState(false)
   useEffect(() => {
-    const saved = readBulkForm()
-    if (!saved) {
-      // No plan in this tab: fall back to the browser-local details shared by the planners.
-      let alive = true
-      ensureProfileLoaded().then(() => {
-        if (!alive) return
-        const profile = readProfile()
-        const fromCategories = Object.values(profile?.spend ?? {}).reduce((sum, value) => sum + (Number(value) || 0), 0)
-        const monthly = profile?.monthly_total ?? (fromCategories > 0 ? String(fromCategories) : '')
-        if (monthly) setMonthlySpend(monthly)
-        if (profile?.salary) setSalary(profile.salary)
-        if (profile?.payments?.length) setPayments(profile.payments)
-        setProfileReady(true)
-      })
-      return () => { alive = false }
-    }
-    // Browser storage only exists after hydration, so restoring has to happen in an effect.
-    /* eslint-disable react-hooks/set-state-in-effect */
-    setProfileReady(true)
-    setMonthlySpend(saved.monthlySpend)
-    setSalary(saved.salary)
-    if (saved.payments?.length) setPayments(saved.payments)
-    /* eslint-enable react-hooks/set-state-in-effect */
+    let alive = true
+    ensureProfileLoaded().then(() => {
+      if (!alive) return
+      const profile = readProfile()
+      const monthly = bulkMonthlySpend(profile)
+      if (monthly > 0) setMonthlySpend(String(monthly))
+      if (profile?.salary) setSalary(profile.salary)
+      if (profile?.payments?.length) setPayments(profile.payments)
+      setProfileReady(true)
+    })
+    return () => { alive = false }
   }, [])
 
   useEffect(() => {
@@ -111,13 +99,12 @@ export default function BulkSpendMilesPage() {
   // The plan is saved only once the user has picked miles or cashback; the results page shows just that path.
   const choosePath = (path: BulkPath) => {
     const validRows = payments.filter(row => Number(row.amount_aed) > 0 && row.due_months.length > 0)
-    saveBulkSubmission(
-      { monthlySpend, salary, payments },
-      { monthly_spend_aed: Number(monthlySpend) || 0, salary_aed: Number(salary), scheduled_payments: validRows },
-      path,
-    )
-    router.push('/bulk-spend-miles/results')
+    // The results page builds its plan from the shared profile, so save now rather than wait for the delayed auto-save.
+    patchProfile({ salary, monthly_total: monthlySpend || undefined, payments: validRows })
+    saveBulkPath(path)
+    router.push('/bulk-spend/results')
   }
+
 
   return <div className={styles.page}>
     <PageHero tone="dark" gap={40} image="/images/heroes/MaxMile.webp" kicker="BIG SPEND PLANNER"

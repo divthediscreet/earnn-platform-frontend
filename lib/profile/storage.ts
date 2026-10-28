@@ -1,6 +1,7 @@
 // Shared planning details live only in this browser's local storage. They are never included in an API request.
 // Keeping one profile lets Best for Me, Big Spend Planner and Trip Planner restore the latest entries across tabs and visits.
 import type { BulkPaymentSchedule } from '@/lib/bulk-spend-miles/api'
+import type { CatalogueCard } from '@/lib/life-moments/api'
 
 const KEY = 'earnn_profile_v1'
 const LEGACY_PREF_KEY = 'earnn_profile_pref'
@@ -15,6 +16,8 @@ export interface SavedProfile {
   /** A single monthly total typed on Big Spend Planner. */
   monthly_total?: string
   payments?: BulkPaymentSchedule[]
+  /** Cards the user says they already own (shared by My Benefits, Big Spend and Trip Planner). */
+  owned_cards?: CatalogueCard[]
   savedAt: number
 }
 
@@ -65,8 +68,10 @@ export function readProfile(): SavedProfile | null {
   }
 }
 
+// An explicit owned-card choice (even an empty one) is a deliberate choice, so it always counts as content.
 const isEmpty = (patch: Partial<SavedProfile>) =>
   !patch.salary && !Object.keys(patch.spend ?? {}).length && !patch.monthly_total && !(patch.payments ?? []).length
+  && patch.owned_cards === undefined
 
 /**
  * Merge new values into the browser-local profile. A key set to undefined is removed.

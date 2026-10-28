@@ -4,11 +4,12 @@
 // where to switch cards, whether each minimum spend is met and which rewards are conditional.
 // Every number and every decision (the order of cards, where to switch, which plan) comes from the backend (evaluate-large's
 // instructions). This file only lays them out; it calculates and decides nothing.
-import type { EvaluateLargeResponse, InstructionCard, InstructionCategory, InstructionStep, LargeCardInWallet, Plan, SimulatorRequest } from '@/lib/wallet-simulator/api'
+import type { EvaluateLargeResponse, InstructionCard, InstructionCategory, InstructionStep, LargeCardInWallet, Plan, SimulatorRequest, SpendGroup } from '@/lib/wallet-simulator/api'
 import ExceptionalMonth from '@/components/compare/ExceptionalMonth'
 import { aed } from '@/lib/wallet-simulator/groups'
 import { useRewardMode } from '@/lib/wallet-simulator/reward-mode'
 import { CardChip, type CardInfo } from '@/components/wallet-simulator/card-art'
+import { PlaybookBody } from '@/components/wallet-simulator/sections'
 
 const REASON: Record<LargeCardInWallet['role_reason'], string> = {
   carries_spend: '',
@@ -46,7 +47,7 @@ function stepText(s: InstructionStep, name: string) {
   return <>The remaining <b>{amount}</b> on <b>{name}</b></>
 }
 
-export default function StrategyPanel({ response, request, ids, kind, onKind, card, onDetails, updating }: {
+export default function StrategyPanel({ response, request, ids, kind, onKind, card, onDetails, updating, groups, monthlySpend }: {
   response: EvaluateLargeResponse | null
   request: SimulatorRequest
   ids: string[]
@@ -55,6 +56,8 @@ export default function StrategyPanel({ response, request, ids, kind, onKind, ca
   card: (id: string) => CardInfo
   onDetails: (id: string) => void
   updating: boolean
+  groups: SpendGroup[]
+  monthlySpend: number
 }) {
   const { rw, isMiles } = useRewardMode()
   if (!response || response.per_card.length === 0) return null
@@ -100,7 +103,13 @@ export default function StrategyPanel({ response, request, ids, kind, onKind, ca
       )}
       <ExceptionalMonth request={request} ids={ids} card={card} />
 
-      <h4 className="mt-5 text-[11px] font-bold tracking-[0.14em] text-ws-muted uppercase">By category</h4>
+      {/* the same Category view / Card view as the Find my best cards result: the top three spending categories first */}
+      <PlaybookBody wallet={plan.wallet} groups={groups} monthlySpend={monthlySpend} card={card} updating={false} onDetails={onDetails} hideSummary topCategories={3} />
+
+      <details className="mt-4 rounded-2xl border border-ws-border bg-white">
+        <summary className="cursor-pointer px-4 py-3 text-[13px] font-bold text-ws-primary">Full details: reward limits, minimum spends and conditions</summary>
+        <div className="px-4 pb-4">
+      <h4 className="mt-2 text-[11px] font-bold tracking-[0.14em] text-ws-muted uppercase">By category</h4>
       <div className="mt-2 overflow-hidden rounded-2xl border border-ws-border bg-white">
         {plan.instructions.categories.map((cat: InstructionCategory, i: number) => (
           <div key={cat.group} className={`px-4 py-3 ${i > 0 ? 'border-t border-ws-border' : ''}`}>
@@ -170,6 +179,9 @@ export default function StrategyPanel({ response, request, ids, kind, onKind, ca
           )
         })}
       </div>
+
+        </div>
+      </details>
 
       <p className={sectionLabel}>2 · Extra effort, extra rewards</p>
       {extra && !viewingMax ? (

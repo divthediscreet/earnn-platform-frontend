@@ -4,7 +4,7 @@
 // results page used; changing it here (or the cards behind it) is applied only when the user confirms.
 import { useEffect, useState } from 'react'
 import { getBanks, type BankOption } from '@/lib/trip-planner/api'
-import { readTripForm, saveExistingOnly, saveExistingPicks } from '@/lib/trip-planner/session'
+import { readOwnedPicks, saveExistingOnly, saveExistingPicks } from '@/lib/trip-planner/session'
 import ExistingCardsDialog from './ExistingCardsDialog'
 import styles from './TripShowcase.module.css'
 
@@ -27,17 +27,18 @@ export default function CustomizeExistingToggle({ bankCodes, value, onChange, on
     getBanks().then(response => current && setAllBanks(response.banks)).catch(() => undefined)
     // sessionStorage only exists after hydration, so the saved picks are read in an effect.
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setPicks(readTripForm()?.existingPicks ?? {})
+    setPicks(readOwnedPicks())
     return () => { current = false }
   }, [])
 
   if (!bankCodes.length) return null
   const banks = allBanks.filter(bank => bankCodes.includes(bank.bank_code))
-  const apply = (next: boolean, nextPicks: Record<string, string>) => {
-    saveExistingPicks(nextPicks)
+  const apply = (next: boolean, nextPicks: Record<string, string>, coveredBanks?: string[]) => {
+    saveExistingPicks(nextPicks, coveredBanks)
     saveExistingOnly(next)
-    setPicks(nextPicks)
-    onChange(next, Object.values(nextPicks))
+    const all = readOwnedPicks() // every owned card, including banks this picker did not show
+    setPicks(all)
+    onChange(next, Object.values(all))
   }
 
   return <>
@@ -51,6 +52,6 @@ export default function CustomizeExistingToggle({ bankCodes, value, onChange, on
       </label>
       {value && <button type="button" className={styles.edit} onClick={() => setOpen(true)}>Change cards</button>}
     </div>
-    {open && <ExistingCardsDialog banks={banks} picks={picks} onCancel={() => setOpen(false)} confirmLabel={onPlan ? 'Show my plan using my miles card' : undefined} onConfirm={next => { setOpen(false); apply(true, next); onPlan?.() }} />}
+    {open && <ExistingCardsDialog banks={banks} picks={picks} onCancel={() => setOpen(false)} confirmLabel={onPlan ? 'Show my plan using my miles card' : undefined} onConfirm={next => { setOpen(false); apply(true, next, banks.map(bank => bank.bank_code)); onPlan?.() }} />}
   </>
 }

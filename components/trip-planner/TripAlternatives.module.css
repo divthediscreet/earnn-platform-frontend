@@ -1,0 +1,19 @@
+.cardImg{flex:0 0 auto;width:64px;height:auto}
+.none{margin:16px 0 0;color:#40526f;font-size:14px}
+.none button{border:0;background:none;padding:0;color:#0e3785;font:inherit;font-weight:800;text-decoration:underline;cursor:pointer}
+.backdrop{position:fixed;inset:0;z-index:1200;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(13,24,40,.5)}
+.panel{width:min(460px,100%);max-height:86vh;overflow:auto;padding:20px;border-radius:16px;background:#fff;box-shadow:0 20px 50px rgba(0,0,0,.25)}
+.panelHead{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.panelHead h3{margin:0;font-size:18px;color:#0d1828}
+.panelHead button{border:0;background:none;font-size:20px;color:#40577b;cursor:pointer}
+.panel fieldset{margin:12px 0 0;padding:0;border:0;display:flex;flex-direction:column;gap:8px}
+.panel legend{padding:0;margin-bottom:6px;font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#40577b}
+.panel label{display:flex;align-items:center;gap:8px;font-size:14px;color:#0d1828;cursor:pointer}
+.banks{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.panelFoot{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:18px}
+.panelFoot button:first-child{border:0;background:none;color:#0e3785;font-weight:800;text-decoration:underline;cursor:pointer}
+
+/* A bigger line, with room above it */
+div.bar{margin-top:44px}
+div.bar>span{font-size:17px;font-weight:600;line-height:1.4}
+div.bar button{font-size:15px}

@@ -4,7 +4,7 @@
 // Either choice is saved the way CustomizeExistingToggle saves it (session storage) and then runs the plan through onDone.
 import { useEffect, useState } from 'react'
 import { getBanks, type BankOption } from '@/lib/trip-planner/api'
-import { readTripForm, saveExistingOnly, saveExistingPicks } from '@/lib/trip-planner/session'
+import { readOwnedPicks, saveExistingOnly, saveExistingPicks } from '@/lib/trip-planner/session'
 import ExistingCardsDialog from './ExistingCardsDialog'
 import local from './TripCustomizeWizard.module.css'
 
@@ -23,7 +23,7 @@ export default function TripCardChoice({ bankCodes, onDone }: Props) {
     getBanks().then(response => current && setAllBanks(response.banks)).catch(() => undefined)
     // sessionStorage only exists after hydration, so the saved picks are read in an effect.
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setPicks(readTripForm()?.existingPicks ?? {})
+    setPicks(readOwnedPicks())
     return () => { current = false }
   }, [])
 
@@ -37,6 +37,6 @@ export default function TripCardChoice({ bankCodes, onDone }: Props) {
       <i className="ti ti-gift" aria-hidden="true" /><span>Apply for a new card and get the welcome bonus</span>
     </button>
     {open && <ExistingCardsDialog banks={banks} picks={picks} confirmLabel="Show my plan using my miles card" onCancel={() => setOpen(false)}
-      onConfirm={next => { setOpen(false); setPicks(next); saveExistingPicks(next); saveExistingOnly(true); onDone() }} />}
+      onConfirm={next => { setOpen(false); saveExistingPicks(next, banks.map(bank => bank.bank_code)); setPicks(readOwnedPicks()); saveExistingOnly(true); onDone() }} />}
   </section>
 }

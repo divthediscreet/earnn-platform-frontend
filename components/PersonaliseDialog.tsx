@@ -9,10 +9,12 @@ import { ensureProfileLoaded, patchProfile, readProfile } from '@/lib/profile/st
 
 export type PersonalSpend = { amounts: Record<string, number>; salary: string }
 
-export default function PersonaliseDialog({ current, mode, onClose, onSubmit }: {
+export default function PersonaliseDialog({ current, mode, notice, onClose, onSubmit }: {
   /** The spend the list is currently personalised to (restored into the form), if any. */
   current: PersonalSpend | null
   mode: 'cashback' | 'miles'
+  /** An extra line under the heading, e.g. why the spending is asked first. */
+  notice?: string
   onClose: () => void
   onSubmit: (value: PersonalSpend) => void
 }) {
@@ -21,7 +23,7 @@ export default function PersonaliseDialog({ current, mode, onClose, onSubmit }: 
   const [salary, setSalary] = useState('')
   const [error, setError] = useState('')
 
-  // Restore order: what is applied now, else the spend saved in this browser (never the saved salary).
+  // Restore order: what is applied now, else the spend and salary saved in this browser.
   useEffect(() => {
     let alive = true
     const apply = (amounts: Record<string, number>, savedSalary?: string) => {
@@ -33,8 +35,8 @@ export default function PersonaliseDialog({ current, mode, onClose, onSubmit }: 
     ensureProfileLoaded().then(() => {
       if (!alive) return
       const saved = readProfile()
-      // the saved salary is deliberately NOT restored here: salary stays blank until the user enters it
-      if (saved?.spend) apply(Object.fromEntries(Object.entries(saved.spend).map(([k, v]) => [k, Number(v) || 0])))
+      if (saved?.spend) apply(Object.fromEntries(Object.entries(saved.spend).map(([k, v]) => [k, Number(v) || 0])), saved.salary)
+      else if (saved?.salary) setSalary(saved.salary)
     })
     return () => { alive = false }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -51,6 +53,7 @@ export default function PersonaliseDialog({ current, mode, onClose, onSubmit }: 
 
   const submit = () => {
     if (total <= 0) return setError('Enter at least one monthly amount.')
+    if (!(Number(salary) > 0)) return setError('Enter your monthly salary to continue.')
     setError('')
     const cleaned = Object.fromEntries(Object.entries(amounts).filter(([, v]) => v > 0))
     // keep the details for Analyze / the other planners, as Analyze itself does
@@ -70,6 +73,7 @@ export default function PersonaliseDialog({ current, mode, onClose, onSubmit }: 
             <div className="sim-eyebrow">PERSONALIZE THESE RESULTS</div>
             <h2>Tell us how you spend each month</h2>
             <p>We re-rank every {mode === 'miles' ? 'miles' : 'cashback'} card on your own spending. Enter only what applies to you.</p>
+            {notice && <p style={{ marginTop: 8, padding: '8px 12px', borderRadius: 10, background: '#EEF3FF', color: '#0E3785', fontWeight: 700 }}>{notice}</p>}
           </div>
           <button type="button" className="sim-reset" style={{ marginRight: 30 }} onClick={() => { setSpend({}); setSplits(splitFromAmounts(undefined)); setError('') }}>Reset amounts</button>
         </div>
@@ -77,7 +81,7 @@ export default function PersonaliseDialog({ current, mode, onClose, onSubmit }: 
         <section className="sim-setup sim-setup-trip">
           <div className="sim-setup-heading">
             <div className="sim-eyebrow">YOUR INCOME</div>
-            <p>Optional: hides cards whose minimum salary is above yours.</p>
+            <p>Required: used to calculate your rewards. Cards above your salary stay visible and are marked.</p>
           </div>
           <label className="sim-salary">
             <span>Monthly salary</span>

@@ -1,9 +1,14 @@
-'use client'
-import { useMemo, useRef, useState, useEffect, useCallback } from 'react'
+﻿'use client'
+import { createContext, useContext, useMemo, useRef, useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import PageHero from '@/components/PageHero'
 import { fetchCards, fetchPersonalisedCards, fetchCardDetail, prefetchCardDetail, getCardImageUrl } from '@/lib/api'
 import PersonaliseDialog, { type PersonalSpend } from '@/components/PersonaliseDialog'
+import { useMinHold } from '@/components/profile/useMinHold'
+import SpendHoldingScreen from '@/components/profile/SpendHoldingScreen'
+import { WalletVisual } from '@/components/explore/PathVisuals'
+import SalaryRequirement, { UserSalaryContext } from '@/components/compare/SalaryRequirement'
+import { useSavedProfile } from '@/lib/profile/useSavedProfile'
 import CompareWallet from '@/components/compare/CompareWallet'
 import { WalletFullDialog } from '@/components/wallet-simulator/dock'
 import { RewardModeProvider } from '@/lib/wallet-simulator/reward-mode'
@@ -221,6 +226,12 @@ const BENEFIT_FILTERS: { key: BenefitFilterKey; label: string }[] = [
 // ─────────────────────────────────────────────────────────────────────────────
 // HELPERS
 // ─────────────────────────────────────────────────────────────────────────────
+/** The monthly spend (AED) the cards are scored on: the user's own, or null for Earnn's average UAE spending profile. */
+const SpendBasisContext = createContext<number | null>(null)
+/** Small caps label used in the green annual-reward box. */
+const LABEL_STYLE: React.CSSProperties = { fontSize: 10, fontWeight: 800, color: 'rgba(255,255,255,0.82)', textTransform: 'uppercase', letterSpacing: '0.07em' }
+const basisPhrase = (monthly: number | null) => (monthly ? `your monthly spending of AED ${Math.round(monthly).toLocaleString('en-US')}` : "Earnn's average UAE spending profile")
+
 // Best card per family first, duplicates pushed to end (cards already sorted by card_ranking asc)
 function promoteOneFamilyMember(cards: ApiCard[]): ApiCard[] {
   const seen = new Set<string>()
@@ -276,8 +287,9 @@ function bestForSectionItems(
 // PAGE
 // ─────────────────────────────────────────────────────────────────────────────
 const HERO_STEPS: { title: string; text: string }[] = [
-  { title: 'Pick your cards', text: 'Choose the UAE cards you want to test.' },
-  { title: 'Build your test wallet', text: 'Add up to 10 cards to the wallet.' },
+  { title: 'Pick your cards', text: 'Choose the UAE cards you want to test. Use filters to narrow down your search.' },
+  { title: 'Compare cards', text: 'Select up to 3 cards to compare side by side.' },
+  { title: 'Build your test wallet', text: 'Add up to 10 cards to your wallet and see what they earn together.' },
   { title: 'See how to use it', text: 'See which cards to use, which stay in reserve, and what it earns.' },
 ]
 
@@ -310,6 +322,23 @@ export default function CardExplorer({ variant }: { variant: 'simulate' | 'compa
   // "Personalize these results": when set, the list is the same engine run on the user's own monthly spend
   const [personal, setPersonal] = useState<PersonalSpend | null>(null)
   const [personaliseOpen, setPersonaliseOpen] = useState(false)
+  // Spend saved in this browser is applied once on load (never changes the salary filter); the snapshot shows for ~3 s.
+  const saved = useSavedProfile()
+  const [profileApplied, setProfileApplied] = useState(false)
+  useEffect(() => {
+    if (!saved.ready || profileApplied) return
+    // browser storage only exists after hydration, so the saved spend has to be applied from an effect
+    /* eslint-disable react-hooks/set-state-in-effect */
+    setProfileApplied(true)
+    if (saved.spend && (saved.salary || !simulate)) {
+      // saved spending loads directly, with the short snapshot; Simulate also needs the (always required) salary
+      setPersonal({ amounts: saved.spend, salary: saved.salary })
+    } else if (simulate) {
+      setPersonaliseOpen(true) // Simulate never shows default spending: ask first
+    }
+    /* eslint-enable react-hooks/set-state-in-effect */
+  }, [saved.ready, saved.spend, saved.salary, profileApplied, simulate])
+  const gated = simulate && !personal
   // "Add to Wallet": up to 3 cards in the Analyze-style wallet bar at the bottom (needs the user's own spend)
   const [walletIds, setWalletIds] = useState<string[]>([])
   const [walletFullOpen, setWalletFullOpen] = useState(false)
@@ -317,7 +346,7 @@ export default function CardExplorer({ variant }: { variant: 'simulate' | 'compa
 
   const [cards, setCards]           = useState<ApiCard[]>([])
   const [catalogueRewardRates, setCatalogueRewardRates] = useState<number[]>([])
-  const [loading, setLoading]       = useState(true)
+  const [loading, setLoading]       = useState(!simulate) // Simulate waits for the user's spending before fetching
 
   const [error, setError]           = useState<string | null>(null)
   const [details, setDetails]       = useState<Record<string, CardDetail>>({})
@@ -372,6 +401,8 @@ export default function CardExplorer({ variant }: { variant: 'simulate' | 'compa
   const normalisedCardNameQuery = cardNameQuery.trim().toLowerCase()
 
   useEffect(() => {
+    if (!profileApplied) return // wait for the saved spend so the list loads once, on the right numbers
+    if (simulate && !personal) return // Simulate lists cards only on the user's own spending
     let active = true
     setLoading(true)
     const request = personal
@@ -396,7 +427,7 @@ export default function CardExplorer({ variant }: { variant: 'simulate' | 'compa
         if (active) setLoading(false)
       })
     return () => { active = false }
-  }, [salaryMin, mode, personal])
+  }, [salaryMin, mode, personal, profileApplied, simulate])
 
   // The reward-rate badge is benchmarked against the full active catalogue,
   // independent of the user’s temporary salary or card filters.
@@ -547,25 +578,13 @@ export default function CardExplorer({ variant }: { variant: 'simulate' | 'compa
   }
 
   // ── Loading / error states ──────────────────────────────────────────────
-  if (loading) return (
-    <div style={{ minHeight: '60vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 20 }}>
-      <style>{`
-        @keyframes cmpCardSpin { 0% { transform: rotateY(0deg); } 50% { transform: rotateY(180deg); } 100% { transform: rotateY(360deg); } }
-        .cmp-spin0 { animation: cmpCardSpin 1.4s ease-in-out infinite 0s; }
-        .cmp-spin1 { animation: cmpCardSpin 1.4s ease-in-out infinite .28s; }
-        .cmp-spin2 { animation: cmpCardSpin 1.4s ease-in-out infinite .56s; }
-      `}</style>
-      <div style={{ display: 'flex', gap: 14, perspective: 400 }}>
-        {[['#0E3785','cmp-spin0'],['#059669','cmp-spin1'],['#1D4ED8','cmp-spin2']].map(([bg, cls], i) => (
-          <div key={i} className={cls} style={{ width: 56, height: 36, borderRadius: 8, background: bg, boxShadow: '0 4px 16px rgba(0,0,0,0.18)' }} />
-        ))}
-      </div>
-      <div style={{ textAlign: 'center' }}>
-        <div style={{ fontSize: 20, fontWeight: 800, color: '#0E3785', marginBottom: 6 }}>Fetching all UAE cards</div>
-        <div style={{ fontSize: 13, color: '#5A6A85' }}>Getting everything ready for you…</div>
-      </div>
-    </div>
-  )
+  // The one holding screen: a snapshot of the spending in use, until the card list for it has arrived.
+  // Simulate also holds while the saved spending is being read, so the snapshot is the first thing the visitor sees.
+  const waiting = loading || (simulate && !saved.ready) || (simulate && personal !== null && cards.length === 0 && !error)
+  // with a spending snapshot to show, the screen stays up for at least 3 seconds even if the cards arrive sooner
+  const holding = useMinHold(waiting && (personal?.amounts ?? saved.spend) !== null, 3000) || waiting
+  const heroTotal = personal ? Math.round(Object.values(personal.amounts).reduce((a, b) => a + b, 0)) : 0 // shown in the Simulate heading
+  if (holding) return <SpendHoldingScreen amounts={personal?.amounts ?? saved.spend} salary={personal?.salary || saved.salary} ownedCount={saved.ownedCardIds.length} />
 
   if (error) return (
     <div style={{ textAlign: 'center', padding: '80px 24px', color: '#DC2626' }}>
@@ -573,6 +592,21 @@ export default function CardExplorer({ variant }: { variant: 'simulate' | 'compa
       <p style={{ fontWeight: 700 }}>Could not load cards</p>
       <p style={{ fontSize: 13, color: '#5A6A85' }}>{error}</p>
     </div>
+  )
+
+  // Cashback / Miles switch: in the Compare toolbar, and on the right of the "Choose a card" heading on Simulate
+  const modeTabs = (
+      <div role="tablist" aria-label="Reward view" style={{ display: 'flex', flex: 'none', width: 200, margin: 0, padding: 3, gap: 3, borderRadius: 12, background: '#EEF3FF', border: '1px solid #D6E0F5' }}>
+        {(['cashback', 'miles'] as const).map(m => (
+          <button key={m} type="button" role="tab" aria-selected={mode === m}
+            onClick={() => { if (m !== mode) { setMode(m); setCompareIds([]); setCompareOpen(false); setExpanded(null); setPage(1); setWalletIds([]) } }}
+            style={{ flex: 1, border: 'none', cursor: 'pointer', padding: '5px 12px', borderRadius: 9, fontSize: 13, fontWeight: 800, textAlign: 'center',
+              background: mode === m ? '#0E3785' : 'transparent', color: mode === m ? 'white' : '#5A6A85',
+              boxShadow: mode === m ? '0 2px 8px rgba(14,55,133,0.25)' : 'none', transition: 'background 0.15s, color 0.15s' }}>
+            {m === 'cashback' ? 'Cashback' : 'Miles'}
+          </button>
+        ))}
+      </div>
   )
 
   return (
@@ -621,21 +655,33 @@ export default function CardExplorer({ variant }: { variant: 'simulate' | 'compa
           .compare-filter-actions > button { flex: 1; min-width: 0 !important; }
         }
         @media (max-width: 1000px) { .compare-hero-deco { display: none !important; } }
-        .cmp-start { margin: 36px 0 0; }
+        .cmp-start { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px 20px; margin: 36px 0 18px; }
         .cmp-start h2 { margin: 0; font-size: clamp(22px, 2.6vw, 28px); font-weight: 800; letter-spacing: -0.02em; color: #0D1828; }
         .cmp-start p { margin: 6px 0 0; font-size: 14.5px; color: #5A6A85; }
         .cmp-start + .cmp-toolbar { margin-top: 16px; }
         .cmp-toolbar { display: flex; align-items: center; gap: 10px; margin: 40px 0 14px; padding: 8px; border: 1px solid #D6E0F5; border-radius: 16px; background: #fff; box-shadow: 0 6px 20px -12px rgba(14,55,133,0.25); }
         @media (max-width: 760px) { .cmp-toolbar { flex-wrap: wrap; } .cmp-toolbar > [role=tablist] { width: 100% !important; } .cmp-toolbar > [role=status], .cmp-toolbar > [role=note] { flex: 1 1 100% !important; margin-left: 0 !important; } }
         html, body { overflow-x: clip; }
-        .cmp-hero { position: relative; margin: -48px calc(50% - 50vw) 0; padding: 44px calc(50vw - 50%) 34px; text-align: left; background: linear-gradient(135deg, #0E3785 0%, #0A2860 100%); color: #fff; }
+        .cmp-hero { position: relative; margin: -48px calc(50% - 50vw) 0; padding: 44px calc(50vw - 50%) 34px; text-align: left; background: radial-gradient(900px 420px at 88% 18%, #FFE9A8 0%, rgba(255, 233, 168, 0) 70%), linear-gradient(160deg, #E4EDFF 0%, #F2F6FF 60%, #F8FAFF 100%); color: #0A2A66; }
         @media (max-width: 760px) { .cmp-hero { margin-top: -32px; padding-top: 32px; } }
         .cmp-hero-main { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 340px); gap: 32px; align-items: center; }
-        .cmp-hero-badge { display: inline-block; padding: 3px 12px; border-radius: 999px; background: #fff; color: #0E3785; font-size: clamp(13px, 1.4vw, 16px); font-weight: 800; letter-spacing: -0.01em; line-height: 1.3; box-shadow: 0 8px 22px -12px rgba(0,0,0,0.45); }
-        .cmp-hero h1 { margin: 14px 0 0; max-width: 600px; font-weight: 800; font-size: clamp(32px, 4.6vw, 52px); line-height: 1.05; letter-spacing: -0.02em; color: #fff; }
-        .cmp-hero h1 em { color: #F7C948; font-style: normal; }
+        .cmp-hero-badge { display: inline-block; padding: 7px 16px; border-radius: 999px; background: linear-gradient(135deg, #F7C948, #FFD76A); color: #0A2860; font-size: 12.5px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; line-height: 1.3; box-shadow: 0 8px 20px -8px rgba(212, 160, 20, .7); }
+        .cmp-hero h1 { margin: 14px 0 0; max-width: 720px; font-weight: 800; font-size: clamp(20px, 2.5vw, 28px); line-height: 1.25; letter-spacing: -0.01em; color: #0A2A66; }
+        .cmp-hero h1 em { color: #0A2A66; font-style: normal; }
+        .cmp-hero h1 { max-width: 720px; font-size: clamp(20px, 2.5vw, 28px); line-height: 1.25; letter-spacing: -0.01em; }
+        .cmp-hero-lead { font-weight: 700; color: #3A4A66; }
+        .cmp-hero-num { display: flex; align-items: center; gap: 4px; margin-top: 6px; font-size: clamp(42px, 6vw, 68px); font-weight: 800; line-height: 1.02; letter-spacing: -0.03em; color: #0A2A66; }
+        .cmp-hero-edit { display: inline-grid; place-items: center; width: 40px; height: 40px; margin-left: 12px; vertical-align: middle; border: 1.5px solid #9DB4E6; border-radius: 50%; background: #fff; color: #0E3785; cursor: pointer; box-shadow: 0 6px 14px -6px rgba(14,55,133,.35); transition: background .15s, color .15s, transform .15s; }
+        .cmp-hero-edit:hover { background: #F7C948; border-color: #E0B13C; color: #0A2860; transform: scale(1.06); }
         .cmp-hero-sub { margin: 12px 0 0; max-width: 540px; font-size: 15px; line-height: 1.55; color: #DBE6FF; }
         .cmp-hero-ctas { display: grid; grid-template-columns: 1fr; gap: 10px; margin: 0; }
+        .cmp-hero-visual { padding: 10px 12px 14px; border-radius: 20px; background: #fff; color: #0E3785; cursor: pointer; border: 1px solid #D6E0F5; box-shadow: 0 22px 40px -22px rgba(10,42,102,0.4); transition: transform .15s ease; }
+        .cmp-hero-visual:hover { transform: translateY(-2px); }
+        .cmp-hero-visual:focus-visible { outline: 3px solid #F7C948; outline-offset: 2px; }
+        .cmp-hero-visual > div { margin: 0 0 10px; }
+        .cmp-hero-visual-cap { display: grid; gap: 2px; padding: 0 4px; }
+        .cmp-hero-visual-cap b { font-size: 16px; font-weight: 800; }
+        .cmp-hero-visual-cap small { font-size: 12px; line-height: 1.3; opacity: .8; }
         .cmp-cta { position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-height: 0; padding: 10px 16px; border-radius: 14px; text-align: left; font-family: inherit; cursor: pointer; transition: transform .15s ease, box-shadow .15s ease; }
         .cmp-cta:hover { transform: translateY(-2px); }
         .cmp-cta:focus-visible { outline: 3px solid #F7C948; outline-offset: 2px; }
@@ -659,21 +705,21 @@ export default function CardExplorer({ variant }: { variant: 'simulate' | 'compa
         .cmp-slot-group:last-child { flex: 1.2; }
         .cmp-slot-group em { flex: none; margin: 0 6px; font-style: normal; font-size: 11px; font-weight: 800; color: #5A6A85; text-transform: uppercase; }
         .cmp-cta-secondary .cmp-slot { border-color: #9DB2E0; background: #EEF3FF; color: #0E3785; padding: 6px 2px; }
-        .cmp-steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 48px; list-style: none; margin: 22px 0 0; padding: 18px 0 0; border-top: 1px solid rgba(255,255,255,0.2); }
+        .cmp-steps { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0 40px; list-style: none; margin: 22px 0 0; padding: 18px 0 0; border-top: 1px solid rgba(10,42,102,0.14); }
         .cmp-steps li { position: relative; display: flex; align-items: flex-start; gap: 12px; }
-        .cmp-steps li:not(:last-child) .cmp-step-text::after { content: '→'; position: absolute; top: 0; left: calc(100% + 14px); font-size: 32px; line-height: 20px; font-weight: 700; color: rgba(247,201,72,0.95); }
+        .cmp-steps li:not(:last-child) .cmp-step-text::after { content: '→'; position: absolute; top: 0; left: calc(100% + 14px); font-size: 32px; line-height: 20px; font-weight: 700; color: #D4A014; }
         .cmp-step-num { flex: none; display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: #F7C948; color: #0A2860; font-size: 14px; font-weight: 800; }
         .cmp-step-text { position: relative; display: grid; gap: 2px; }
-        .cmp-step-text b { font-size: 14.5px; font-weight: 700; line-height: 20px; color: #fff; }
-        .cmp-step-text small { font-size: 12.5px; line-height: 1.4; color: #DBE6FF; }
+        .cmp-step-text b { font-size: 14.5px; font-weight: 700; line-height: 20px; color: #0A2A66; }
+        .cmp-step-text small { font-size: 12.5px; line-height: 1.4; color: #3A4A66; }
         @media (max-width: 760px) {
           .cmp-steps { grid-template-columns: 1fr; gap: 14px; }
           .cmp-steps li:not(:last-child) .cmp-step-text::after { content: none; }
         }
-        .cmp-hero-help { margin: 16px 0 0; font-size: 13.5px; color: #DBE6FF; }
-        .cmp-hero-help a { margin-left: 6px; font-weight: 800; color: #F7C948; text-decoration: none; border-bottom: 1px solid rgba(247,201,72,0.5); }
-        .cmp-hero-help a:hover { border-bottom-color: #F7C948; }
-        .cmp-hero-hint { margin: 14px 0 0; font-size: 13.5px; font-weight: 600; color: #F7C948; }
+        .cmp-hero-help { margin: 16px 0 0; font-size: 13.5px; color: #3A4A66; }
+        .cmp-hero-help a { margin-left: 6px; font-weight: 800; color: #0E3785; text-decoration: none; border-bottom: 1px solid rgba(14,55,133,0.4); }
+        .cmp-hero-help a:hover { border-bottom-color: #0E3785; }
+        .cmp-hero-hint { margin: 14px 0 0; font-size: 13.5px; font-weight: 600; color: #8A6A12; }
         @media (max-width: 640px) {
           .cmp-hero-main { grid-template-columns: 1fr; gap: 20px; }
           .cmp-hero-sub { font-size: 15px; }
@@ -685,15 +731,25 @@ export default function CardExplorer({ variant }: { variant: 'simulate' | 'compa
         <div className="cmp-hero-main">
         <div className="cmp-hero-copy">
         <span className="cmp-hero-badge">UAE’s first multi-credit card rewards simulator</span>
-        <h1 id="cmp-hero-title">Simulate all UAE credit cards <em>on your spending.</em></h1>
-        <p className="cmp-hero-sub">See how any UAE credit card performs on your spending. Test up to 10 cards together in a wallet and see which cards to use for what.</p>
+        {(() => {
+          const pencil = (
+            <button type="button" className="cmp-hero-edit" aria-label="Edit my spending" title="Edit my spending" onClick={() => setPersonaliseOpen(true)}>
+              <svg aria-hidden viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 20h4L19 9a2.1 2.1 0 00-4-4L4 16z" /><path d="M13.5 6.5l4 4" /></svg>
+            </button>
+          )
+          // the sentence is small; only the spending figure is big
+          return heroTotal > 0
+            ? <h1 id="cmp-hero-title"><span className="cmp-hero-lead">Simulate all UAE credit cards on your spending of</span><span className="cmp-hero-num">AED {heroTotal.toLocaleString('en-US')}/mo{pencil}</span></h1>
+            : <h1 id="cmp-hero-title"><span className="cmp-hero-lead">Simulate all UAE credit cards on your spending</span>{pencil}</h1>
+        })()}
         </div>
         <div className="cmp-hero-ctas">
-          <button type="button" className="cmp-cta cmp-cta-primary" onClick={goToCards}>
-            <span className="cmp-slots" aria-hidden>{[1, 2, 3].map(n => <span key={n} className="cmp-slot"><b>+</b><small>Card {n}</small></span>)}</span>
-            <span className="cmp-cta-text"><b>Simulate Cards</b><small>Build your own wallet and simulate rewards.</small></span>
-            <span className="cmp-cta-arrow" aria-hidden>↗</span>
-          </button>
+          {/* the same animated tray as "Choose & Test Cards Myself" on the home and Explore pages */}
+          <div className="cmp-hero-visual" role="button" tabIndex={0} aria-label="Go to the cards" onClick={goToCards}
+            onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); goToCards() } }}>
+            <WalletVisual />
+            <span className="cmp-hero-visual-cap"><b>Simulate Cards</b><small>Build your own wallet and simulate rewards.</small></span>
+          </div>
         </div>
         </div>
         {heroHint && <p className="cmp-hero-hint" role="status">Tap “Add to test wallet” on up to 10 cards below to see what they earn together.</p>}
@@ -705,7 +761,7 @@ export default function CardExplorer({ variant }: { variant: 'simulate' | 'compa
             </li>
           ))}
         </ol>
-        <p className="cmp-hero-help">Not sure which cards to test? <Link href="/analyse?mode=manual">Let Earnn choose for you <span aria-hidden>→</span></Link></p>
+        <p className="cmp-hero-help">Not sure which cards to test? <Link href="/find-my-best-cards?mode=manual">Let Earnn choose for you <span aria-hidden>→</span></Link></p>
       </section>}
       {!fromResults && !simulate && <div style={{ marginBottom: 28 }}><PageHero framed={false} tone="light" image="/images/heroes/Compare.webp"
         kicker="COMPARE"
@@ -720,62 +776,84 @@ export default function CardExplorer({ variant }: { variant: 'simulate' | 'compa
             </div>
           ))}
         </div>
-        <button type="button" onClick={() => setPersonaliseOpen(true)} style={{
-          display: 'inline-flex', alignItems: 'center', gap: 12, border: 0, cursor: 'pointer',
-          background: 'linear-gradient(90deg, #F7C948, #FFD76A)', color: '#0A2860', padding: '13px 28px', borderRadius: 999,
-          fontSize: 16, fontWeight: 800, textDecoration: 'none',
-          boxShadow: '0 12px 34px rgba(247,201,72,0.38)'
-        }}>
-          <span aria-hidden>🎯</span> Personalize these results <span aria-hidden>→</span>
-        </button>
+        {heroTotal > 0 ? (
+          // already personalised: the spending in use replaces the call to action; the pencil edits it (as on the Simulate hero)
+          <div>
+            <span className="cmp-hero-lead">Personalised for your monthly spend of</span>
+            <span className="cmp-hero-num" style={{ fontSize: 'clamp(30px, 4vw, 44px)' }}>
+              AED {heroTotal.toLocaleString('en-US')}/mo
+              <button type="button" className="cmp-hero-edit" aria-label="Edit my spending" title="Edit my spending" onClick={() => setPersonaliseOpen(true)}>
+                <svg aria-hidden viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 20h4L19 9a2.1 2.1 0 00-4-4L4 16z" /><path d="M13.5 6.5l4 4" /></svg>
+              </button>
+            </span>
+          </div>
+        ) : (
+          <button type="button" onClick={() => setPersonaliseOpen(true)} style={{
+            display: 'inline-flex', alignItems: 'center', gap: 12, border: 0, cursor: 'pointer',
+            background: 'linear-gradient(90deg, #F7C948, #FFD76A)', color: '#0A2860', padding: '13px 28px', borderRadius: 999,
+            fontSize: 16, fontWeight: 800, textDecoration: 'none',
+            boxShadow: '0 12px 34px rgba(247,201,72,0.38)'
+          }}>
+            <span aria-hidden>🎯</span> Personalize these results <span aria-hidden>→</span>
+          </button>
+        )}
       </PageHero></div>}
 
       {/* ── REWARD VIEW: two slim tabs, half the width each, the active one highlighted ── */}
       {!fromResults && simulate && <div className="cmp-start">
-        <h2>Choose a card to start simulating</h2>
-        <p>Add up to 10 cards to your test wallet and see which cards to use for what.</p>
+        <div>
+          <h2>Choose a card to start simulating</h2>
+          <p>Each card below already shows what it would earn on your spending. Add up to 10 cards to your wallet and see what they earn together.</p>
+        </div>
+        {modeTabs}
       </div>}
-      <div className="cmp-toolbar">
-      <div role="tablist" aria-label="Reward view" style={{ display: 'flex', flex: 'none', width: 200, margin: 0, padding: 3, gap: 3, borderRadius: 12, background: '#EEF3FF', border: '1px solid #D6E0F5' }}>
-        {(['cashback', 'miles'] as const).map(m => (
-          <button key={m} type="button" role="tab" aria-selected={mode === m}
-            onClick={() => { if (m !== mode) { setMode(m); setCompareIds([]); setCompareOpen(false); setExpanded(null); setPage(1); setWalletIds([]) } }}
-            style={{ flex: 1, border: 'none', cursor: 'pointer', padding: '5px 12px', borderRadius: 9, fontSize: 13, fontWeight: 800, textAlign: 'center',
-              background: mode === m ? '#0E3785' : 'transparent', color: mode === m ? 'white' : '#5A6A85',
-              boxShadow: mode === m ? '0 2px 8px rgba(14,55,133,0.25)' : 'none', transition: 'background 0.15s, color 0.15s' }}>
-            {m === 'cashback' ? 'Cashback' : 'Miles'}
-          </button>
-        ))}
-      </div>
+      {!fromResults && !simulate && <div className="cmp-start">
+        <div>
+          <h2>Choose cards to compare</h2>
+          <p>{personal ? 'Each card below already shows what it would earn on your spending.' : 'Each card below shows what it would earn on average UAE spending. Personalise it to see your own numbers.'} Tick up to 3 cards to compare them side by side.</p>
+        </div>
+      </div>}
+      {!simulate && <div className="cmp-toolbar">
+      {!simulate && modeTabs}
 
       {personal && (
         <div role="status" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, margin: '0 0 0 auto', flex: '0 1 auto', padding: '7px 8px 7px 12px', borderRadius: 12, background: '#FFF6E0', border: '1px solid #F5D98A', color: '#5A4200', fontSize: 13 }}>
           <span aria-hidden>🎯</span>
-          <span><strong>Personalised to your spend</strong> · AED {Math.round(Object.values(personal.amounts).reduce((a, b) => a + b, 0)).toLocaleString()} / mo</span>
-          <button type="button" onClick={() => setPersonaliseOpen(true)} aria-label="Edit spend" title="Edit spend" style={{ display: 'grid', placeItems: 'center', width: 26, height: 26, border: 0, borderRadius: 8, background: 'rgba(14,55,133,0.08)', color: '#0E3785', cursor: 'pointer' }}>
-            <svg aria-hidden viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 20h4L19 9a2.1 2.1 0 00-4-4L4 16z" /><path d="M13.5 6.5l4 4" /></svg>
+          <span><strong>Based on your spending</strong> · AED {Math.round(Object.values(personal.amounts).reduce((a, b) => a + b, 0)).toLocaleString()}/month</span>
+          <button type="button" onClick={() => setPersonaliseOpen(true)} aria-label="Edit spend" title="Edit spend" style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 9px', border: 0, borderRadius: 8, background: 'rgba(14,55,133,0.08)', color: '#0E3785', fontSize: 12.5, fontWeight: 800, cursor: 'pointer' }}>
+            <svg aria-hidden viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 20h4L19 9a2.1 2.1 0 00-4-4L4 16z" /><path d="M13.5 6.5l4 4" /></svg>
+            Edit
           </button>
         </div>
       )}
-      {!personal && (
+      {!personal && !simulate && (
         <div role="note" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '6px 14px', margin: '0 0 0 auto', flex: '0 1 auto', padding: '7px 12px', borderRadius: 12, background: '#DDF5EA', border: '1px solid #8FD3B4', color: '#0B4D38', fontSize: 13.5, fontWeight: 600 }}>
           <span aria-hidden>ℹ️</span>
-          <span>Displayed rates are estimated using sample monthly spending.{' '}
-            <button type="button" onClick={() => setPersonaliseOpen(true)} style={{ padding: 0, border: 0, background: 'none', color: '#0A6B4B', fontWeight: 800, cursor: 'pointer', fontSize: 'inherit', fontFamily: 'inherit', textDecoration: 'underline' }}>Personalize it →</button>
+          <span>Using sample spending ·{' '}
+            <button type="button" onClick={() => setPersonaliseOpen(true)} style={{ padding: 0, border: 0, background: 'none', color: '#0A6B4B', fontWeight: 800, cursor: 'pointer', fontSize: 'inherit', fontFamily: 'inherit', textDecoration: 'underline' }}>Personalise →</button>
           </span>
         </div>
       )}
-      </div>
+      </div>}
       {personaliseOpen && (
-        <PersonaliseDialog current={personal} mode={mode} onClose={() => { setPersonaliseOpen(false); setPendingWalletId(null) }}
+        <PersonaliseDialog current={personal} mode={mode} notice={simulate ? 'To show how each card works for you, we first need to know your spending.' : undefined} onClose={() => { setPersonaliseOpen(false); setPendingWalletId(null) }}
           onSubmit={value => {
-            setPersonal(value); setPersonaliseOpen(false); setCompareIds([]); setCompareOpen(false); setExpanded(null); setPage(1)
+            setPersonal(value); setPersonaliseOpen(false)
             if (pendingWalletId) { const id = pendingWalletId; setPendingWalletId(null); setWalletIds(prev => (prev.includes(id) || prev.length >= MAX_SIMULATE_WALLET ? prev : [...prev, id])) }
-            const digits = value.salary.replace(/\D/g, '').slice(0, 6)
-            setSalaryInput(digits)       // the page's own salary filter follows what was entered
           }} />
       )}
 
+      {gated && !personaliseOpen && (
+        <div style={{ margin: '8px 0 40px', padding: '40px 24px', textAlign: 'center', borderRadius: 16, border: '1px dashed #B8C7E8', background: '#F6F9FF' }}>
+          <div style={{ fontSize: 18, fontWeight: 800, color: '#0D1828' }}>Start with your monthly spending</div>
+          <p style={{ margin: '6px 0 16px', fontSize: 14, color: '#5A6A85' }}>To show how each card works for you, we first need to know your spending.</p>
+          <button type="button" onClick={() => setPersonaliseOpen(true)}
+            style={{ border: 0, cursor: 'pointer', padding: '12px 26px', borderRadius: 999, background: '#0E3785', color: 'white', fontSize: 15, fontWeight: 800 }}>
+            Enter my spending
+          </button>
+        </div>
+      )}
+      <div style={gated ? { display: 'none' } : undefined}>
       {/* ── FILTER BAR ───────────────────────────────────────────────────── */}
       <div style={{
         background: 'white', borderRadius: 16, border: '1px solid #D6E0F5',
@@ -956,6 +1034,8 @@ export default function CardExplorer({ variant }: { variant: 'simulate' | 'compa
             {salaryMin !== null ? 'There is no eligible card for the given salary.' : 'No cards match the selected filters.'}
           </div>
         )}
+        <SpendBasisContext.Provider value={personal ? Math.round(Object.values(personal.amounts).reduce((a, b) => a + b, 0)) : null}>
+        <UserSalaryContext.Provider value={Number(personal?.salary || saved.salary) || 0}>
         {pageCards.map(card => (
           <CardTile
             key={card.earnn_card_id}
@@ -976,6 +1056,8 @@ export default function CardExplorer({ variant }: { variant: 'simulate' | 'compa
             sortCatSpend={sortCatSpend}
           />
         ))}
+        </UserSalaryContext.Provider>
+        </SpendBasisContext.Provider>
       </div>
 
       {/* ── PAGINATION ───────────────────────────────────────────────────── */}
@@ -994,6 +1076,8 @@ export default function CardExplorer({ variant }: { variant: 'simulate' | 'compa
         </div>
       )}
 
+      </div>
+
       {/* ── ADD TO WALLET: the Analyze result's wallet bar (dock), fed by the tiles' "Add to Wallet" boxes ── */}
       {simulate && walletIds.length > 0 && <div aria-hidden style={{ height: 128 }} />}
       {simulate && walletRequest && walletIds.length > 0 && (
@@ -1011,7 +1095,7 @@ export default function CardExplorer({ variant }: { variant: 'simulate' | 'compa
       )}
 
       {/* ── PERSISTENT COMPARE ACTION ─────────────────────────────────────── */}
-      {!simulate && compareCards.length > 0 && (
+      {compareCards.length > 0 && (
         <div style={{ position: 'fixed', right: 28, top: 84, zIndex: 150 }}>
           <button onClick={() => {
             compareCards.forEach(card => loadDetail(card.earnn_card_id, true))
@@ -1027,7 +1111,7 @@ export default function CardExplorer({ variant }: { variant: 'simulate' | 'compa
         </div>
       )}
 
-      {!simulate && compareOpen && compareCards.length > 0 && (
+      {compareOpen && compareCards.length > 0 && (
         <ComparisonModal
           cards={compareCards}
           catalogueRewardRates={catalogueRewardRates}
@@ -1060,6 +1144,55 @@ export default function CardExplorer({ variant }: { variant: 'simulate' | 'compa
 // effective rate · estimated annual reward · fee · score and compare. Used only when mode === 'miles'.
 // ─────────────────────────────────────────────────────────────────────────────
 // "Add to Wallet" box on a tile (same family as the Compare box): adds or removes the card from the bottom wallet bar.
+/**
+ * The two separate tile actions, side by side in the free area of the tile: COMPARE (outlined, a tick box: pick up to 3 cards and
+ * view them side by side) and ADD TO WALLET (solid gold: build a test wallet of up to 10 cards). Each says what it does and its limit.
+ */
+function TileActions({ inCompare, compareFull, onToggleCompare, showWallet, inWallet, onToggleWallet, compact }: {
+  inCompare: boolean
+  compareFull: boolean
+  onToggleCompare: (e?: React.MouseEvent) => void
+  showWallet: boolean
+  inWallet: boolean
+  onToggleWallet: () => void
+  compact?: boolean
+}) {
+  const base: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 7, width: '100%', padding: compact ? '6px 8px' : '7px 9px', borderRadius: 12, textAlign: 'left', fontFamily: 'inherit', cursor: 'pointer', transition: 'transform .12s ease, box-shadow .12s ease', boxSizing: 'border-box' }
+  const title: React.CSSProperties = { display: 'block', fontSize: compact ? 11 : 11.5, fontWeight: 800, lineHeight: 1.2, whiteSpace: 'nowrap' }
+  const note: React.CSSProperties = { display: 'block', fontSize: 9.5, fontWeight: 600, lineHeight: 1.25, opacity: 0.8, whiteSpace: 'nowrap' }
+  const icon = (children: React.ReactNode) => (
+    <svg aria-hidden viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>{children}</svg>
+  )
+  const blocked = compareFull && !inCompare
+  return (
+    <div className="compare-tile-actions" style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%' }}>
+      <button type="button" aria-pressed={inCompare} disabled={blocked} title="Tick up to 3 cards, then open the side-by-side comparison"
+        onClick={e => { e.stopPropagation(); onToggleCompare(e) }}
+        style={{ ...base, border: '1.5px solid #0E3785', background: inCompare ? '#0E3785' : '#fff', color: inCompare ? '#fff' : '#0E3785', opacity: blocked ? 0.5 : 1, cursor: blocked ? 'not-allowed' : 'pointer' }}>
+        {icon(<><path d="M7 4L3 8l4 4" /><path d="M3 8h13" /><path d="M17 20l4-4-4-4" /><path d="M21 16H8" /></>)}
+        <span style={{ minWidth: 0, flex: 1 }}>
+          <span style={title}>{inCompare ? 'Selected' : 'Compare'}</span>
+          <span style={note}>{blocked ? 'Max 3 cards' : inCompare ? 'Tap to remove' : 'Pick up to 3'}</span>
+        </span>
+        <span aria-hidden style={{ flexShrink: 0, width: 16, height: 16, boxSizing: 'border-box', borderRadius: 4, border: `1.5px solid ${inCompare ? '#fff' : '#0E3785'}`, background: inCompare ? '#fff' : 'transparent', color: '#0E3785', display: 'grid', placeItems: 'center', fontSize: 11, fontWeight: 900, lineHeight: 1 }}>{inCompare ? '✓' : ''}</span>
+      </button>
+
+      {showWallet && (
+        <button type="button" aria-pressed={inWallet} title="Add this card to your test wallet (up to 10) and see what they earn together"
+          onClick={e => { e.stopPropagation(); onToggleWallet() }}
+          style={{ ...base, border: inWallet ? '1.5px solid #00A67E' : '1.5px solid #E0B13C', background: inWallet ? '#00A67E' : 'linear-gradient(135deg, #F7C948, #FFD76A)', color: inWallet ? '#fff' : '#3D2F00', boxShadow: inWallet ? 'none' : '0 3px 8px rgba(224,177,60,0.35)' }}>
+          {icon(<><path d="M3 7a2 2 0 0 1 2-2h13v4" /><path d="M3 7v11a2 2 0 0 0 2 2h14a1 1 0 0 0 1-1v-9a1 1 0 0 0-1-1H5a2 2 0 0 1-2-2" /><circle cx="16" cy="14" r="1" fill="currentColor" /></>)}
+          <span style={{ minWidth: 0, flex: 1 }}>
+            <span style={title}>{inWallet ? 'In wallet' : 'Add to wallet'}</span>
+            <span style={note}>{inWallet ? 'Tap to remove' : 'Test up to 10'}</span>
+          </span>
+          <span aria-hidden style={{ flexShrink: 0, fontSize: 18, fontWeight: 900, lineHeight: 1 }}>{inWallet ? '✓' : '+'}</span>
+        </button>
+      )}
+    </div>
+  )
+}
+
 function WalletToggle({ inWallet, onToggle, compact }: { inWallet: boolean; onToggle: () => void; compact?: boolean }) {
   return (
     <button type="button" aria-pressed={inWallet} onClick={e => { e.stopPropagation(); onToggle() }}
@@ -1090,6 +1223,7 @@ function MilesTileTop({ card, simulate, fee, topEarnRates, inCompare, compareFul
   sortCat?: string
   sortCatSpend?: number
 }) {
+  const spendBasis = useContext(SpendBasisContext)
   const id = card.earnn_card_id
   const catRate = sortCat ? categoryEffectiveRate(card, sortCat) : null
   const catActual = sortCat ? categoryActualRate(card, sortCat) : null // published rate, shown in the green box
@@ -1115,18 +1249,13 @@ function MilesTileTop({ card, simulate, fee, topEarnRates, inCompare, compareFul
         <img src={getCardImageUrl(id)} alt={card.card_name} width={126} height={78} loading="lazy"
           onError={(e) => { (e.target as HTMLImageElement).src = '/card-dummy.svg' }}
           style={{ borderRadius: 8, objectFit: 'cover', boxShadow: '0 4px 16px rgba(14,55,133,0.2)', display: 'block' }} />
-        <div>
-          <div style={{ fontSize: 8.5, fontWeight: 800, color: '#7A8BA8', textTransform: 'uppercase', letterSpacing: '0.04em', lineHeight: 1.3 }}>Salary requirement</div>
-          <div style={{ marginTop: 3, fontSize: 11, fontWeight: 800, color: card.min_salary_aed ? '#0D1828' : '#00A67E', lineHeight: 1.3 }}>
-            {card.min_salary_aed ? `AED ${Math.round(card.min_salary_aed).toLocaleString()} / mo` : 'No minimum salary'}
-          </div>
-        </div>
+        <SalaryRequirement min={card.min_salary_aed} />
       </div>
 
       {/* name, bank, summary, categories */}
       <div style={{ ...MILES_COL, cursor: 'pointer', flex: '1 1 200px', minWidth: 190 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-          <span style={{ fontSize: 15.5, fontWeight: 800, color: '#0D1828', lineHeight: 1.25 }}><CardNameLink cardId={card.earnn_card_id} mode="miles">{card.card_name}</CardNameLink></span>
+          <span style={{ fontSize: 15.5, fontWeight: 800, color: '#0D1828', lineHeight: 1.25 }}><CardNameLink cardId={card.earnn_card_id} mode="miles" arrow>{card.card_name}</CardNameLink></span>
           {card.free_for_life && <span style={{ background: '#EAFBF4', color: '#00785C', fontWeight: 700, fontSize: 10, padding: '2px 7px', borderRadius: 100 }}>FREE FOR LIFE</span>}
         </div>
         <div style={{ fontSize: 11.5, color: '#5A6A85', marginTop: 3 }}>{card.bank_name} · {card.network}</div>
@@ -1158,35 +1287,32 @@ function MilesTileTop({ card, simulate, fee, topEarnRates, inCompare, compareFul
         ) : <div style={{ fontSize: 12, color: '#94A3B8' }}>No top earn rates available</div>}
       </div>
 
-      {/* effective reward rate */}
-      <div style={{ ...MILES_COL, width: 150 }} {...hover(`effective_rate_${id}`)}>
-        <div style={{ borderRadius: 10, background: '#E3F6EC', border: '1px solid #BFE8D4', padding: '10px 12px', textAlign: 'center' }}>
-          <div style={{ fontSize: 11, fontWeight: 800, color: '#1B6B4A', lineHeight: 1.25 }}>{catRate !== null ? `${CATEGORY_NAMES[sortCat!]} reward rate` : 'Effective reward rate'} <span aria-hidden style={{ opacity: 0.7 }}>ⓘ</span></div>
-          <div style={{ fontSize: 26, fontWeight: 900, color: '#087448', lineHeight: 1.15, marginTop: 4 }}>{(((catActual ?? catRate) ?? card.effective_reward_rate) * 100).toFixed(1)}</div>
-          <div style={{ fontSize: 10.5, fontWeight: 700, color: '#1B6B4A' }}>miles per AED 100</div>
-          {catRate !== null && catActualCap !== null && <div style={{ fontSize: 10, color: '#4B7F66', marginTop: 8, lineHeight: 1.3 }}>Cap: {Math.round(catActualCap).toLocaleString('en-US')} miles/mo</div>}
-        </div>
-        {catRate !== null && <div style={{ fontSize: 10.5, fontWeight: 600, color: '#4B7F66', textAlign: 'center', lineHeight: 1.25, marginTop: 6 }}>Overall effective rate: {(card.effective_reward_rate * 100).toFixed(1)} mi</div>}
-        {hoverNav === `effective_rate_${id}` && (
-          <InlineTooltip text={catRate !== null ? `The card's published rate on ${CATEGORY_NAMES[sortCat!].toLowerCase()}, in miles per AED 100 spent, taken straight from its reward rules (not an estimate). The small line is the monthly cap on that category, if it has one.` : 'A generic estimate of the miles an average UAE resident could earn per AED 100 spent across all categories, after minimum-spend requirements and reward caps.'} />
-        )}
-      </div>
-
-      {/* estimated annual reward */}
-      <div style={{ ...MILES_COL, width: 122, borderLeft: '1px solid #EEF3FF', textAlign: 'center', alignItems: 'center' }} {...hover(`earn_${id}`)}>
-        <span style={{ ...label, borderBottom: '1.5px dotted #9CA3AF' }}>Est. annual reward</span>
-        <span style={{ fontSize: 20, fontWeight: 800, color: '#0E3785', lineHeight: 1.2, marginTop: 5 }}>{fmtRewardIn('miles', card.expected_annual_return_aed)}</span>
-        <span style={{ fontSize: 9.5, color: '#9CA3AF', marginTop: 2 }}>Based on avg UAE spend</span>
-        {hoverNav === `earn_${id}` && <InlineTooltip text="Estimated annual miles using Earnn's average UAE spending profile across all categories, before annual fees." />}
-      </div>
-
+      {/* the fee (moved here from the right-most area) */}
       {/* fee */}
-      <div style={{ ...MILES_COL, width: 120, borderLeft: '1px solid #EEF3FF', textAlign: 'center', alignItems: 'center' }} {...hover(`fee_${id}`)}>
+      <div style={{ ...MILES_COL, width: 104, borderLeft: '1px solid #EEF3FF', textAlign: 'center', alignItems: 'center' }} {...hover(`fee_${id}`)}>
         <span style={{ ...label, borderBottom: '1.5px dotted #9CA3AF' }}>Eff. fee</span>
         <span style={{ fontSize: 20, fontWeight: 800, color: fee === 0 ? '#00A67E' : '#C95B00', lineHeight: 1.2, marginTop: 5 }}>AED {(card.true_annual_fee_aed ?? 0).toLocaleString()}</span>
         <span style={{ fontSize: 10, color: '#9CA3AF', marginTop: 2 }}>per year</span>
-        {simulate && <div className="compare-wallet-slot" style={{ position: 'absolute', left: 0, right: 0, bottom: 10, display: 'flex', justifyContent: 'center' }}><WalletToggle inWallet={inWallet} onToggle={onToggleWallet} compact /></div>}
         {hoverNav === `fee_${id}` && <InlineTooltip text="Estimating how much you could pay in annual fees based on your spending — after waivers and first-year offers." />}
+      </div>
+
+
+      {/* annual reward + effective rate: one green box */}
+      <div style={{ ...MILES_COL, width: 168 }} {...hover(`earn_${id}`)}>
+        <div style={{ borderRadius: 14, background: 'linear-gradient(160deg, #00B58B 0%, #00967A 100%)', boxShadow: '0 4px 14px rgba(0,166,126,0.3)', padding: '12px 10px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+          <span style={LABEL_STYLE}>Annual Reward</span>
+          <span style={{ fontSize: 18, fontWeight: 800, color: '#fff', lineHeight: 1.15, whiteSpace: 'nowrap' }}>{fmtRewardIn('miles', card.expected_annual_return_aed)}<span style={{ fontSize: 11.5, fontWeight: 700, opacity: 0.9 }}> /yr</span></span>
+          <span aria-hidden style={{ width: '70%', height: 1, background: 'rgba(255,255,255,0.35)', margin: '8px 0 7px' }} />
+          <span style={LABEL_STYLE}>{catRate !== null ? `${CATEGORY_NAMES[sortCat!]} rate` : 'Effective rate'}</span>
+          <span style={{ fontSize: 17, fontWeight: 800, color: '#fff', lineHeight: 1.15 }}>{(((catRate !== null ? (catActual ?? catRate) : card.effective_reward_rate)) * 100).toFixed(1)} mi</span>
+          {catRate !== null && catActualCap !== null && <span style={{ fontSize: 9.5, color: 'rgba(255,255,255,0.85)', lineHeight: 1.25, marginTop: 2 }}>Cap: {Math.round(catActualCap).toLocaleString('en-US')} miles/mo</span>}
+        </div>
+        {hoverNav === `earn_${id}` && <RewardTooltip mode="miles" reward={card.expected_annual_return_aed} rate={card.effective_reward_rate} monthly={spendBasis} categoryName={catRate !== null ? CATEGORY_NAMES[sortCat!] : null} />}
+      </div>
+
+      {/* right-most area: the two separate actions, Compare and Add to wallet */}
+      <div style={{ ...MILES_COL, width: 140, borderLeft: '1px solid #EEF3FF', justifyContent: 'center' }} onClick={e => e.stopPropagation()}>
+        <TileActions inCompare={inCompare} compareFull={compareFull} onToggleCompare={onToggleCompare} showWallet={simulate} inWallet={inWallet} onToggleWallet={onToggleWallet} compact />
       </div>
 
       {/* score + compare: the rating tag sits above the score box */}
@@ -1196,12 +1322,6 @@ function MilesTileTop({ card, simulate, fee, topEarnRates, inCompare, compareFul
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '5px 12px', borderRadius: 8, background: '#FFF6E0', border: '1px solid #F4E0A8', color: '#8A6100', fontSize: 14, fontWeight: 800 }}>⭐ {fmtScore(card.earnn_score)}</span>
           {hoverNav === `score_${id}` && <InlineTooltip text="earnn Score for the miles view: how well this card earns miles compared with the other miles cards, using Earnn's average UAE spending profile." />}
         </div>
-        {!simulate && <button type="button" aria-pressed={inCompare} disabled={compareFull}
-          onClick={(e) => { e.stopPropagation(); onToggleCompare(e) }}
-          style={{ display: 'inline-flex', alignItems: 'center', gap: 7, border: 'none', background: 'transparent', padding: 0, cursor: compareFull ? 'not-allowed' : 'pointer', opacity: compareFull ? 0.6 : 1, color: '#0E3785', fontSize: 12.5, fontWeight: 800 }}>
-          <span aria-hidden style={{ width: 17, height: 17, boxSizing: 'border-box', borderRadius: 4, border: '1.5px solid #0E3785', background: inCompare ? '#0E3785' : 'white', color: 'white', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 11 }}>{inCompare ? '✓' : ''}</span>
-          Select to compare
-        </button>}
       </div>
 
 
@@ -1229,6 +1349,7 @@ function CardTile({ card, simulate, detail, detailLoading, inCompare, compareFul
   sortCat?: string   // the category chosen in "Best for", if any
   sortCatSpend?: number   // Earnn's average monthly spend in that category
 }) {
+  const spendBasis = useContext(SpendBasisContext)
   const [popupOpen, setPopupOpen] = useState(false) // clicking anywhere on the tile opens the card details popup
   const fee = effectiveFeeAed(card)
   const catRate = sortCat ? categoryEffectiveRate(card, sortCat) : null
@@ -1267,7 +1388,7 @@ function CardTile({ card, simulate, detail, detailLoading, inCompare, compareFul
         {/* Name + bank */}
         <div className="compare-card-name" style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 15.5, fontWeight: 800, color: '#0D1828', lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            <CardNameLink cardId={card.earnn_card_id} mode={mode}>{card.card_name}</CardNameLink>
+            <CardNameLink cardId={card.earnn_card_id} mode={mode} arrow>{card.card_name}</CardNameLink>
           </div>
           <div style={{ fontSize: 11.5, color: '#5A6A85', marginTop: 2 }}>
             {card.bank_name} · {card.network}
@@ -1289,21 +1410,6 @@ function CardTile({ card, simulate, detail, detailLoading, inCompare, compareFul
           )}
         </div>
 
-        {/* Card-selection action for the persistent comparison view. */}
-        {!simulate && <button className="compare-card-select" type="button" aria-pressed={inCompare} onClick={(e) => { e.stopPropagation(); onToggleCompare(e) }} disabled={compareFull} style={{
-          flexShrink: 0, display: 'flex', alignItems: 'center', gap: 6,
-          padding: '8px 14px', borderRadius: 100,
-          border: inCompare ? '1px solid #0E3785' : '1px solid #D6E0F5',
-          cursor: compareFull ? 'not-allowed' : 'pointer',
-          background: inCompare ? '#0E3785' : '#EEF3FF',
-          color: inCompare ? 'white' : compareFull ? '#9DAEC8' : '#0E3785',
-          fontSize: 12, fontWeight: 800, opacity: compareFull ? 0.7 : 1,
-        }}>
-          <span>Select to compare</span>
-          <span aria-hidden="true" style={{ width: 15, height: 15, boxSizing: 'border-box', borderRadius: 3, border: inCompare ? '1.5px solid white' : `1.5px solid ${compareFull ? '#C2CCDD' : '#0E3785'}`, background: 'white', color: '#0E3785', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 900, lineHeight: 1 }}>
-            {inCompare ? '✓' : ''}
-          </span>
-        </button>}
       </div>
 
       {/* ── BODY ROW: image | rate bars | earn up to | fee ── */}
@@ -1314,12 +1420,7 @@ function CardTile({ card, simulate, detail, detailLoading, inCompare, compareFul
           <img src={getCardImageUrl(card.earnn_card_id)} alt={card.card_name} width={126} height={78} loading="lazy"
             onError={(e) => { (e.target as HTMLImageElement).src = '/card-dummy.svg' }}
             style={{ borderRadius: 8, objectFit: 'cover', boxShadow: '0 4px 16px rgba(14,55,133,0.2)', display: 'block' }} />
-          <div style={{ textAlign: 'center', width: '100%' }}>
-            <div style={{ fontSize: 8.5, fontWeight: 800, color: '#7A8BA8', textTransform: 'uppercase', letterSpacing: '0.04em', lineHeight: 1.3 }}>Salary requirement</div>
-            <div style={{ marginTop: 3, fontSize: 11, fontWeight: 800, color: card.min_salary_aed ? '#0D1828' : '#00A67E', lineHeight: 1.3 }}>
-              {card.min_salary_aed ? `AED ${Math.round(card.min_salary_aed).toLocaleString()} / mo` : 'No minimum salary'}
-            </div>
-          </div>
+          <div style={{ textAlign: 'center', width: '100%' }}><SalaryRequirement min={card.min_salary_aed} /></div>
         </div>
 
         {/* Divider */}
@@ -1336,20 +1437,18 @@ function CardTile({ card, simulate, detail, detailLoading, inCompare, compareFul
             ) : <div style={{ fontSize: 12, color: '#94A3B8' }}>No top earn rates available</div>}
           </div>
           <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
-          <div
-            style={{ minWidth: 0, minHeight: 72, padding: '8px 8px', borderRadius: 10, background: '#00A67E', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 7, boxShadow: '0 3px 10px rgba(0,166,126,0.24)', position: 'relative', cursor: 'help' }}
-            onMouseEnter={() => setHoverNav(`effective_rate_${card.earnn_card_id}`)}
-            onMouseLeave={() => setHoverNav(null)}
-            onClick={event => event.stopPropagation()}
+          <div className="compare-card-fee-moved"
+            style={{ minWidth: 0, minHeight: 72, padding: '8px 8px', borderRadius: 10, background: fee === 0 ? '#F2FBF7' : '#FFF4E8', border: `1px solid ${fee === 0 ? '#CDEBDD' : '#F6D9B8'}`, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 3, position: 'relative', cursor: 'help' }}
+            onMouseEnter={() => setHoverNav(`fee_${card.earnn_card_id}`)} onMouseLeave={() => setHoverNav(null)}
+            onClick={e => e.stopPropagation()}
           >
-            <div style={{ fontSize: 11.5, fontWeight: 800, color: 'white', textAlign: 'center', lineHeight: 1.25 }}>{catRate !== null ? `${CATEGORY_NAMES[sortCat!]} Reward Rate` : 'Overall Effective Reward Rate'}</div>
-            <div style={{ fontSize: 22, fontWeight: 900, color: 'white', lineHeight: 1 }}>{fmtRate((catActual ?? catRate) ?? card.effective_reward_rate)}</div>
-            {catRate !== null && catActualCap !== null && <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.85)', textAlign: 'center', lineHeight: 1.25, marginTop: 10 }}>Cap: AED {Math.round(catActualCap).toLocaleString('en-US')}/mo</div>}
-            {hoverNav === `effective_rate_${card.earnn_card_id}` && (
-              <InlineTooltip text={catRate !== null ? `The card's published rate on ${CATEGORY_NAMES[sortCat!].toLowerCase()}, taken straight from its reward rules (not an estimate). The small line is the monthly cap on that category, if it has one.` : 'A generic estimate of how much an average UAE resident could potentially earn across all spending categories, after accounting for minimum-spend requirements and applicable reward caps.'} />
+            <span style={{ fontSize: 10.5, fontWeight: 700, color: '#5A6A85', textTransform: 'uppercase', letterSpacing: '0.04em', borderBottom: '1.5px dotted #9CA3AF' }}>Eff. Fee</span>
+            <span style={{ fontSize: 20, fontWeight: 800, color: fee === 0 ? '#00A67E' : '#C95B00', lineHeight: 1.1 }}>AED {(card.true_annual_fee_aed ?? 0).toLocaleString()}</span>
+            <span style={{ fontSize: 10.5, color: '#9CA3AF' }}>per year</span>
+            {hoverNav === `fee_${card.earnn_card_id}` && (
+              <InlineTooltip text="Estimating how much you could pay in annual fees based on your spending — after waivers and first-year offers." />
             )}
           </div>
-          {catRate !== null && <div style={{ fontSize: 10.5, fontWeight: 600, color: '#5A6A85', textAlign: 'center', lineHeight: 1.25 }}>Overall effective rate: {(card.effective_reward_rate * 100).toFixed(1)}%</div>}
           </div>
           <div style={{ gridColumn: '1 / -1', minWidth: 0, marginTop: 0, padding: '6px 10px', borderRadius: 10, background: '#EEF3FF', border: '1px solid #DCE6F8' }}>
             <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '4px 8px', marginBottom: 5 }}>
@@ -1368,38 +1467,33 @@ function CardTile({ card, simulate, detail, detailLoading, inCompare, compareFul
         {/* Estimated annual reward — hero number */}
         <div className="compare-card-financials">
         <div className="compare-card-annual"
-          style={{ flexShrink: 0, width: 130, padding: '8px 10px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 3, position: 'relative', cursor: 'help' }}
+          style={{ flexShrink: 0, width: 164, margin: '10px 6px', padding: '12px 10px', borderRadius: 14, background: 'linear-gradient(160deg, #00B58B 0%, #00967A 100%)', boxShadow: '0 4px 14px rgba(0,166,126,0.3)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, position: 'relative', cursor: 'help', textAlign: 'center' }}
           onMouseEnter={() => setHoverNav(navKey)} onMouseLeave={() => setHoverNav(null)}
           onClick={e => e.stopPropagation()}
         >
-          <span style={{ fontSize: 10, fontWeight: 800, color: '#5A6A85', textTransform: 'uppercase', letterSpacing: '0.055em', borderBottom: '1.5px dotted #9CA3AF' }}>Est. annual reward</span>
-          <span style={{ fontSize: 22, fontWeight: 800, color: '#00A67E', lineHeight: 1.1, textAlign: 'center' }}>
-            AED {Math.round(card.expected_annual_return_aed).toLocaleString()}
+          <span style={LABEL_STYLE}>Annual Reward</span>
+          <span style={{ fontSize: 20, fontWeight: 800, color: '#fff', lineHeight: 1.15, whiteSpace: 'nowrap' }}>
+            AED {Math.round(card.expected_annual_return_aed).toLocaleString()}<span style={{ fontSize: 11.5, fontWeight: 700, opacity: 0.9 }}> /yr</span>
           </span>
-          <span style={{ fontSize: 8.5, color: '#9CA3AF', textAlign: 'center', lineHeight: 1.3 }}>based on avg UAE spend</span>
+          <span aria-hidden style={{ width: '70%', height: 1, background: 'rgba(255,255,255,0.35)', margin: '8px 0 7px' }} />
+          {/* when the list is sorted by a category, that category's published rate (and its cap) instead of the overall effective rate */}
+          <span style={LABEL_STYLE}>{catRate !== null ? `${CATEGORY_NAMES[sortCat!]} rate` : 'Effective rate'}</span>
+          <span style={{ fontSize: 19, fontWeight: 800, color: '#fff', lineHeight: 1.15 }}>{fmtRate(catRate !== null ? (catActual ?? catRate) : card.effective_reward_rate)}</span>
+          {catRate !== null && catActualCap !== null && <span style={{ fontSize: 9.5, color: 'rgba(255,255,255,0.85)', lineHeight: 1.25, marginTop: 2 }}>Cap: AED {Math.round(catActualCap).toLocaleString('en-US')}/mo</span>}
           {hoverNav === navKey && (
-            <InlineTooltip text="Estimated annual rewards using Earnn's average UAE spending profile across all categories, before annual fees." />
+            <RewardTooltip mode="cashback" reward={card.expected_annual_return_aed} rate={card.effective_reward_rate} monthly={spendBasis} categoryName={catRate !== null ? CATEGORY_NAMES[sortCat!] : null} />
           )}
         </div>
 
         {/* Divider */}
         <div className="compare-card-divider compare-card-financial-divider" style={{ width: 1, background: '#EEF3FF', margin: '12px 0' }} />
 
-        {/* Effective Fee */}
+        {/* Right-most area: the two separate actions, Compare and Add to wallet */}
         <div className="compare-card-fee"
-          style={{ flexShrink: 0, width: 128, padding: '14px 8px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 3, position: 'relative', cursor: 'help', background: fee === 0 ? '#FAFFFE' : '#FFFAF6' }}
-          onMouseEnter={() => setHoverNav(`fee_${card.earnn_card_id}`)} onMouseLeave={() => setHoverNav(null)}
+          style={{ flexShrink: 0, width: 164, padding: '10px 10px', display: 'flex', alignItems: 'center', justifyContent: 'center', boxSizing: 'border-box' }}
           onClick={e => e.stopPropagation()}
         >
-          <span style={{ fontSize: 10.5, fontWeight: 700, color: '#5A6A85', textTransform: 'uppercase', letterSpacing: '0.04em', borderBottom: '1.5px dotted #9CA3AF' }}>Eff. Fee</span>
-          <span style={{ fontSize: 22, fontWeight: 800, color: fee === 0 ? '#00A67E' : '#C95B00', lineHeight: 1.1 }}>
-            AED {(card.true_annual_fee_aed ?? 0).toLocaleString()}
-          </span>
-          <span style={{ fontSize: 10.5, color: '#9CA3AF' }}>per year</span>
-          {simulate && <div className="compare-wallet-slot" style={{ position: 'absolute', left: 0, right: 0, bottom: 10, display: 'flex', justifyContent: 'center' }}><WalletToggle inWallet={inWallet} onToggle={onToggleWallet} compact /></div>}
-          {hoverNav === `fee_${card.earnn_card_id}` && (
-            <InlineTooltip text="Estimating how much you could pay in annual fees based on your spending — after waivers and first-year offers." />
-          )}
+          <TileActions inCompare={inCompare} compareFull={compareFull} onToggleCompare={onToggleCompare} showWallet={simulate} inWallet={inWallet} onToggleWallet={onToggleWallet} />
         </div>
         </div>
 
@@ -1562,7 +1656,7 @@ function ComparisonTable({ cards, details, onRemove, hoverNav, setHoverNav }: {
         </table>
       </div>
       <div style={{ padding: '20px 24px', background: '#EEF3FF', textAlign: 'center' }}>
-        <Link href="/analyse" style={{ background: '#0E3785', color: 'white', padding: '13px 32px', borderRadius: 10, textDecoration: 'none', fontWeight: 700, fontSize: 14.5 }}>
+        <Link href="/find-my-best-cards" style={{ background: '#0E3785', color: 'white', padding: '13px 32px', borderRadius: 10, textDecoration: 'none', fontWeight: 700, fontSize: 14.5 }}>
           🎯 Get my personalised numbers for these cards →
         </Link>
       </div>
@@ -1902,6 +1996,47 @@ function Tooltip({ text, wide = false }: { text: string; wide?: boolean }) {
 }
 
 // Inline tooltip for use inside card tiles — same but below, centred
+/**
+ * The hover note on the green Annual Reward box, written from this card's own numbers: what the annual reward is, and what the
+ * effective rate means and how it is worked out (annual reward divided by the year's spending). When the list is sorted by a
+ * category, the second point explains that category's rate instead.
+ */
+function RewardTooltip({ mode, reward, rate, monthly, categoryName }: {
+  mode: ViewMode
+  reward: number
+  rate: number
+  monthly: number | null
+  categoryName: string | null
+}) {
+  const miles = mode === 'miles'
+  const yearlySpend = monthly ? monthly * 12 : rate > 0 ? reward / rate : 0
+  const rewardText = miles ? `${Math.round(reward).toLocaleString('en-US')} miles` : `AED ${Math.round(reward).toLocaleString('en-US')}`
+  const rateText = miles ? `${(rate * 100).toFixed(1)} miles` : fmtRate(rate)
+  const first = `Annual reward: about ${rewardText} a year on ${basisPhrase(monthly)}, before the annual fee.`
+  const second = categoryName
+    ? `${categoryName} rate: what this card pays on ${categoryName.toLowerCase()} spending, up to its monthly cap.`
+    : `Effective rate: ${miles ? 'the miles you earn for every AED 100 you spend' : 'the share of your spending that comes back to you as rewards'}, across all your spending.`
+  const third = categoryName ? null : yearlySpend > 0
+    ? `How it is worked out: ${rateText} = ${rewardText} ÷ AED ${Math.round(yearlySpend).toLocaleString('en-US')} a year (AED ${Math.round(yearlySpend / 12).toLocaleString('en-US')} a month × 12).`
+    : 'How it is worked out: the annual reward divided by a year of spending.'
+  return (
+    <span style={{
+      position: 'absolute', top: '110%', left: '50%', transform: 'translateX(-50%)',
+      background: '#0D1828', color: 'white', fontSize: 12, lineHeight: 1.5, fontWeight: 400,
+      padding: '10px 14px', borderRadius: 10, width: 360, maxWidth: '80vw', zIndex: 200,
+      boxShadow: '0 8px 24px rgba(0,0,0,0.28)', textAlign: 'left', fontStyle: 'normal',
+      pointerEvents: 'none', whiteSpace: 'normal', display: 'grid', gap: 6
+    }}>
+      {[first, second, third].filter((line): line is string => !!line).map(line => (
+        <span key={line} style={{ display: 'flex', gap: 8 }}>
+          <span aria-hidden style={{ color: '#4ee0b2', fontWeight: 800 }}>•</span>
+          <span>{line}</span>
+        </span>
+      ))}
+    </span>
+  )
+}
+
 function InlineTooltip({ text }: { text: string }) {
   return (
     <span style={{

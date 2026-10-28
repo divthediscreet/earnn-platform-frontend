@@ -464,6 +464,7 @@ type PlaybookProps = {
   updating: boolean
   hideSummary?: boolean // the page already shows the totals above
   heading?: React.ReactNode // shown on the left of the view switch, on the same line
+  topCategories?: number // Category view starts with this many categories (highest monthly spend), with a button for the rest
 }
 
 // Bold, coloured line icons per spending category (used on the wallet illustration chips).
@@ -653,7 +654,7 @@ function WalletIllustration({ ids, chips, card }: { ids: string[]; chips: Playbo
 }
 
 /** The playbook itself (summary strip + where to use each card). Also shown in the expanded wallet. */
-export function PlaybookBody({ wallet, groups, monthlySpend, card, updating, onDetails, hideSummary = false, heading }: PlaybookProps) {
+export function PlaybookBody({ wallet, groups, monthlySpend, card, updating, onDetails, hideSummary = false, heading, topCategories }: PlaybookProps) {
   const { rw, isMiles } = useRewardMode()
   const [view, setView] = useState<'card' | 'category'>('category')
   const [explain, setExplain] = useState<'fees' | 'net' | null>(null)
@@ -699,7 +700,7 @@ export function PlaybookBody({ wallet, groups, monthlySpend, card, updating, onD
       {view === 'card' ? (
         <PlaybookByCard wallet={wallet} rows={rows} card={card} onDetails={onDetails} />
       ) : (
-        <PlaybookSnapshot rows={rows} card={card} onDetails={onDetails} />
+        <PlaybookSnapshot rows={rows} card={card} onDetails={onDetails} topCategories={topCategories} />
       )}
     </div>
   )
@@ -715,13 +716,17 @@ function TotalBox({ children, className = '' }: { children: React.ReactNode; cla
 /** Category view as a quick snapshot, read top to bottom: one line per category with the card to swipe and what it earns.
  *  A category that moves to a second card shows both steps in order with the switch point; spend that only helps a card
  *  reach its monthly minimum is flagged on its own line. Every figure comes from the playbook rows (no maths here). */
-function PlaybookSnapshot({ rows: playbookRows, card, onDetails }: { rows: PlaybookRow[]; card: CardLookup; onDetails: CardDetails }) {
+function PlaybookSnapshot({ rows: playbookRows, card, onDetails, topCategories }: { rows: PlaybookRow[]; card: CardLookup; onDetails: CardDetails; topCategories?: number }) {
   const { rw } = useRewardMode()
+  const [showAll, setShowAll] = useState(false)
   // categories that switch cards come first (they need the most attention); "Everything else" closes the list unless it
   // is one of those. Within each part the order stays most rewarding first (Array.sort is stable).
   const place = (r: PlaybookRow) => r.entries.length > 1 ? 0 : r.group === 'miscellaneous' ? 2 : 1
-  const rows = [...playbookRows].sort((a, b) => place(a) - place(b))
-  const total = rows.reduce((sum, r) => sum + r.monthlyReward, 0)
+  const limited = !!topCategories && !showAll && playbookRows.length > topCategories
+  // the highest monthly spend first when only a few categories are shown; the total below always covers every category
+  const shown = limited ? [...playbookRows].sort((a, b) => b.monthlySpend - a.monthlySpend).slice(0, topCategories) : playbookRows
+  const rows = [...shown].sort((a, b) => place(a) - place(b))
+  const total = playbookRows.reduce((sum, r) => sum + r.monthlyReward, 0)
   const topUp = (e: PlaybookEntry) => e.threshold && (
     <p className="mt-1.5 inline-flex max-w-full items-start gap-1.5 rounded-lg border border-[#B9A2FF] bg-[#EFE9FF] px-2 py-0.5 text-[11px] leading-snug font-medium text-[#3B2380]">
       <span aria-hidden>⚑</span>
@@ -817,6 +822,12 @@ function PlaybookSnapshot({ rows: playbookRows, card, onDetails }: { rows: Playb
             </section>
           )
         })}
+        {!!topCategories && playbookRows.length > topCategories && (
+          <button type="button" onClick={() => setShowAll(v => !v)} aria-expanded={showAll}
+            className="block w-full cursor-pointer border-t border-ws-border bg-white px-4 py-3 text-center text-[13px] font-bold text-ws-primary hover:bg-[#EEF3FF] sm:px-5">
+            {showAll ? `Show only the top ${topCategories} spending categories` : `Show all ${playbookRows.length} categories`}
+          </button>
+        )}
         <div className="flex items-center justify-between gap-3 border-t border-ws-border bg-ws-gain/10 px-4 py-3 sm:px-5">
           <p className="text-[13px] font-semibold text-ws-fg">Total rewards across all categories</p>
           <TotalBox className="!text-[18px]">{rw(total)}<span className="text-[12px] font-medium text-[#4C8F6C]"> / month</span></TotalBox>
