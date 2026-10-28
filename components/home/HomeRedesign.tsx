@@ -245,9 +245,10 @@ export default function HomeRedesign() {
       {/* 6. Trust + final CTA */}
       <HomeTrustStrip />
       <section className={styles.final} aria-labelledby="final-title">
-        <h2 id="final-title">Your money already works hard. Make your cards work harder.</h2>
-        <p>Let Earnn help you make smarter choices with the spending you already do.</p>
-        <Link href="/find-my-best-cards" className="btn-primary">Get started for free <i className="ti ti-arrow-right" aria-hidden /></Link>
+        <h2 id="final-title">You&apos;re already spending. Why not get more back?</h2>
+        <p>Find the right credit cards for your everyday spending and see how much more you could earn in rewards.</p>
+        <Link href="/find-my-best-cards" className="btn-primary">See what I could earn <i className="ti ti-arrow-right" aria-hidden /></Link>
+        <small>Free to explore. No sign-up needed.</small>
       </section>
     </div>
   )

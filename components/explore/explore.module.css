@@ -49,15 +49,16 @@
 @keyframes flow { to { stroke-dashoffset: -28; } }
 
 .engine { position: absolute; left: 280px; top: 172px; width: 0; height: 0; display: grid; place-items: center; }
-.core { position: absolute; width: 82px; height: 82px; margin: -41px 0 0 -41px; display: grid; place-items: center; border-radius: 50%; background: #fff; color: #0A2A66; font-family: var(--font-display); font-size: 17px; font-weight: 800; letter-spacing: -.02em; box-shadow: 0 0 0 8px rgba(255, 255, 255, .1), 0 14px 30px rgba(0, 0, 0, .3); transition: box-shadow .5s, transform .5s; }
-.ring { position: absolute; width: 112px; height: 112px; margin: -56px 0 0 -56px; border-radius: 50%; border: 2px dashed rgba(78, 224, 178, .0); transition: border-color .5s; }
-.stage[data-engine='true'] .ring { border-color: rgba(78, 224, 178, .9); animation: spin 5s linear infinite; }
+.core { position: absolute; width: 132px; height: 48px; margin: -24px 0 0 -66px; display: flex; align-items: center; justify-content: center; gap: 8px; border-radius: 15px; background: #fff; color: #0A2A66; font-family: var(--font-display); font-size: 17px; font-weight: 800; letter-spacing: -.02em; box-shadow: 0 0 0 8px rgba(255, 255, 255, .1), 0 14px 30px rgba(0, 0, 0, .3); transition: box-shadow .5s, transform .5s; }
+.core img { flex: none; width: 30px; height: 30px; border-radius: 8px; object-fit: cover; }
+.ring { position: absolute; width: 160px; height: 76px; margin: -38px 0 0 -80px; border-radius: 24px; border: 2px dashed rgba(78, 224, 178, .0); transition: border-color .5s; }
+.stage[data-engine='true'] .ring { border-color: rgba(78, 224, 178, .9); animation: ringPulse 1.2s ease-in-out infinite; }
 .stage[data-engine='true'] .core { transform: scale(1.06); box-shadow: 0 0 0 10px rgba(78, 224, 178, .22), 0 0 44px rgba(78, 224, 178, .55); animation: pulse 1.2s ease-in-out infinite; }
 .stage[data-result='true'] .core { animation: none; transform: none; box-shadow: 0 0 0 8px rgba(255, 255, 255, .1), 0 14px 30px rgba(0, 0, 0, .3); }
 .stage[data-result='true'] .ring { animation: none; border-color: rgba(78, 224, 178, .0); }
-@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes ringPulse { 50% { opacity: .35; } }
 @keyframes pulse { 50% { box-shadow: 0 0 0 16px rgba(78, 224, 178, .12), 0 0 56px rgba(78, 224, 178, .75); } }
-.testing { position: absolute; top: 50px; transform: translateX(-50%); left: 0; white-space: nowrap; padding: 4px 12px; border-radius: 999px; background: rgba(255, 255, 255, .14); border: 1px solid rgba(255, 255, 255, .2); font-size: 12px; font-weight: 700; color: #e7f0ff; }
+.testing { position: absolute; top: 38px; transform: translateX(-50%); left: 0; white-space: nowrap; padding: 4px 12px; border-radius: 999px; background: rgba(255, 255, 255, .14); border: 1px solid rgba(255, 255, 255, .2); font-size: 12px; font-weight: 700; color: #e7f0ff; }
 .stage[data-result='true'] .testing { background: rgba(78, 224, 178, .2); border-color: rgba(78, 224, 178, .6); color: #b9f5de; }
 
 .fan { position: absolute; inset: 0; pointer-events: none; }

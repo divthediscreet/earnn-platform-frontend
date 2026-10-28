@@ -99,13 +99,13 @@ export default function ExploreStage() {
       </div>
 
       <svg className={styles.pipes} viewBox="0 0 560 460" preserveAspectRatio="none" aria-hidden>
-        {[73, 209, 345, 481].map(x => <path key={x} d={`M ${x} 64 C ${x} 104, 280 92, 280 132`} />)}
-        <path d="M 280 214 L 280 252" className={styles.pipeOut} />
+        {[73, 209, 345, 481].map(x => <path key={x} d={`M ${x} 64 C ${x} 108, 280 100, 280 146`} />)}
+        <path d="M 280 198 L 280 252" className={styles.pipeOut} />
       </svg>
 
       <div className={styles.engine} aria-hidden>
         <span className={styles.ring} />
-        <span className={styles.core}>earnn</span>
+        <span className={styles.core}><img src="/earnn_logo.jpeg" alt="" width={30} height={30} />earnn</span>
         <span className={styles.testing}>{phase === 2 ? `Testing ${BANKS[bank]}` : phase >= 3 ? 'Best cards found' : 'Every UAE card'}</span>
       </div>
 

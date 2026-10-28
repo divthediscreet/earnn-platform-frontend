@@ -32,7 +32,7 @@ function SpendForm({ initial }: { initial?: SimulatorRequest }) {
   const [error, setError] = useState('')
   // null = the page with the two choices (opening the page never starts on a form); 'upload' / 'manual' open that way of sharing spending in a pop-up
   const [mode, setMode] = useState<'upload' | 'manual' | null>(null)
-  // Spending saved in this browser: ask once whether to use it, then calculate straight away (no re-entry).
+  // Spending saved in this browser: only when the user clicks "Manual entry" do we ask whether to use it, then calculate straight away (no re-entry).
   const saved = useSavedProfile()
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [savedChecked, setSavedChecked] = useState(false)
@@ -42,9 +42,14 @@ function SpendForm({ initial }: { initial?: SimulatorRequest }) {
     /* eslint-disable react-hooks/set-state-in-effect */
     setSavedChecked(true)
     if (new URLSearchParams(window.location.search).get('mode') === 'manual') setMode('manual')
-    else if (!initial && saved.spend && saved.salary) setConfirmOpen(true)
     /* eslint-enable react-hooks/set-state-in-effect */
   }, [saved.ready, saved.spend, saved.salary, savedChecked, initial])
+  // Manual entry: with spending and salary already saved, first ask whether to use them; otherwise open the form
+  const openManual = () => {
+    setError('')
+    if (!initial && saved.spend && saved.salary) setConfirmOpen(true)
+    else setMode('manual')
+  }
   const [gap, setGap] = useState<GapData | null>(null)
   const [askSalary, setAskSalary] = useState(false) // friendly prompt instead of an error when salary is empty
   const [animCardIds, setAnimCardIds] = useState<string[]>([]) // card images for the holding screen
@@ -160,7 +165,7 @@ function SpendForm({ initial }: { initial?: SimulatorRequest }) {
                   <span><b>Upload statement</b></span>
                   <i className="ti ti-arrow-right" aria-hidden />
                 </button>
-                <button type="button" className={heroStyles.secondary} style={{ font: 'inherit', cursor: 'pointer' }} onClick={() => { setError(''); setMode('manual') }}>
+                <button type="button" className={heroStyles.secondary} style={{ font: 'inherit', cursor: 'pointer' }} onClick={openManual}>
                   <span><b>Manual entry</b></span>
                   <i className="ti ti-arrow-right" aria-hidden />
                 </button>
@@ -185,7 +190,7 @@ function SpendForm({ initial }: { initial?: SimulatorRequest }) {
                 <small>Upload one credit card statement (PDF). Earnn reads it and sorts your spending for you. Nothing to type, and the most accurate.</small>
                 <span className="ex-go">Upload a statement →</span>
               </button>
-              <button type="button" className="ex-box" onClick={() => { setError(''); setMode('manual') }}>
+              <button type="button" className="ex-box" onClick={openManual}>
                 <span className="ex-icon" aria-hidden>✏️</span>
                 <b>Enter manually</b>
                 <small>Type roughly how much you spend each month in each category. Takes about two minutes. Estimates are fine.</small>

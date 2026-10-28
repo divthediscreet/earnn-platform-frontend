@@ -136,6 +136,7 @@
 .final { padding: 88px 24px; text-align: center; background: linear-gradient(160deg, #0E3785 0%, #0A2860 100%); color: #fff; }
 .final h2 { max-width: 760px; margin: 0 auto; color: #fff; font-size: clamp(28px, 3.6vw, 44px); line-height: 1.12; letter-spacing: -.03em; text-wrap: balance; }
 .final p { margin: 16px auto 30px; max-width: 520px; font-size: 17px; line-height: 1.6; color: rgba(255, 255, 255, .82); }
+.final small { display: block; margin-top: 16px; font-size: 14px; color: rgba(255, 255, 255, .72); }
 
 /* Hero visual */
 .heroVisual { position: relative; height: 400px; }
