@@ -11,13 +11,13 @@ import styles from './HeroStage.module.css'
 // small story shows it happening: someone asks their question, a picture shows the situation with real cards, Earnn answers.
 const SCENES: readonly {
   word: string; tab: string; icon: string; blurb: string; cta: string; href: string
-  story: StoryKey; speaker: Speaker; question: string; answer: string; stat: string; statLabel: string
+  story: StoryKey; speaker: Speaker; mind?: boolean; tall?: boolean; question: string; answer: string; stat: string; statLabel: string
 }[] = [
   {
     word: 'person', tab: 'For you', icon: 'ti-user-check', cta: 'Find my best cards', href: '/find-my-best-cards',
     blurb: 'Tell us how you spend. We find the best set of cards for you.',
-    story: 'person', speaker: { skin: '#F2C9A0', hair: '#2B2B3A', shirt: '#0E3785' }, question: 'What are the best three cards for me?',
-    answer: 'The best card for each part of your spending.', stat: '3 cards', statLabel: 'built around you',
+    story: 'person', tall: true, speaker: { skin: '#F2C9A0', hair: '#2B2B3A', shirt: '#0E3785' }, question: 'How can I maximize my cashback?',
+    answer: 'Earnn recommends you have these 3 cards.', stat: '3 cards', statLabel: 'built around you',
   },
   {
     word: 'transaction', tab: 'Every swipe', icon: 'ti-scan', cta: 'Check before you pay', href: '/merchant-lookup',
@@ -34,7 +34,7 @@ const SCENES: readonly {
   {
     word: 'perk', tab: 'Perks', icon: 'ti-gift', cta: 'See my card perks', href: '/my-benefits',
     blurb: 'Find the gym, cinema, lounge and other perks your cards already give you.',
-    story: 'perks', speaker: { skin: '#C98E66', hair: '#141414', shirt: '#0C7A5C' }, question: 'Which card gives me good rewards and gym access?',
+    story: 'perks', speaker: { skin: '#C98E66', hair: '#141414', shirt: '#0C7A5C' }, mind: true, question: 'Do any of my three cards give me free gym access?',
     answer: 'This card has gym access. See every perk in My Benefits.', stat: 'Gym', statLabel: 'access included',
   },
   {
@@ -107,11 +107,13 @@ export default function HeroStage() {
         <div className={styles.side} aria-hidden>
           <div key={scene.word} className={styles.frame}>
             <span className={styles.exampleTag}>Example</span>
-            <div className={styles.ask}>
-              <SpeakerAvatar {...scene.speaker} />
-              <p>{scene.question}</p>
-            </div>
-            <div className={styles.story}><Story /></div>
+            {scene.mind ? null : (
+              <div className={styles.ask}>
+                <SpeakerAvatar {...scene.speaker} />
+                <p>{scene.question}</p>
+              </div>
+            )}
+            <div className={`${styles.story} ${scene.mind || scene.tall ? styles.storyTall : ''}`}><Story question={scene.question} /></div>
             <div className={styles.answer}>
               <Image src="/earnn_logo.jpeg" alt="" width={34} height={34} />
               <p>{scene.answer}</p>
