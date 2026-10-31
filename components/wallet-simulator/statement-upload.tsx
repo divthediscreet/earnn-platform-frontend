@@ -501,7 +501,7 @@ export function StatementUpload({ onSubmit, submitting, submitError, onManual }:
               </span>
             </label>
             <p style={{ margin: '8px 0 0 26px', fontSize: 12, color: '#5A6A85', lineHeight: 1.5 }}>
-              Earnn analyses your statement to recommend suitable cards. Your name, card number, phone and address are masked before processing, and we don&apos;t keep your personal information or transactions afterwards. Masked statements may be used for quality assurance and to improve our models. Statements can contain sensitive information, so upload only one you&apos;re comfortable sharing.
+              By uploading your statement, you consent to Earnn analysing it to provide personalised recommendations. Your statement may also be retained and used for testing and improving our services. Appropriate measures will be taken to protect your information in accordance with applicable regulatory requirements.
             </p>
             <p style={{ margin: '6px 0 0 26px', fontSize: 12, color: '#5A6A85' }}>
               Questions or withdrawal: <a href="mailto:earnn.money@outlook.com" style={{ color: '#0E3785' }}>earnn.money@outlook.com</a>
