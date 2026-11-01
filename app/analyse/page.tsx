@@ -206,7 +206,7 @@ function SpendForm({ initial }: { initial?: SimulatorRequest }) {
           <button type="button" className="ex-close" onClick={() => { setMode(null); setError('') }} aria-label="Close">×</button>
         <div className="sim-trust">
           {(mode === 'upload'
-            ? [{ icon: '🛡️', label: 'No bank login required' }, { icon: '✂️', label: 'Sensitive information automatically masked' }, { icon: '🇦🇪', label: 'No personal info is stored' }, { icon: '🤝', label: 'Your data is never shared with third parties' }]
+            ? [{ icon: '🛡️', label: 'No bank login required' }, { icon: '✂️', label: 'Personal details masked before any outside processing' }, { icon: '🔐', label: 'Stored privately, access restricted' }, { icon: '🤝', label: 'Your data is never sold' }]
             : [{ icon: '🔒', label: 'No bank login · No card details required' }]
           ).map(t => <div key={t.label}><span>{t.icon}</span><span>{t.label}</span></div>)}
         </div>

@@ -44,6 +44,7 @@ function uploadErrorText(code: unknown): string {
     case 'PDF_WRONG_PASSWORD': return 'That password did not open the PDF. Please check it and try again.'
     case 'CONSENT_REQUIRED': return 'Please tick the consent box to continue.'
     case 'NOT_CREDIT_CARD_STATEMENT': return 'We could not find the details we need in this file. It may be incomplete, or not a credit card statement.'
+    case 'ALL_PARSERS_FAILED': return 'We were unable to read any data from this file. Please check the copy you uploaded and try again.'
     case 'PDF_READ_ERROR': return 'We could not open this PDF. The file may be damaged or not a normal PDF.'
     case 'GATEWAY_TIMEOUT': case 'GATEWAY_ERROR': return 'Our server is taking longer than usual. Please try again in a moment.'
     case 'REDACTION_FAILED': return 'We could not process this file securely just now. Please try again.'
@@ -501,7 +502,7 @@ export function StatementUpload({ onSubmit, submitting, submitError, onManual }:
               </span>
             </label>
             <p style={{ margin: '8px 0 0 26px', fontSize: 12, color: '#5A6A85', lineHeight: 1.5 }}>
-              By uploading your statement, you consent to Earnn analysing it to provide personalised recommendations. Your statement may also be retained and used for testing and improving our services. Appropriate measures will be taken to protect your information in accordance with applicable regulatory requirements.
+              By uploading your statement, you consent to Earnn analysing it to provide personalised recommendations. Your statement may be further processed for quality assurance, quality improvement and model training. Your data will never be sold or shared with third parties for their own use. Your personal information will remain protected in accordance with applicable regulatory requirements.
             </p>
             <p style={{ margin: '6px 0 0 26px', fontSize: 12, color: '#5A6A85' }}>
               Questions or withdrawal: <a href="mailto:earnn.money@outlook.com" style={{ color: '#0E3785' }}>earnn.money@outlook.com</a>
